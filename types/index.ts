@@ -24,5 +24,27 @@ export interface MonthlyStats {
 
 export interface ExportOptions {
   type: 'daily' | 'weekly' | 'monthly' | 'all';
-  format: 'pdf' | 'excel';
+  format: 'pdf';
+}
+
+export interface PDFExportData {
+  title: string;
+  subtitle: string;
+  generatedDate: string;
+  summary: {
+    totalJobs: number;
+    completed: number;
+    totalAWs: number;
+    totalTime: string;
+  };
+  jobs: Array<{
+    regNumber: string;
+    registration: string;
+    jobType: string;
+    aws: number;
+    time: string;
+    status: string;
+  }>;
+  signature: string;
+  appVersion: string;
 }

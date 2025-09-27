@@ -5,26 +5,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
-import { AppSettings } from '../types';
+import { CalculationService } from '../utils/calculations';
+import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false });
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
   useEffect(() => {
     loadSettings();
+    loadJobs();
   }, []);
 
   const loadSettings = async () => {
     try {
       const settingsData = await StorageService.getSettings();
       setSettings(settingsData);
+      console.log('Settings loaded in settings page');
     } catch (error) {
       console.log('Error loading settings:', error);
       showNotification('Error loading settings', 'error');
+    }
+  };
+
+  const loadJobs = async () => {
+    try {
+      const jobsData = await StorageService.getJobs();
+      setJobs(jobsData);
+      console.log('Jobs loaded for stats:', jobsData.length);
+    } catch (error) {
+      console.log('Error loading jobs:', error);
     }
   };
 
@@ -59,6 +73,7 @@ export default function SettingsScreen() {
       setNewPin('');
       setConfirmPin('');
       showNotification('PIN updated successfully', 'success');
+      console.log('PIN updated successfully');
     } catch (error) {
       console.log('Error updating PIN:', error);
       showNotification('Error updating PIN', 'error');
@@ -78,6 +93,7 @@ export default function SettingsScreen() {
             try {
               const updatedSettings = { ...settings, isAuthenticated: false };
               await StorageService.saveSettings(updatedSettings);
+              console.log('User signed out');
               router.replace('/auth');
             } catch (error) {
               console.log('Error signing out:', error);
@@ -102,6 +118,7 @@ export default function SettingsScreen() {
             try {
               await StorageService.clearAllData();
               showNotification('All data cleared successfully', 'success');
+              console.log('All data cleared');
               setTimeout(() => {
                 router.replace('/auth');
               }, 1500);
@@ -127,6 +144,18 @@ export default function SettingsScreen() {
     router.push('/jobs');
   };
 
+  // Calculate statistics
+  const totalJobs = jobs.length;
+  const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
+  const totalMinutes = totalAWs * 5;
+  const totalHours = CalculationService.minutesToHours(totalMinutes);
+  const monthlyStats = CalculationService.calculateMonthlyStats(jobs);
+  
+  const today = new Date();
+  const todayJobs = CalculationService.getDailyJobs(jobs, today);
+  const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
+  const monthlyJobs = CalculationService.getMonthlyJobs(jobs, today);
+
   return (
     <SafeAreaView style={commonStyles.container}>
       <NotificationToast
@@ -138,6 +167,52 @@ export default function SettingsScreen() {
       
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         <Text style={commonStyles.title}>Settings</Text>
+
+        {/* Statistics Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Statistics</Text>
+          
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{totalJobs}</Text>
+              <Text style={styles.statLabel}>Total Jobs</Text>
+            </View>
+            
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{totalAWs}</Text>
+              <Text style={styles.statLabel}>Total AWs</Text>
+            </View>
+            
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{totalHours.toFixed(1)}h</Text>
+              <Text style={styles.statLabel}>Total Time</Text>
+            </View>
+            
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{monthlyStats.utilizationPercentage.toFixed(1)}%</Text>
+              <Text style={styles.statLabel}>Monthly Progress</Text>
+            </View>
+          </View>
+
+          <View style={styles.statsDetails}>
+            <View style={styles.statRow}>
+              <Text style={styles.statDetailLabel}>Today:</Text>
+              <Text style={styles.statDetailValue}>{todayJobs.length} jobs</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statDetailLabel}>This Week:</Text>
+              <Text style={styles.statDetailValue}>{weeklyJobs.length} jobs</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statDetailLabel}>This Month:</Text>
+              <Text style={styles.statDetailValue}>{monthlyJobs.length} jobs</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={styles.statDetailLabel}>Monthly Target:</Text>
+              <Text style={styles.statDetailValue}>180 hours</Text>
+            </View>
+          </View>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security</Text>
@@ -188,7 +263,7 @@ export default function SettingsScreen() {
           >
             <Text style={styles.cardTitle}>Export Data</Text>
             <Text style={styles.cardDescription}>
-              Export jobs as PDF or Excel files
+              Export jobs as PDF reports
             </Text>
             <Text style={styles.actionText}>→</Text>
           </TouchableOpacity>
@@ -252,6 +327,63 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 16,
+  },
+  statCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  statsDetails: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  statDetailLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  statDetailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   card: {
     backgroundColor: colors.card,
@@ -326,7 +458,7 @@ const styles = StyleSheet.create({
   navText: {
     fontSize: 16,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: colors.text,
   },
   navTextActive: {
     color: colors.primary,

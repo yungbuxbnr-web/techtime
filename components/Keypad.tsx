@@ -40,12 +40,20 @@ export default function Keypad({ onNumberPress, onDeletePress, onSubmitPress, pi
     return (
       <TouchableOpacity
         key={index}
-        style={styles.button}
+        style={[
+          styles.button,
+          pin.length >= maxLength && styles.buttonDisabled
+        ]}
         onPress={() => onNumberPress(value)}
         activeOpacity={0.7}
         disabled={pin.length >= maxLength}
       >
-        <Text style={styles.buttonText}>{value}</Text>
+        <Text style={[
+          styles.buttonText,
+          pin.length >= maxLength && styles.buttonTextDisabled
+        ]}>
+          {value}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -142,10 +150,17 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
   },
+  buttonDisabled: {
+    backgroundColor: colors.border,
+    borderColor: colors.border,
+  },
   buttonText: {
     fontSize: 24,
     fontWeight: '600',
     color: colors.text,
+  },
+  buttonTextDisabled: {
+    color: colors.textSecondary,
   },
   deleteButton: {
     backgroundColor: colors.error,

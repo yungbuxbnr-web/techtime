@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   navText: {
     fontSize: 16,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: colors.text,
   },
   navTextActive: {
     color: colors.primary,

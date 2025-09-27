@@ -15,12 +15,14 @@ export default function AuthScreen() {
 
   useEffect(() => {
     loadSettings();
+    console.log('Auth screen loaded');
   }, []);
 
   const loadSettings = async () => {
     try {
       const settings = await StorageService.getSettings();
       setCorrectPin(settings.pin);
+      console.log('Settings loaded, PIN:', settings.pin);
     } catch (error) {
       console.log('Error loading settings:', error);
     }
@@ -28,20 +30,27 @@ export default function AuthScreen() {
 
   const handleNumberPress = (number: string) => {
     if (pin.length < 4) {
-      setPin(prev => prev + number);
+      const newPin = pin + number;
+      setPin(newPin);
+      console.log('PIN entered:', newPin.replace(/./g, '•'));
     }
   };
 
   const handleDeletePress = () => {
-    setPin(prev => prev.slice(0, -1));
+    const newPin = pin.slice(0, -1);
+    setPin(newPin);
+    console.log('PIN after delete:', newPin.replace(/./g, '•'));
   };
 
   const handlePinSubmit = async () => {
+    console.log('Submitting PIN:', pin.replace(/./g, '•'), 'Expected:', correctPin.replace(/./g, '•'));
+    
     if (pin === correctPin) {
       try {
         const settings = await StorageService.getSettings();
         await StorageService.saveSettings({ ...settings, isAuthenticated: true });
         showNotification('Access Granted', 'success');
+        console.log('Authentication successful');
         setTimeout(() => {
           router.replace('/dashboard');
         }, 1000);
@@ -52,6 +61,7 @@ export default function AuthScreen() {
     } else {
       showNotification('Incorrect PIN', 'error');
       setPin('');
+      console.log('Incorrect PIN entered');
     }
   };
 
@@ -65,7 +75,7 @@ export default function AuthScreen() {
 
   return (
     <ImageBackground
-      source={{ uri: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80' }}
+      source={require('../assets/images/daebef9d-f2fa-4b34-88c6-4226954942a0.png')}
       style={styles.backgroundImage}
       resizeMode="cover"
     >
@@ -108,7 +118,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: colors.overlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   content: {
     flex: 1,

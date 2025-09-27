@@ -25,6 +25,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      console.log('Dashboard focused, loading data');
     }, [])
   );
 
@@ -34,6 +35,7 @@ export default function DashboardScreen() {
       setJobs(jobsData);
       const stats = CalculationService.calculateMonthlyStats(jobsData);
       setMonthlyStats(stats);
+      console.log('Dashboard data loaded:', { jobs: jobsData.length, stats });
     } catch (error) {
       console.log('Error loading data:', error);
       showNotification('Error loading data', 'error');
@@ -66,7 +68,7 @@ export default function DashboardScreen() {
 
   return (
     <ImageBackground
-      source={{ uri: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80' }}
+      source={require('../assets/images/daebef9d-f2fa-4b34-88c6-4226954942a0.png')}
       style={styles.backgroundImage}
       resizeMode="cover"
     >
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
   navText: {
     fontSize: 16,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: colors.text,
   },
   navTextActive: {
     color: colors.primary,
