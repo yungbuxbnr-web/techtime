@@ -1,3 +1,4 @@
+
 import { Stack, useGlobalSearchParams } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
@@ -46,14 +47,23 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'default',
-            }}
-          />
-        </GestureHandlerRootView>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        >
+          <Stack.Screen name="index" />
+          <Stack.Screen name="auth" />
+          <Stack.Screen name="dashboard" />
+          <Stack.Screen name="jobs" />
+          <Stack.Screen name="add-job" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="export" />
+          <Stack.Screen name="stats" />
+        </Stack>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }
