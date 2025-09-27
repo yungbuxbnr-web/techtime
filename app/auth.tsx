@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import NotificationToast from '../components/NotificationToast';
+import Keypad from '../components/Keypad';
 
 export default function AuthScreen() {
   const [pin, setPin] = useState('');
@@ -23,6 +24,16 @@ export default function AuthScreen() {
     } catch (error) {
       console.log('Error loading settings:', error);
     }
+  };
+
+  const handleNumberPress = (number: string) => {
+    if (pin.length < 4) {
+      setPin(prev => prev + number);
+    }
+  };
+
+  const handleDeletePress = () => {
+    setPin(prev => prev.slice(0, -1));
   };
 
   const handlePinSubmit = async () => {
@@ -73,24 +84,14 @@ export default function AuthScreen() {
               <Text style={styles.subtitle}>Buckston Rugge</Text>
               
               <Text style={styles.label}>Enter PIN to continue</Text>
-              <TextInput
-                style={styles.pinInput}
-                value={pin}
-                onChangeText={setPin}
-                placeholder="Enter PIN"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                keyboardType="numeric"
-                maxLength={4}
-                onSubmitEditing={handlePinSubmit}
-              />
               
-              <TouchableOpacity
-                style={[commonStyles.button, styles.submitButton]}
-                onPress={handlePinSubmit}
-              >
-                <Text style={commonStyles.buttonText}>Sign In</Text>
-              </TouchableOpacity>
+              <Keypad
+                pin={pin}
+                onNumberPress={handleNumberPress}
+                onDeletePress={handleDeletePress}
+                onSubmitPress={handlePinSubmit}
+                maxLength={4}
+              />
             </View>
           </View>
         </SafeAreaView>
@@ -143,24 +144,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  pinInput: {
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 18,
-    color: colors.text,
-    width: '100%',
-    textAlign: 'center',
-    letterSpacing: 4,
     marginBottom: 24,
-  },
-  submitButton: {
-    width: '100%',
+    textAlign: 'center',
   },
 });
