@@ -33,6 +33,13 @@ export default function AuthScreen() {
       const newPin = pin + number;
       setPin(newPin);
       console.log('PIN entered:', newPin.replace(/./g, '•'));
+      
+      // Auto-submit when PIN reaches 4 digits
+      if (newPin.length === 4) {
+        setTimeout(() => {
+          handlePinSubmit(newPin);
+        }, 100); // Small delay for better UX
+      }
     }
   };
 
@@ -42,10 +49,11 @@ export default function AuthScreen() {
     console.log('PIN after delete:', newPin.replace(/./g, '•'));
   };
 
-  const handlePinSubmit = async () => {
-    console.log('Submitting PIN:', pin.replace(/./g, '•'), 'Expected:', correctPin.replace(/./g, '•'));
+  const handlePinSubmit = async (pinToCheck?: string) => {
+    const currentPin = pinToCheck || pin;
+    console.log('Submitting PIN:', currentPin.replace(/./g, '•'), 'Expected:', correctPin.replace(/./g, '•'));
     
-    if (pin === correctPin) {
+    if (currentPin === correctPin) {
       try {
         const settings = await StorageService.getSettings();
         await StorageService.saveSettings({ ...settings, isAuthenticated: true });
@@ -99,7 +107,7 @@ export default function AuthScreen() {
                 pin={pin}
                 onNumberPress={handleNumberPress}
                 onDeletePress={handleDeletePress}
-                onSubmitPress={handlePinSubmit}
+                onSubmitPress={() => handlePinSubmit()}
                 maxLength={4}
               />
             </View>
