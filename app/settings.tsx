@@ -17,9 +17,24 @@ export default function SettingsScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
   useEffect(() => {
-    loadSettings();
-    loadJobs();
+    checkAuthAndLoadData();
   }, []);
+
+  const checkAuthAndLoadData = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+        return;
+      }
+      loadSettings();
+      loadJobs();
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
 
   const loadSettings = async () => {
     try {

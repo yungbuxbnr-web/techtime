@@ -14,8 +14,23 @@ export default function StatsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-    loadJobs();
+    checkAuthAndLoadJobs();
   }, []);
+
+  const checkAuthAndLoadJobs = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+        return;
+      }
+      loadJobs();
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
 
   const loadJobs = async () => {
     try {

@@ -14,8 +14,23 @@ export default function ExportScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
   useEffect(() => {
-    loadJobs();
+    checkAuthAndLoadJobs();
   }, []);
+
+  const checkAuthAndLoadJobs = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+        return;
+      }
+      loadJobs();
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
 
   const loadJobs = async () => {
     try {

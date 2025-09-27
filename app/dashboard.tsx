@@ -24,10 +24,25 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-      console.log('Dashboard focused, loading data');
+      checkAuthAndLoadData();
+      console.log('Dashboard focused, checking auth and loading data');
     }, [])
   );
+
+  const checkAuthAndLoadData = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+        return;
+      }
+      loadData();
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
 
   const loadData = async () => {
     try {

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,6 +18,24 @@ export default function AddJobScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+        return;
+      }
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });

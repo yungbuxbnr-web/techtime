@@ -1,44 +1,24 @@
 
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect } from 'react';
 import { Redirect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 
 export default function IndexScreen() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
   useEffect(() => {
-    checkAuthStatus();
+    // Reset authentication status on app start to ensure PIN is always required
+    resetAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const resetAuthStatus = async () => {
     try {
       const settings = await StorageService.getSettings();
-      setIsAuthenticated(settings.isAuthenticated);
+      await StorageService.saveSettings({ ...settings, isAuthenticated: false });
+      console.log('Authentication status reset - PIN required');
     } catch (error) {
-      console.log('Error checking auth status:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
+      console.log('Error resetting auth status:', error);
     }
   };
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={commonStyles.container}>
-        <View style={[commonStyles.container, commonStyles.center]}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (isAuthenticated) {
-    return <Redirect href="/dashboard" />;
-  }
-
+  // Always redirect to auth screen on app start
   return <Redirect href="/auth" />;
 }
