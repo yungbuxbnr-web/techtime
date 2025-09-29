@@ -16,7 +16,7 @@ export default function ExportScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
       setJobs(jobsData);
@@ -25,7 +25,7 @@ export default function ExportScreen() {
       console.log('Error loading jobs:', error);
       showNotification('Error loading jobs', 'error');
     }
-  };
+  }, []);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -35,12 +35,12 @@ export default function ExportScreen() {
         router.replace('/auth');
         return;
       }
-      loadJobs();
+      await loadJobs();
     } catch (error) {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  }, []);
+  }, [loadJobs]);
 
   useEffect(() => {
     checkAuthAndLoadJobs();
@@ -338,6 +338,14 @@ export default function ExportScreen() {
 
       // Create a proper filename
       const fileName = `${title}.pdf`;
+      
+      // Use the correct FileSystem property for document directory
+      if (!FileSystem.documentDirectory) {
+        console.log('Document directory not available');
+        showNotification('Document directory not available', 'error');
+        return;
+      }
+      
       const newUri = `${FileSystem.documentDirectory}${fileName}`;
       
       // Move the file to a permanent location
