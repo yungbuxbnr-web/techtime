@@ -16,6 +16,10 @@ export default function SettingsScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+  }, []);
+
   const loadSettings = useCallback(async () => {
     try {
       const settingsData = await StorageService.getSettings();
@@ -25,7 +29,7 @@ export default function SettingsScreen() {
       console.log('Error loading settings:', error);
       showNotification('Error loading settings', 'error');
     }
-  }, []);
+  }, [showNotification]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -56,10 +60,6 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkAuthAndLoadData();
   }, [checkAuthAndLoadData]);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
-  };
 
   const hideNotification = () => {
     setNotification({ ...notification, visible: false });

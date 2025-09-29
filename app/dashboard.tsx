@@ -22,6 +22,10 @@ export default function DashboardScreen() {
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
@@ -33,7 +37,7 @@ export default function DashboardScreen() {
       console.log('Error loading data:', error);
       showNotification('Error loading data', 'error');
     }
-  }, []);
+  }, [showNotification]);
 
   const checkAuthAndLoadData = useCallback(async () => {
     try {
@@ -43,7 +47,7 @@ export default function DashboardScreen() {
         router.replace('/auth');
         return;
       }
-      loadData();
+      await loadData();
     } catch (error) {
       console.log('Error checking auth:', error);
       router.replace('/auth');
@@ -56,10 +60,6 @@ export default function DashboardScreen() {
       console.log('Dashboard focused, checking auth and loading data');
     }, [checkAuthAndLoadData])
   );
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
-  };
 
   const hideNotification = () => {
     setNotification({ ...notification, visible: false });

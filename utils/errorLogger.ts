@@ -1,3 +1,4 @@
+
 // Global error logging for runtime errors
 
 import { Platform } from "react-native";
@@ -23,7 +24,7 @@ const sendErrorToParent = (level: string, message: string, data: any) => {
   clearErrorAfterDelay(errorKey);
 
   try {
-    if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+    if (typeof window !== 'undefined' && window.parent && window.parent !== window && typeof window.parent.postMessage === 'function') {
       window.parent.postMessage({
         type: 'EXPO_ERROR',
         level: level,

@@ -16,6 +16,10 @@ export default function ExportScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+  }, []);
+
   const loadJobs = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
@@ -25,7 +29,7 @@ export default function ExportScreen() {
       console.log('Error loading jobs:', error);
       showNotification('Error loading jobs', 'error');
     }
-  }, []);
+  }, [showNotification]);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -45,10 +49,6 @@ export default function ExportScreen() {
   useEffect(() => {
     checkAuthAndLoadJobs();
   }, [checkAuthAndLoadJobs]);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
-  };
 
   const hideNotification = () => {
     setNotification({ ...notification, visible: false });
