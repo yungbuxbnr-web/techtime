@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -37,7 +37,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const checkAuthAndLoadData = async () => {
+  const checkAuthAndLoadData = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
@@ -51,11 +51,11 @@ export default function SettingsScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkAuthAndLoadData();
-  }, []);
+  }, [checkAuthAndLoadData]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });

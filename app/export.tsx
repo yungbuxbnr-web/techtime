@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -27,7 +27,7 @@ export default function ExportScreen() {
     }
   };
 
-  const checkAuthAndLoadJobs = async () => {
+  const checkAuthAndLoadJobs = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
@@ -40,11 +40,11 @@ export default function ExportScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkAuthAndLoadJobs();
-  }, []);
+  }, [checkAuthAndLoadJobs]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });

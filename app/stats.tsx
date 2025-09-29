@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -22,7 +22,7 @@ export default function StatsScreen() {
     }
   };
 
-  const checkAuthAndLoadJobs = async () => {
+  const checkAuthAndLoadJobs = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
@@ -35,11 +35,11 @@ export default function StatsScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkAuthAndLoadJobs();
-  }, []);
+  }, [checkAuthAndLoadJobs]);
 
   const handleBack = () => {
     router.back();

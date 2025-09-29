@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,83 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
   const lastGestureY = useRef(0);
   const startPositionY = useRef(0);
 
+  const handleBackdropPress = useCallback(() => {
+    onClose?.();
+  }, [onClose]);
+
+  const snapToPoint = useCallback((point: number) => {
+    setCurrentSnapPoint(point);
+    gestureTranslateY.setValue(0);
+    Animated.timing(translateY, {
+      toValue: SCREEN_HEIGHT - point,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [translateY, gestureTranslateY]);
+
+  // Determines the closest snap point based on velocity and position
+  const getClosestSnapPoint = useCallback((currentY: number, velocityY: number) => {
+    const currentPosition = SCREEN_HEIGHT - currentY;
+
+    if (velocityY > 1000) return SNAP_POINTS.CLOSED;
+    if (velocityY < -1000) return SNAP_POINTS.FULL;
+
+    const distances = [
+      { point: SNAP_POINTS.HALF, distance: Math.abs(currentPosition - SNAP_POINTS.HALF) },
+      { point: SNAP_POINTS.FULL, distance: Math.abs(currentPosition - SNAP_POINTS.FULL) },
+    ];
+
+    if (currentPosition < SNAP_POINTS.HALF * 0.5) {
+      return SNAP_POINTS.CLOSED;
+    }
+
+    distances.sort((a, b) => a.distance - b.distance);
+    return distances[0].point;
+  }, []);
+
+  // Handles pan gesture events with boundary clamping
+  const onGestureEvent = useCallback((event: any) => {
+    const { translationY } = event.nativeEvent;
+    lastGestureY.current = translationY;
+
+    const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
+    const intendedPosition = currentBasePosition + translationY;
+
+    const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
+    const maxPosition = SCREEN_HEIGHT;
+
+    const clampedPosition = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
+    const clampedTranslation = clampedPosition - currentBasePosition;
+
+    gestureTranslateY.setValue(clampedTranslation);
+  }, [currentSnapPoint, gestureTranslateY]);
+
+  // Handles gesture state changes (begin/end) for snapping behavior
+  const onHandlerStateChange = useCallback((event: any) => {
+    const { state, translationY, velocityY } = event.nativeEvent;
+
+    if (state === State.BEGAN) {
+      startPositionY.current = SCREEN_HEIGHT - currentSnapPoint;
+    } else if (state === State.END) {
+      const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
+      const intendedPosition = currentBasePosition + translationY;
+
+      const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
+      const maxPosition = SCREEN_HEIGHT;
+
+      const finalY = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
+      const targetSnapPoint = getClosestSnapPoint(finalY, velocityY);
+
+      gestureTranslateY.setValue(0);
+
+      if (targetSnapPoint === SNAP_POINTS.CLOSED) {
+        onClose?.();
+      } else {
+        snapToPoint(targetSnapPoint);
+      }
+    }
+  }, [currentSnapPoint, gestureTranslateY, getClosestSnapPoint, onClose, snapToPoint]);
+
   useEffect(() => {
     if (isVisible) {
       setCurrentSnapPoint(SNAP_POINTS.HALF);
@@ -72,84 +149,7 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
         }),
       ]).start();
     }
-  }, [isVisible, translateY, backdropOpacity]);
-
-  const handleBackdropPress = () => {
-    onClose?.();
-  };
-
-  const snapToPoint = (point: number) => {
-    setCurrentSnapPoint(point);
-    gestureTranslateY.setValue(0);
-    Animated.timing(translateY, {
-      toValue: SCREEN_HEIGHT - point,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  // Determines the closest snap point based on velocity and position
-  const getClosestSnapPoint = (currentY: number, velocityY: number) => {
-    const currentPosition = SCREEN_HEIGHT - currentY;
-
-    if (velocityY > 1000) return SNAP_POINTS.CLOSED;
-    if (velocityY < -1000) return SNAP_POINTS.FULL;
-
-    const distances = [
-      { point: SNAP_POINTS.HALF, distance: Math.abs(currentPosition - SNAP_POINTS.HALF) },
-      { point: SNAP_POINTS.FULL, distance: Math.abs(currentPosition - SNAP_POINTS.FULL) },
-    ];
-
-    if (currentPosition < SNAP_POINTS.HALF * 0.5) {
-      return SNAP_POINTS.CLOSED;
-    }
-
-    distances.sort((a, b) => a.distance - b.distance);
-    return distances[0].point;
-  };
-
-  // Handles pan gesture events with boundary clamping
-  const onGestureEvent = (event: any) => {
-    const { translationY } = event.nativeEvent;
-    lastGestureY.current = translationY;
-
-    const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
-    const intendedPosition = currentBasePosition + translationY;
-
-    const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
-    const maxPosition = SCREEN_HEIGHT;
-
-    const clampedPosition = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
-    const clampedTranslation = clampedPosition - currentBasePosition;
-
-    gestureTranslateY.setValue(clampedTranslation);
-  };
-
-  // Handles gesture state changes (begin/end) for snapping behavior
-  const onHandlerStateChange = (event: any) => {
-    const { state, translationY, velocityY } = event.nativeEvent;
-
-    if (state === State.BEGAN) {
-      startPositionY.current = SCREEN_HEIGHT - currentSnapPoint;
-    } else if (state === State.END) {
-      const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
-      const intendedPosition = currentBasePosition + translationY;
-
-      const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
-      const maxPosition = SCREEN_HEIGHT;
-
-      const finalY = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
-      const targetSnapPoint = getClosestSnapPoint(finalY, velocityY);
-
-      gestureTranslateY.setValue(0);
-
-      if (targetSnapPoint === SNAP_POINTS.CLOSED) {
-        onClose?.();
-      } else {
-        snapToPoint(targetSnapPoint);
-      }
-    }
-  };
+  }, [isVisible, translateY, backdropOpacity, gestureTranslateY]);
 
   return (
     <Modal
