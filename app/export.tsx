@@ -339,14 +339,15 @@ export default function ExportScreen() {
       // Create a proper filename
       const fileName = `${title}.pdf`;
       
-      // Use the correct FileSystem property for document directory
-      if (!FileSystem.documentDirectory) {
+      // Check if document directory is available
+      const documentDirectory = FileSystem.documentDirectory;
+      if (!documentDirectory) {
         console.log('Document directory not available');
         showNotification('Document directory not available', 'error');
         return;
       }
       
-      const newUri = `${FileSystem.documentDirectory}${fileName}`;
+      const newUri = `${documentDirectory}${fileName}`;
       
       // Move the file to a permanent location
       await FileSystem.moveAsync({

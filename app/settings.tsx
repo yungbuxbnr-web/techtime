@@ -16,7 +16,7 @@ export default function SettingsScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const settingsData = await StorageService.getSettings();
       setSettings(settingsData);
@@ -25,9 +25,9 @@ export default function SettingsScreen() {
       console.log('Error loading settings:', error);
       showNotification('Error loading settings', 'error');
     }
-  };
+  }, []);
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
       setJobs(jobsData);
@@ -35,7 +35,7 @@ export default function SettingsScreen() {
     } catch (error) {
       console.log('Error loading jobs:', error);
     }
-  };
+  }, []);
 
   const checkAuthAndLoadData = useCallback(async () => {
     try {
@@ -45,13 +45,13 @@ export default function SettingsScreen() {
         router.replace('/auth');
         return;
       }
-      loadSettings();
-      loadJobs();
+      await loadSettings();
+      await loadJobs();
     } catch (error) {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  }, []);
+  }, [loadSettings, loadJobs]);
 
   useEffect(() => {
     checkAuthAndLoadData();
