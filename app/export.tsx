@@ -339,8 +339,12 @@ export default function ExportScreen() {
       // Create a proper filename
       const fileName = `${title}.pdf`;
       
-      // Use cache directory as fallback if document directory is not available
-      const baseDirectory = FileSystem.cacheDirectory || FileSystem.bundleDirectory;
+      // Use document directory if available, otherwise fall back to cache directory
+      let baseDirectory = FileSystem.documentDirectory;
+      if (!baseDirectory) {
+        baseDirectory = FileSystem.cacheDirectory;
+      }
+      
       if (!baseDirectory) {
         console.log('No directory available for file storage');
         showNotification('File storage not available', 'error');
