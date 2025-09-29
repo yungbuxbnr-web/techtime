@@ -13,10 +13,6 @@ export default function StatsScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
   const [jobs, setJobs] = useState<Job[]>([]);
 
-  useEffect(() => {
-    checkAuthAndLoadJobs();
-  }, []);
-
   const checkAuthAndLoadJobs = async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -31,6 +27,10 @@ export default function StatsScreen() {
       router.replace('/auth');
     }
   };
+
+  useEffect(() => {
+    checkAuthAndLoadJobs();
+  }, []);
 
   const loadJobs = async () => {
     try {

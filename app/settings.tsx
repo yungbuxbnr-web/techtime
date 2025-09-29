@@ -16,10 +16,6 @@ export default function SettingsScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
-
   const checkAuthAndLoadData = async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -35,6 +31,10 @@ export default function SettingsScreen() {
       router.replace('/auth');
     }
   };
+
+  useEffect(() => {
+    checkAuthAndLoadData();
+  }, []);
 
   const loadSettings = async () => {
     try {

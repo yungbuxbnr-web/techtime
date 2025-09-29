@@ -14,13 +14,7 @@ export default function JobsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  useFocusEffect(
-    useCallback(() => {
-      checkAuthAndLoadJobs();
-    }, [])
-  );
-
-  const checkAuthAndLoadJobs = async () => {
+  const checkAuthAndLoadJobs = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
@@ -33,7 +27,13 @@ export default function JobsScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkAuthAndLoadJobs();
+    }, [checkAuthAndLoadJobs])
+  );
 
   const loadJobs = async () => {
     try {

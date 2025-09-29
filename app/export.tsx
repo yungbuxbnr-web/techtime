@@ -16,10 +16,6 @@ export default function ExportScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  useEffect(() => {
-    checkAuthAndLoadJobs();
-  }, []);
-
   const checkAuthAndLoadJobs = async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -34,6 +30,10 @@ export default function ExportScreen() {
       router.replace('/auth');
     }
   };
+
+  useEffect(() => {
+    checkAuthAndLoadJobs();
+  }, []);
 
   const loadJobs = async () => {
     try {

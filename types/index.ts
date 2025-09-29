@@ -37,14 +37,14 @@ export interface PDFExportData {
     totalAWs: number;
     totalTime: string;
   };
-  jobs: Array<{
+  jobs: {
     regNumber: string;
     registration: string;
     jobType: string;
     aws: number;
     time: string;
     status: string;
-  }>;
+  }[];
   signature: string;
   appVersion: string;
 }

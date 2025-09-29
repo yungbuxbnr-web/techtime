@@ -22,14 +22,7 @@ export default function DashboardScreen() {
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  useFocusEffect(
-    useCallback(() => {
-      checkAuthAndLoadData();
-      console.log('Dashboard focused, checking auth and loading data');
-    }, [])
-  );
-
-  const checkAuthAndLoadData = async () => {
+  const checkAuthAndLoadData = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
@@ -42,7 +35,14 @@ export default function DashboardScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkAuthAndLoadData();
+      console.log('Dashboard focused, checking auth and loading data');
+    }, [checkAuthAndLoadData])
+  );
 
   const loadData = async () => {
     try {
