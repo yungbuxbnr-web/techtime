@@ -339,14 +339,15 @@ export default function ExportScreen() {
       // Create a proper filename
       const fileName = `${title}.pdf`;
       
-      // Use the correct way to access document directory
-      if (!FileSystem.documentDirectory) {
-        console.log('Document directory not available');
-        showNotification('Document directory not available', 'error');
+      // Use cache directory as fallback if document directory is not available
+      const baseDirectory = FileSystem.cacheDirectory || FileSystem.bundleDirectory;
+      if (!baseDirectory) {
+        console.log('No directory available for file storage');
+        showNotification('File storage not available', 'error');
         return;
       }
       
-      const newUri = `${FileSystem.documentDirectory}${fileName}`;
+      const newUri = `${baseDirectory}${fileName}`;
       
       // Move the file to a permanent location
       await FileSystem.moveAsync({
