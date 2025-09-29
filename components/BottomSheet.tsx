@@ -72,7 +72,7 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
         }),
       ]).start();
     }
-  }, [isVisible, translateY, backdropOpacity, gestureTranslateY]);
+  }, [isVisible, translateY, backdropOpacity]);
 
   const handleBackdropPress = () => {
     onClose?.();

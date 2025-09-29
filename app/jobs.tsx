@@ -14,6 +14,18 @@ export default function JobsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
+  const loadJobs = useCallback(async () => {
+    try {
+      const jobsData = await StorageService.getJobs();
+      // Sort jobs by date (newest first)
+      const sortedJobs = jobsData.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+      setJobs(sortedJobs);
+    } catch (error) {
+      console.log('Error loading jobs:', error);
+      showNotification('Error loading jobs', 'error');
+    }
+  }, []);
+
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -27,25 +39,13 @@ export default function JobsScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  }, []);
+  }, [loadJobs]);
 
   useFocusEffect(
     useCallback(() => {
       checkAuthAndLoadJobs();
     }, [checkAuthAndLoadJobs])
   );
-
-  const loadJobs = async () => {
-    try {
-      const jobsData = await StorageService.getJobs();
-      // Sort jobs by date (newest first)
-      const sortedJobs = jobsData.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
-      setJobs(sortedJobs);
-    } catch (error) {
-      console.log('Error loading jobs:', error);
-      showNotification('Error loading jobs', 'error');
-    }
-  };
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });

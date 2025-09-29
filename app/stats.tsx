@@ -13,6 +13,15 @@ export default function StatsScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
   const [jobs, setJobs] = useState<Job[]>([]);
 
+  const loadJobs = async () => {
+    try {
+      const jobsData = await StorageService.getJobs();
+      setJobs(jobsData);
+    } catch (error) {
+      console.log('Error loading jobs:', error);
+    }
+  };
+
   const checkAuthAndLoadJobs = async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -31,15 +40,6 @@ export default function StatsScreen() {
   useEffect(() => {
     checkAuthAndLoadJobs();
   }, []);
-
-  const loadJobs = async () => {
-    try {
-      const jobsData = await StorageService.getJobs();
-      setJobs(jobsData);
-    } catch (error) {
-      console.log('Error loading jobs:', error);
-    }
-  };
 
   const handleBack = () => {
     router.back();

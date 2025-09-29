@@ -22,6 +22,19 @@ export default function DashboardScreen() {
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
+  const loadData = useCallback(async () => {
+    try {
+      const jobsData = await StorageService.getJobs();
+      setJobs(jobsData);
+      const stats = CalculationService.calculateMonthlyStats(jobsData);
+      setMonthlyStats(stats);
+      console.log('Dashboard data loaded:', { jobs: jobsData.length, stats });
+    } catch (error) {
+      console.log('Error loading data:', error);
+      showNotification('Error loading data', 'error');
+    }
+  }, []);
+
   const checkAuthAndLoadData = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -35,7 +48,7 @@ export default function DashboardScreen() {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  }, []);
+  }, [loadData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -43,19 +56,6 @@ export default function DashboardScreen() {
       console.log('Dashboard focused, checking auth and loading data');
     }, [checkAuthAndLoadData])
   );
-
-  const loadData = async () => {
-    try {
-      const jobsData = await StorageService.getJobs();
-      setJobs(jobsData);
-      const stats = CalculationService.calculateMonthlyStats(jobsData);
-      setMonthlyStats(stats);
-      console.log('Dashboard data loaded:', { jobs: jobsData.length, stats });
-    } catch (error) {
-      console.log('Error loading data:', error);
-      showNotification('Error loading data', 'error');
-    }
-  };
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });

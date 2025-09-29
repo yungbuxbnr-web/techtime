@@ -16,26 +16,6 @@ export default function SettingsScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
-  const checkAuthAndLoadData = async () => {
-    try {
-      const settings = await StorageService.getSettings();
-      if (!settings.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
-        router.replace('/auth');
-        return;
-      }
-      loadSettings();
-      loadJobs();
-    } catch (error) {
-      console.log('Error checking auth:', error);
-      router.replace('/auth');
-    }
-  };
-
-  useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
-
   const loadSettings = async () => {
     try {
       const settingsData = await StorageService.getSettings();
@@ -56,6 +36,26 @@ export default function SettingsScreen() {
       console.log('Error loading jobs:', error);
     }
   };
+
+  const checkAuthAndLoadData = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+        return;
+      }
+      loadSettings();
+      loadJobs();
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
+
+  useEffect(() => {
+    checkAuthAndLoadData();
+  }, []);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });

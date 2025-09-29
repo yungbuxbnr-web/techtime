@@ -54,7 +54,8 @@ export default function NotificationToast({ message, type, visible, onHide }: No
 
       return () => clearTimeout(timer);
     }
-  }, [visible, hideToast, opacity, translateY]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   if (!visible) return null;
 
