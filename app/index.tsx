@@ -5,7 +5,7 @@ import { StorageService } from '../utils/storage';
 
 export default function IndexScreen() {
   useEffect(() => {
-    // Reset authentication status on app start to ensure PIN is always required
+    // Always reset authentication status on app start to ensure PIN is required every time
     resetAuthStatus();
   }, []);
 
@@ -13,12 +13,12 @@ export default function IndexScreen() {
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-      console.log('Authentication status reset - PIN required');
+      console.log('Authentication status reset - PIN required on every app launch');
     } catch (error) {
       console.log('Error resetting auth status:', error);
     }
   };
 
-  // Always redirect to auth screen on app start
+  // Always redirect to auth screen on app start to require PIN entry
   return <Redirect href="/auth" />;
 }

@@ -15,14 +15,14 @@ export default function AuthScreen() {
 
   useEffect(() => {
     loadSettings();
-    console.log('Auth screen loaded');
+    console.log('Auth screen loaded - PIN required on app start');
   }, []);
 
   const loadSettings = async () => {
     try {
       const settings = await StorageService.getSettings();
       setCorrectPin(settings.pin);
-      console.log('Settings loaded, PIN:', settings.pin);
+      console.log('Settings loaded, PIN required');
     } catch (error) {
       console.log('Error loading settings:', error);
     }

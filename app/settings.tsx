@@ -95,29 +95,16 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const updatedSettings = { ...settings, isAuthenticated: false };
-              await StorageService.saveSettings(updatedSettings);
-              console.log('User signed out');
-              router.replace('/auth');
-            } catch (error) {
-              console.log('Error signing out:', error);
-              showNotification('Error signing out', 'error');
-            }
-          }
-        }
-      ]
-    );
+  const handleSignOut = async () => {
+    try {
+      const updatedSettings = { ...settings, isAuthenticated: false };
+      await StorageService.saveSettings(updatedSettings);
+      console.log('User signed out');
+      router.replace('/auth');
+    } catch (error) {
+      console.log('Error signing out:', error);
+      showNotification('Error signing out', 'error');
+    }
   };
 
   const handleClearAllData = () => {
@@ -230,46 +217,6 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
-          
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Change PIN</Text>
-            <Text style={styles.cardDescription}>
-              Current PIN: {settings.pin.replace(/./g, '•')}
-            </Text>
-            
-            <TextInput
-              style={commonStyles.input}
-              value={newPin}
-              onChangeText={setNewPin}
-              placeholder="Enter new PIN"
-              placeholderTextColor={colors.textSecondary}
-              secureTextEntry
-              keyboardType="numeric"
-              maxLength={4}
-            />
-            
-            <TextInput
-              style={commonStyles.input}
-              value={confirmPin}
-              onChangeText={setConfirmPin}
-              placeholder="Confirm new PIN"
-              placeholderTextColor={colors.textSecondary}
-              secureTextEntry
-              keyboardType="numeric"
-              maxLength={4}
-            />
-            
-            <TouchableOpacity
-              style={[commonStyles.button, styles.updateButton]}
-              onPress={handleUpdatePin}
-            >
-              <Text style={commonStyles.buttonText}>Update PIN</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data Management</Text>
           
           <TouchableOpacity
@@ -315,6 +262,47 @@ export default function SettingsScreen() {
           >
             <Text style={[commonStyles.buttonText, styles.signOutText]}>Sign Out</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* PIN Update Section - Moved to Bottom */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Security</Text>
+          
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Update PIN</Text>
+            <Text style={styles.cardDescription}>
+              Current PIN: {settings.pin.replace(/./g, '•')}
+            </Text>
+            
+            <TextInput
+              style={commonStyles.input}
+              value={newPin}
+              onChangeText={setNewPin}
+              placeholder="Enter new PIN"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={4}
+            />
+            
+            <TextInput
+              style={commonStyles.input}
+              value={confirmPin}
+              onChangeText={setConfirmPin}
+              placeholder="Confirm new PIN"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={4}
+            />
+            
+            <TouchableOpacity
+              style={[commonStyles.button, styles.updateButton]}
+              onPress={handleUpdatePin}
+            >
+              <Text style={commonStyles.buttonText}>Update PIN</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -439,6 +427,7 @@ const styles = StyleSheet.create({
   },
   updateButton: {
     marginTop: 16,
+    backgroundColor: colors.primary,
   },
   versionText: {
     fontSize: 12,
