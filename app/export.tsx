@@ -50,11 +50,11 @@ export default function ExportScreen() {
     checkAuthAndLoadJobs();
   }, [checkAuthAndLoadJobs]);
 
-  const hideNotification = () => {
-    setNotification({ ...notification, visible: false });
-  };
+  const hideNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, visible: false }));
+  }, []);
 
-  const generateStylishPDFHTML = (exportJobs: Job[], title: string) => {
+  const generateStylishPDFHTML = useCallback((exportJobs: Job[], title: string) => {
     const totalJobs = exportJobs.length;
     const completedJobs = Math.floor(exportJobs.length * 0.7); // 70% completed for demo
     const totalAWs = exportJobs.reduce((sum, job) => sum + job.awValue, 0);
@@ -294,9 +294,9 @@ export default function ExportScreen() {
         </body>
       </html>
     `;
-  };
+  }, []);
 
-  const handleExport = async (type: 'daily' | 'weekly' | 'monthly' | 'all') => {
+  const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all') => {
     try {
       const today = new Date();
       let exportJobs: Job[] = [];
@@ -340,10 +340,11 @@ export default function ExportScreen() {
       const fileName = `${title}.pdf`;
       
       // Use document directory if available, otherwise fall back to cache directory
-      let baseDirectory = FileSystem.documentDirectory;
-      if (!baseDirectory) {
-        baseDirectory = FileSystem.cacheDirectory;
-      }
+      // Access the directories directly from FileSystem without destructuring
+      const documentDir = (FileSystem as any).documentDirectory;
+      const cacheDir = (FileSystem as any).cacheDirectory;
+      
+      let baseDirectory = documentDir || cacheDir;
       
       if (!baseDirectory) {
         console.log('No directory available for file storage');
@@ -383,13 +384,13 @@ export default function ExportScreen() {
       console.log('Error exporting PDF:', error);
       showNotification('Error exporting PDF', 'error');
     }
-  };
+  }, [jobs, showNotification, generateStylishPDFHTML]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     router.back();
-  };
+  }, []);
 
-  const getJobCount = (type: 'daily' | 'weekly' | 'monthly' | 'all') => {
+  const getJobCount = useCallback((type: 'daily' | 'weekly' | 'monthly' | 'all') => {
     const today = new Date();
     let count = 0;
 
@@ -409,7 +410,7 @@ export default function ExportScreen() {
     }
 
     return count;
-  };
+  }, [jobs]);
 
   return (
     <SafeAreaView style={commonStyles.container}>
