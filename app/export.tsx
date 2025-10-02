@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { commonStyles, colors } from '../styles/commonStyles';
@@ -11,12 +11,16 @@ import NotificationToast from '../components/NotificationToast';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import * as DocumentPicker from 'expo-document-picker';
+import { BackupService } from '../utils/backupService';
 
 export default function ExportScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
+  const [mediaLibraryPermission, setMediaLibraryPermission] = useState<boolean>(false);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -48,8 +52,32 @@ export default function ExportScreen() {
     }
   }, [loadJobs]);
 
+  const requestMediaLibraryPermission = useCallback(async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const granted = status === 'granted';
+      setMediaLibraryPermission(granted);
+      
+      if (granted) {
+        showNotification('Storage permission granted! 📁', 'success');
+      } else {
+        showNotification('Storage permission denied. PDFs can still be shared to other apps.', 'info');
+      }
+      
+      return granted;
+    } catch (error) {
+      console.log('Error requesting media library permission:', error);
+      showNotification('Error requesting storage permission', 'error');
+      return false;
+    }
+  }, [showNotification]);
+
   useEffect(() => {
     checkAuthAndLoadJobs();
+    // Check current permission status
+    MediaLibrary.getPermissionsAsync().then(({ status }) => {
+      setMediaLibraryPermission(status === 'granted');
+    });
   }, [checkAuthAndLoadJobs]);
 
   const hideNotification = useCallback(() => {
@@ -512,6 +540,53 @@ export default function ExportScreen() {
     `;
   }, []);
 
+  const saveToBackupFolder = useCallback(async (pdfUri: string, fileName: string) => {
+    try {
+      const backupFolderPath = await BackupService.getBackupFolderPath();
+      if (!backupFolderPath) {
+        throw new Error('Backup folder not available');
+      }
+
+      // Ensure backup folder exists
+      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      if (!folderInfo.exists) {
+        await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
+      }
+
+      // Copy PDF to backup folder
+      const backupPdfPath = `${backupFolderPath}${fileName}`;
+      await FileSystem.copyAsync({
+        from: pdfUri,
+        to: backupPdfPath,
+      });
+
+      console.log('PDF saved to backup folder:', backupPdfPath);
+      return backupPdfPath;
+    } catch (error) {
+      console.log('Error saving to backup folder:', error);
+      throw error;
+    }
+  }, []);
+
+  const saveToMediaLibrary = useCallback(async (pdfUri: string, fileName: string) => {
+    try {
+      if (!mediaLibraryPermission) {
+        const granted = await requestMediaLibraryPermission();
+        if (!granted) {
+          throw new Error('Media library permission not granted');
+        }
+      }
+
+      // Save to media library (Downloads folder on Android, Photos on iOS)
+      const asset = await MediaLibrary.createAssetAsync(pdfUri);
+      console.log('PDF saved to media library:', asset.uri);
+      return asset.uri;
+    } catch (error) {
+      console.log('Error saving to media library:', error);
+      throw error;
+    }
+  }, [mediaLibraryPermission, requestMediaLibraryPermission]);
+
   const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all', customMonth?: number, customYear?: number) => {
     try {
       const today = new Date();
@@ -576,76 +651,75 @@ export default function ExportScreen() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const fileName = `TechRecords_${reportType.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.pdf`;
       
-      // Try to get a writable directory
-      let baseDirectory: string | null = null;
-      
-      try {
-        if (FileSystem.documentDirectory) {
-          baseDirectory = FileSystem.documentDirectory;
-          console.log('Using document directory:', FileSystem.documentDirectory);
-        } else if (FileSystem.cacheDirectory) {
-          baseDirectory = FileSystem.cacheDirectory;
-          console.log('Using cache directory:', FileSystem.cacheDirectory);
-        }
-      } catch (error) {
-        console.log('Error accessing FileSystem directories:', error);
-      }
-      
-      if (!baseDirectory) {
-        console.log('No directory available for file storage');
-        showNotification('File storage not available on this device', 'error');
-        return;
-      }
-      
-      const newUri = `${baseDirectory}${fileName}`;
-      
-      try {
-        // Move the file to a permanent location
-        await FileSystem.moveAsync({
-          from: uri,
-          to: newUri,
-        });
+      console.log('PDF generated at:', uri);
 
-        console.log('Stylish PDF generated at:', newUri);
-
-        // Check if sharing is available
-        const isAvailable = await Sharing.isAvailableAsync();
-        
-        if (isAvailable) {
-          // Share the PDF file
-          await Sharing.shareAsync(newUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Export ${reportType} Report - Technician Records`,
-            UTI: 'com.adobe.pdf',
-          });
-          
-          showNotification(`${reportType} PDF exported successfully! 📄`, 'success');
-          console.log('Stylish PDF shared successfully');
-        } else {
-          showNotification('PDF generated but sharing not available', 'info');
-          console.log('Sharing not available on this platform');
-        }
-      } catch (moveError) {
-        console.log('Error moving file:', moveError);
-        // If move fails, try to share the original file
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Export ${reportType} Report - Technician Records`,
-            UTI: 'com.adobe.pdf',
-          });
-          showNotification(`${reportType} PDF exported successfully! 📄`, 'success');
-        } else {
-          showNotification('PDF generated but could not be shared', 'error');
-        }
-      }
+      // Show options for what to do with the PDF
+      Alert.alert(
+        'PDF Generated Successfully! 📄',
+        `${reportType} report is ready. What would you like to do?`,
+        [
+          {
+            text: 'Share to Apps',
+            onPress: async () => {
+              try {
+                const isAvailable = await Sharing.isAvailableAsync();
+                if (isAvailable) {
+                  await Sharing.shareAsync(uri, {
+                    mimeType: 'application/pdf',
+                    dialogTitle: `Export ${reportType} Report - Technician Records`,
+                    UTI: 'com.adobe.pdf',
+                  });
+                  showNotification('PDF shared successfully! 📤', 'success');
+                } else {
+                  showNotification('Sharing not available on this platform', 'error');
+                }
+              } catch (error) {
+                console.log('Error sharing PDF:', error);
+                showNotification('Error sharing PDF', 'error');
+              }
+            }
+          },
+          {
+            text: 'Save to Backup',
+            onPress: async () => {
+              try {
+                await saveToBackupFolder(uri, fileName);
+                showNotification('PDF saved to backup folder! 💾', 'success');
+              } catch (error) {
+                console.log('Error saving to backup folder:', error);
+                showNotification('Error saving to backup folder', 'error');
+              }
+            }
+          },
+          {
+            text: 'Save to Storage',
+            onPress: async () => {
+              try {
+                if (Platform.OS === 'android' || Platform.OS === 'ios') {
+                  await saveToMediaLibrary(uri, fileName);
+                  showNotification('PDF saved to device storage! 📱', 'success');
+                } else {
+                  showNotification('Storage save not available on this platform', 'error');
+                }
+              } catch (error) {
+                console.log('Error saving to storage:', error);
+                showNotification('Error saving to storage. Try granting storage permission.', 'error');
+              }
+            }
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ],
+        { cancelable: true }
+      );
 
     } catch (error) {
       console.log('Error exporting PDF:', error);
       showNotification('Error exporting PDF. Please try again.', 'error');
     }
-  }, [jobs, showNotification, generateStylishPDFHTML, getMonthName]);
+  }, [jobs, showNotification, generateStylishPDFHTML, getMonthName, saveToBackupFolder, saveToMediaLibrary]);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -725,8 +799,32 @@ export default function ExportScreen() {
 
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
-          Export your job records as stylish PDF reports with professional formatting, detailed tables, and comprehensive totals.
+          Export your job records as stylish PDF reports with professional formatting, detailed tables, and comprehensive totals. Share to other apps or save to device storage.
         </Text>
+
+        {/* Permission Status */}
+        <View style={styles.permissionSection}>
+          <Text style={styles.permissionTitle}>📁 Storage Permissions</Text>
+          <View style={styles.permissionRow}>
+            <Text style={styles.permissionText}>
+              Storage Access: {mediaLibraryPermission ? '✅ Granted' : '❌ Not Granted'}
+            </Text>
+            {!mediaLibraryPermission && (
+              <TouchableOpacity
+                style={styles.permissionButton}
+                onPress={requestMediaLibraryPermission}
+              >
+                <Text style={styles.permissionButtonText}>Grant Permission</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.permissionDescription}>
+            {mediaLibraryPermission 
+              ? 'You can save PDFs directly to device storage and backup folder.'
+              : 'Grant permission to save PDFs to device storage. You can still share to other apps without permission.'
+            }
+          </Text>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📅 Daily Export</Text>
@@ -825,7 +923,13 @@ export default function ExportScreen() {
             • 🔢 Complete totals section at the bottom of each report
           </Text>
           <Text style={styles.infoText}>
-            • 📱 Share menu integration for easy distribution
+            • 📤 Share to email, cloud storage, and other apps
+          </Text>
+          <Text style={styles.infoText}>
+            • 💾 Save to backup folder for device migration
+          </Text>
+          <Text style={styles.infoText}>
+            • 📱 Save directly to device storage (with permission)
           </Text>
           <Text style={styles.infoText}>
             • 🔒 GDPR compliant (vehicle registrations only)
@@ -863,6 +967,47 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
     textAlign: 'center',
+  },
+  permissionSection: {
+    marginBottom: 24,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  permissionText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  permissionButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  permissionDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
   section: {
     marginBottom: 24,

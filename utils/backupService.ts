@@ -229,5 +229,37 @@ export const BackupService = {
       return null;
     }
     return `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
+  },
+
+  async ensureBackupFolderExists(): Promise<{ success: boolean; message: string }> {
+    try {
+      if (!FileSystem.documentDirectory) {
+        return { success: false, message: 'Document directory not available on this device' };
+      }
+
+      const backupFolderPath = `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
+      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      
+      if (!folderInfo.exists) {
+        await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
+        console.log('Created techtrace backup folder at:', backupFolderPath);
+        return { 
+          success: true, 
+          message: `Backup folder created successfully at:\nDocuments/${BACKUP_FOLDER_NAME}/` 
+        };
+      } else {
+        console.log('Backup folder already exists at:', backupFolderPath);
+        return { 
+          success: true, 
+          message: `Backup folder already exists at:\nDocuments/${BACKUP_FOLDER_NAME}/` 
+        };
+      }
+    } catch (error) {
+      console.log('Error ensuring backup folder exists:', error);
+      return {
+        success: false,
+        message: `Failed to create backup folder: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
   }
 };
