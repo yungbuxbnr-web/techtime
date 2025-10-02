@@ -581,12 +581,15 @@ export default function ExportScreen() {
       
       try {
         // Access documentDirectory and cacheDirectory correctly from FileSystem
-        if (FileSystem.documentDirectory) {
-          baseDirectory = FileSystem.documentDirectory;
-          console.log('Using document directory:', FileSystem.documentDirectory);
-        } else if (FileSystem.cacheDirectory) {
-          baseDirectory = FileSystem.cacheDirectory;
-          console.log('Using cache directory:', FileSystem.cacheDirectory);
+        const docDir = FileSystem.documentDirectory;
+        const cacheDir = FileSystem.cacheDirectory;
+        
+        if (docDir) {
+          baseDirectory = docDir;
+          console.log('Using document directory:', docDir);
+        } else if (cacheDir) {
+          baseDirectory = cacheDir;
+          console.log('Using cache directory:', cacheDir);
         }
       } catch (error) {
         console.log('Error accessing FileSystem directories:', error);
