@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -37,18 +37,18 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   });
   const [showSetupGuide, setShowSetupGuide] = useState(false);
 
-  useEffect(() => {
-    checkConfiguration();
-  }, []);
-
-  const checkConfiguration = () => {
+  const checkConfiguration = useCallback(() => {
     if (!GoogleDriveService.isConfigured()) {
       showNotification(
         'Google Drive requires one-time setup with Google Cloud Console credentials.',
         'info'
       );
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkConfiguration();
+  }, [checkConfiguration]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type, visible: true });
