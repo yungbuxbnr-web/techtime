@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { colors } from '../styles/commonStyles';
 
 interface ProgressCircleProps {
   percentage: number;
@@ -49,6 +50,12 @@ export default function ProgressCircle({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
+      {/* Percentage text in the center */}
+      <View style={styles.textContainer}>
+        <Text style={[styles.percentageText, { color: colors.text }]}>
+          {percentage.toFixed(1)}%
+        </Text>
+      </View>
     </View>
   );
 }
@@ -57,8 +64,21 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   svg: {
     position: 'absolute',
+  },
+  textContainer: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  percentageText: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

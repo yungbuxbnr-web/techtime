@@ -12,6 +12,9 @@ import NotificationToast from '../components/NotificationToast';
 
 export default function JobsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
@@ -24,11 +27,21 @@ export default function JobsScreen() {
       // Sort jobs by date (newest first)
       const sortedJobs = jobsData.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
       setJobs(sortedJobs);
+      filterJobsByMonth(sortedJobs, selectedMonth, selectedYear);
     } catch (error) {
       console.log('Error loading jobs:', error);
       showNotification('Error loading jobs', 'error');
     }
-  }, [showNotification]);
+  }, [showNotification, selectedMonth, selectedYear]);
+
+  const filterJobsByMonth = useCallback((jobsData: Job[], month: number, year: number) => {
+    const filtered = jobsData.filter(job => {
+      const jobDate = new Date(job.dateCreated);
+      return jobDate.getMonth() === month && jobDate.getFullYear() === year;
+    });
+    setFilteredJobs(filtered);
+    console.log(`Filtered jobs for ${month + 1}/${year}:`, filtered.length);
+  }, []);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -102,6 +115,45 @@ export default function JobsScreen() {
     });
   };
 
+  const getMonthName = (month: number) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month];
+  };
+
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    let newMonth = selectedMonth;
+    let newYear = selectedYear;
+
+    if (direction === 'prev') {
+      newMonth = selectedMonth - 1;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear = selectedYear - 1;
+      }
+    } else {
+      newMonth = selectedMonth + 1;
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear = selectedYear + 1;
+      }
+    }
+
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+    filterJobsByMonth(jobs, newMonth, newYear);
+  };
+
+  const goToCurrentMonth = () => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    setSelectedMonth(currentMonth);
+    setSelectedYear(currentYear);
+    filterJobsByMonth(jobs, currentMonth, currentYear);
+  };
+
   return (
     <SafeAreaView style={commonStyles.container}>
       <NotificationToast
@@ -121,17 +173,48 @@ export default function JobsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Month Filter Section */}
+      <View style={styles.monthFilter}>
+        <TouchableOpacity
+          style={styles.monthButton}
+          onPress={() => handleMonthChange('prev')}
+        >
+          <Text style={styles.monthButtonText}>←</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.currentMonthButton}
+          onPress={goToCurrentMonth}
+        >
+          <Text style={styles.monthText}>
+            {getMonthName(selectedMonth)} {selectedYear}
+          </Text>
+          <Text style={styles.jobCountText}>
+            {filteredJobs.length} jobs
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.monthButton}
+          onPress={() => handleMonthChange('next')}
+        >
+          <Text style={styles.monthButtonText}>→</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {jobs.length === 0 ? (
+        {filteredJobs.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No jobs recorded yet</Text>
+            <Text style={styles.emptyStateText}>
+              No jobs recorded for {getMonthName(selectedMonth)} {selectedYear}
+            </Text>
             <Text style={commonStyles.textSecondary}>
               Tap "Add Job" to record your first job
             </Text>
           </View>
         ) : (
           <View style={styles.jobsList}>
-            {jobs.map((job) => (
+            {filteredJobs.map((job) => (
               <View key={job.id} style={styles.jobCard}>
                 <View style={styles.jobHeader}>
                   <Text style={styles.wipNumber}>WIP: {job.wipNumber}</Text>
@@ -215,6 +298,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  monthFilter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  monthButton: {
+    backgroundColor: colors.card,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monthButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  currentMonthButton: {
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 16,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  jobCountText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -230,6 +353,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 8,
+    textAlign: 'center',
   },
   jobsList: {
     paddingVertical: 16,

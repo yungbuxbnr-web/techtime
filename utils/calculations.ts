@@ -81,5 +81,37 @@ export const CalculationService = {
     endOfMonth.setHours(23, 59, 59, 999);
     
     return this.getJobsByDateRange(jobs, startOfMonth, endOfMonth);
+  },
+
+  // Get jobs by specific month and year
+  getJobsByMonth(jobs: Job[], month: number, year: number): Job[] {
+    return jobs.filter(job => {
+      const jobDate = new Date(job.dateCreated);
+      return jobDate.getMonth() === month && jobDate.getFullYear() === year;
+    });
+  },
+
+  // Get available months that have jobs
+  getAvailableMonths(jobs: Job[]): Array<{ month: number; year: number; count: number }> {
+    const monthMap = new Map<string, number>();
+    
+    jobs.forEach(job => {
+      const jobDate = new Date(job.dateCreated);
+      const key = `${jobDate.getFullYear()}-${jobDate.getMonth()}`;
+      monthMap.set(key, (monthMap.get(key) || 0) + 1);
+    });
+
+    const result: Array<{ month: number; year: number; count: number }> = [];
+    
+    monthMap.forEach((count, key) => {
+      const [year, month] = key.split('-').map(Number);
+      result.push({ month, year, count });
+    });
+
+    // Sort by year and month (newest first)
+    return result.sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
   }
 };

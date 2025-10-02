@@ -14,6 +14,8 @@ import * as FileSystem from 'expo-file-system';
 
 export default function ExportScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
@@ -296,7 +298,7 @@ export default function ExportScreen() {
     `;
   }, []);
 
-  const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all') => {
+  const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all', customMonth?: number, customYear?: number) => {
     try {
       const today = new Date();
       let exportJobs: Job[] = [];
@@ -312,8 +314,14 @@ export default function ExportScreen() {
           title = `Weekly_Report_${today.toISOString().split('T')[0]}`;
           break;
         case 'monthly':
-          exportJobs = CalculationService.getMonthlyJobs(jobs, today);
-          title = `Monthly_Report_${today.toISOString().slice(0, 7)}`;
+          if (customMonth !== undefined && customYear !== undefined) {
+            const customDate = new Date(customYear, customMonth, 1);
+            exportJobs = CalculationService.getMonthlyJobs(jobs, customDate);
+            title = `Monthly_Report_${customYear}-${String(customMonth + 1).padStart(2, '0')}`;
+          } else {
+            exportJobs = CalculationService.getMonthlyJobs(jobs, today);
+            title = `Monthly_Report_${today.toISOString().slice(0, 7)}`;
+          }
           break;
         case 'all':
           exportJobs = jobs;
@@ -339,50 +347,73 @@ export default function ExportScreen() {
       // Create a proper filename
       const fileName = `${title}.pdf`;
       
-      // Use document directory if available, otherwise fall back to cache directory
-      // Access the directories directly from FileSystem without destructuring
-      const documentDir = (FileSystem as any).documentDirectory;
-      const cacheDir = (FileSystem as any).cacheDirectory;
+      // Try to get a writable directory
+      let baseDirectory: string | null = null;
       
-      let baseDirectory = documentDir || cacheDir;
+      try {
+        // Try to access documentDirectory first
+        if (FileSystem.documentDirectory) {
+          baseDirectory = FileSystem.documentDirectory;
+        } else if (FileSystem.cacheDirectory) {
+          baseDirectory = FileSystem.cacheDirectory;
+        }
+      } catch (error) {
+        console.log('Error accessing FileSystem directories:', error);
+      }
       
       if (!baseDirectory) {
         console.log('No directory available for file storage');
-        showNotification('File storage not available', 'error');
+        showNotification('File storage not available on this device', 'error');
         return;
       }
       
       const newUri = `${baseDirectory}${fileName}`;
       
-      // Move the file to a permanent location
-      await FileSystem.moveAsync({
-        from: uri,
-        to: newUri,
-      });
-
-      console.log('PDF generated at:', newUri);
-
-      // Check if sharing is available
-      const isAvailable = await Sharing.isAvailableAsync();
-      
-      if (isAvailable) {
-        // Share the PDF file
-        await Sharing.shareAsync(newUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Export Technician Records',
-          UTI: 'com.adobe.pdf',
+      try {
+        // Move the file to a permanent location
+        await FileSystem.moveAsync({
+          from: uri,
+          to: newUri,
         });
+
+        console.log('PDF generated at:', newUri);
+
+        // Check if sharing is available
+        const isAvailable = await Sharing.isAvailableAsync();
         
-        showNotification('PDF exported successfully', 'success');
-        console.log('PDF shared successfully');
-      } else {
-        showNotification('PDF generated but sharing not available', 'info');
-        console.log('Sharing not available on this platform');
+        if (isAvailable) {
+          // Share the PDF file
+          await Sharing.shareAsync(newUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Export Technician Records',
+            UTI: 'com.adobe.pdf',
+          });
+          
+          showNotification('PDF exported successfully', 'success');
+          console.log('PDF shared successfully');
+        } else {
+          showNotification('PDF generated but sharing not available', 'info');
+          console.log('Sharing not available on this platform');
+        }
+      } catch (moveError) {
+        console.log('Error moving file:', moveError);
+        // If move fails, try to share the original file
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Export Technician Records',
+            UTI: 'com.adobe.pdf',
+          });
+          showNotification('PDF exported successfully', 'success');
+        } else {
+          showNotification('PDF generated but could not be shared', 'error');
+        }
       }
 
     } catch (error) {
       console.log('Error exporting PDF:', error);
-      showNotification('Error exporting PDF', 'error');
+      showNotification('Error exporting PDF. Please try again.', 'error');
     }
   }, [jobs, showNotification, generateStylishPDFHTML]);
 
@@ -390,7 +421,7 @@ export default function ExportScreen() {
     router.back();
   }, []);
 
-  const getJobCount = useCallback((type: 'daily' | 'weekly' | 'monthly' | 'all') => {
+  const getJobCount = useCallback((type: 'daily' | 'weekly' | 'monthly' | 'all', customMonth?: number, customYear?: number) => {
     const today = new Date();
     let count = 0;
 
@@ -402,7 +433,12 @@ export default function ExportScreen() {
         count = CalculationService.getWeeklyJobs(jobs, today).length;
         break;
       case 'monthly':
-        count = CalculationService.getMonthlyJobs(jobs, today).length;
+        if (customMonth !== undefined && customYear !== undefined) {
+          const customDate = new Date(customYear, customMonth, 1);
+          count = CalculationService.getMonthlyJobs(jobs, customDate).length;
+        } else {
+          count = CalculationService.getMonthlyJobs(jobs, today).length;
+        }
         break;
       case 'all':
         count = jobs.length;
@@ -411,6 +447,43 @@ export default function ExportScreen() {
 
     return count;
   }, [jobs]);
+
+  const getMonthName = (month: number) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month];
+  };
+
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    let newMonth = selectedMonth;
+    let newYear = selectedYear;
+
+    if (direction === 'prev') {
+      newMonth = selectedMonth - 1;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear = selectedYear - 1;
+      }
+    } else {
+      newMonth = selectedMonth + 1;
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear = selectedYear + 1;
+      }
+    }
+
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+  };
+
+  const goToCurrentMonth = () => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    setSelectedMonth(currentMonth);
+    setSelectedYear(currentYear);
+  };
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -461,12 +534,39 @@ export default function ExportScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Monthly Export</Text>
+          
+          {/* Month Selector */}
+          <View style={styles.monthSelector}>
+            <TouchableOpacity
+              style={styles.monthButton}
+              onPress={() => handleMonthChange('prev')}
+            >
+              <Text style={styles.monthButtonText}>←</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.currentMonthButton}
+              onPress={goToCurrentMonth}
+            >
+              <Text style={styles.monthText}>
+                {getMonthName(selectedMonth)} {selectedYear}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.monthButton}
+              onPress={() => handleMonthChange('next')}
+            >
+              <Text style={styles.monthButtonText}>→</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.sectionDescription}>
-            Export this month&apos;s jobs ({getJobCount('monthly')} jobs)
+            Export jobs for {getMonthName(selectedMonth)} {selectedYear} ({getJobCount('monthly', selectedMonth, selectedYear)} jobs)
           </Text>
           <TouchableOpacity
             style={[styles.exportButton, styles.pdfButton]}
-            onPress={() => handleExport('monthly')}
+            onPress={() => handleExport('monthly', selectedMonth, selectedYear)}
           >
             <Text style={styles.exportButtonText}>📄 Export as PDF</Text>
           </TouchableOpacity>
@@ -555,6 +655,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 16,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monthButton: {
+    backgroundColor: colors.card,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monthButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  currentMonthButton: {
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 16,
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
   exportButton: {
     paddingVertical: 12,
