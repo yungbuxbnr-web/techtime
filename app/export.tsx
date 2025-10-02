@@ -510,7 +510,7 @@ export default function ExportScreen() {
         </body>
       </html>
     `;
-  }, [getMonthName]);
+  }, []);
 
   const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all', customMonth?: number, customYear?: number) => {
     try {
@@ -576,7 +576,7 @@ export default function ExportScreen() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const fileName = `TechRecords_${reportType.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.pdf`;
       
-      // Try to get a writable directory - using proper property access
+      // Try to get a writable directory - accessing properties correctly
       let baseDirectory: string | null = null;
       
       try {
