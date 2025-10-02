@@ -19,13 +19,18 @@ export interface BackupData {
   };
 }
 
+// Helper function to get document directory safely
+const getDocumentDirectory = (): string | null => {
+  return (FileSystem as any).documentDirectory || null;
+};
+
 export const BackupService = {
   async createBackup(): Promise<{ success: boolean; message: string; filePath?: string }> {
     try {
       console.log('Starting backup process...');
       
       // Check if document directory is available
-      const documentDirectory = FileSystem.documentDirectory;
+      const documentDirectory = getDocumentDirectory();
       if (!documentDirectory) {
         console.log('Document directory not available');
         return { success: false, message: 'Document directory not available on this device' };
@@ -106,7 +111,7 @@ export const BackupService = {
       console.log('Starting import process...');
       
       // Check if document directory is available
-      const documentDirectory = FileSystem.documentDirectory;
+      const documentDirectory = getDocumentDirectory();
       if (!documentDirectory) {
         console.log('Document directory not available');
         return { success: false, message: 'Document directory not available on this device' };
@@ -203,7 +208,7 @@ export const BackupService = {
 
   async listBackupFiles(): Promise<{ success: boolean; files: string[]; message?: string }> {
     try {
-      const documentDirectory = FileSystem.documentDirectory;
+      const documentDirectory = getDocumentDirectory();
       if (!documentDirectory) {
         return { success: false, files: [], message: 'Document directory not available' };
       }
@@ -228,7 +233,7 @@ export const BackupService = {
   },
 
   async getBackupFolderPath(): Promise<string | null> {
-    const documentDirectory = FileSystem.documentDirectory;
+    const documentDirectory = getDocumentDirectory();
     if (!documentDirectory) {
       return null;
     }
@@ -237,7 +242,7 @@ export const BackupService = {
 
   async ensureBackupFolderExists(): Promise<{ success: boolean; message: string }> {
     try {
-      const documentDirectory = FileSystem.documentDirectory;
+      const documentDirectory = getDocumentDirectory();
       if (!documentDirectory) {
         return { success: false, message: 'Document directory not available on this device' };
       }
