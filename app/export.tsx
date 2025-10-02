@@ -347,15 +347,18 @@ export default function ExportScreen() {
       // Create a proper filename
       const fileName = `${title}.pdf`;
       
-      // Try to get a writable directory
+      // Try to get a writable directory - using proper property access
       let baseDirectory: string | null = null;
       
       try {
-        // Try to access documentDirectory first
-        if (FileSystem.documentDirectory) {
-          baseDirectory = FileSystem.documentDirectory;
-        } else if (FileSystem.cacheDirectory) {
-          baseDirectory = FileSystem.cacheDirectory;
+        // Access the properties directly from FileSystem
+        const docDir = FileSystem.documentDirectory;
+        const cacheDir = FileSystem.cacheDirectory;
+        
+        if (docDir) {
+          baseDirectory = docDir;
+        } else if (cacheDir) {
+          baseDirectory = cacheDir;
         }
       } catch (error) {
         console.log('Error accessing FileSystem directories:', error);
