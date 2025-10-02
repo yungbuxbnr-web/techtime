@@ -73,7 +73,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         backupFilePath,
         JSON.stringify(backupData, null, 2),
-        { encoding: FileSystem.EncodingType.UTF8 }
+        { encoding: 'utf8' }
       );
 
       // Also create a latest backup file for easy access
@@ -81,7 +81,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         latestBackupPath,
         JSON.stringify(backupData, null, 2),
-        { encoding: FileSystem.EncodingType.UTF8 }
+        { encoding: 'utf8' }
       );
 
       console.log('Backup created successfully at:', backupFilePath);
@@ -130,7 +130,7 @@ export const BackupService = {
 
       // Read backup file
       const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
-        encoding: FileSystem.EncodingType.UTF8
+        encoding: 'utf8'
       });
 
       // Parse backup data
