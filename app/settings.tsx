@@ -9,6 +9,8 @@ import { BackupService, BackupData } from '../utils/backupService';
 import { CalculationService } from '../utils/calculations';
 import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
+import GoogleDriveBackup from '../components/GoogleDriveBackup';
+import SimpleBottomSheet from '../components/BottomSheet';
 
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false });
@@ -18,6 +20,7 @@ export default function SettingsScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
   const [isImportInProgress, setIsImportInProgress] = useState(false);
+  const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -280,13 +283,22 @@ export default function SettingsScreen() {
             Create backups for device migration and restore data from previous backups.
           </Text>
           
+          {/* Google Drive Backup */}
+          <TouchableOpacity
+            style={[styles.button, styles.googleDriveButton]}
+            onPress={() => setShowGoogleDriveBackup(true)}
+          >
+            <Text style={styles.buttonText}>☁️ Google Drive Backup</Text>
+          </TouchableOpacity>
+          
+          {/* Local Backup */}
           <TouchableOpacity
             style={[styles.button, styles.backupButton, isBackupInProgress && styles.buttonDisabled]}
             onPress={handleCreateBackup}
             disabled={isBackupInProgress}
           >
             <Text style={styles.buttonText}>
-              {isBackupInProgress ? '⏳ Creating Backup...' : '📤 Create Backup'}
+              {isBackupInProgress ? '⏳ Creating Backup...' : '📤 Create Local Backup'}
             </Text>
           </TouchableOpacity>
 
@@ -296,12 +308,12 @@ export default function SettingsScreen() {
             disabled={isImportInProgress}
           >
             <Text style={styles.buttonText}>
-              {isImportInProgress ? '⏳ Importing...' : '📥 Import Backup'}
+              {isImportInProgress ? '⏳ Importing...' : '📥 Import Local Backup'}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.backupInfo}>
-            <Text style={styles.infoTitle}>📁 Backup Location</Text>
+            <Text style={styles.infoTitle}>📁 Local Backup Location</Text>
             <Text style={styles.infoText}>
               Backups are saved to: Documents/techtrace/
             </Text>
@@ -398,6 +410,14 @@ export default function SettingsScreen() {
           <Text style={[styles.navButtonText, styles.activeNavButtonText]}>⚙️ Settings</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Google Drive Backup Bottom Sheet */}
+      <SimpleBottomSheet
+        isVisible={showGoogleDriveBackup}
+        onClose={() => setShowGoogleDriveBackup(false)}
+      >
+        <GoogleDriveBackup onClose={() => setShowGoogleDriveBackup(false)} />
+      </SimpleBottomSheet>
     </SafeAreaView>
   );
 }
@@ -481,11 +501,14 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: colors.primary,
   },
+  googleDriveButton: {
+    backgroundColor: '#4285f4',
+  },
   backupButton: {
     backgroundColor: '#34a853',
   },
   importButton: {
-    backgroundColor: '#4285f4',
+    backgroundColor: '#6c757d',
   },
   exportButton: {
     backgroundColor: colors.primary,

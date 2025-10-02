@@ -36,6 +36,16 @@ export const StorageService = {
     }
   },
 
+  async saveJobs(jobs: Job[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
+      console.log('Jobs saved successfully:', jobs.length);
+    } catch (error) {
+      console.log('Error saving jobs:', error);
+      throw error;
+    }
+  },
+
   async deleteJob(jobId: string): Promise<void> {
     try {
       const jobs = await this.getJobs();

@@ -14,6 +14,7 @@ export const colors = {
   textSecondary: '#6b7280', // Grey text
   border: '#e5e7eb',       // Light border
   card: '#ffffff',         // White card background
+  cardBackground: '#ffffff', // White card background (alias)
   overlay: 'rgba(0, 0, 0, 0.5)', // Dark overlay
 };
 

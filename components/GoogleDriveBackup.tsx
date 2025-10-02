@@ -1,0 +1,508 @@
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import { colors } from '../styles/commonStyles';
+import { GoogleDriveService, GoogleDriveFile } from '../utils/googleDriveService';
+import { BackupService, BackupData } from '../utils/backupService';
+import { StorageService } from '../utils/storage';
+import NotificationToast from './NotificationToast';
+import GoogleDriveSetup from './GoogleDriveSetup';
+import GoogleDriveInstructions from './GoogleDriveInstructions';
+
+interface GoogleDriveBackupProps {
+  onClose?: () => void;
+}
+
+const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [backupFiles, setBackupFiles] = useState<GoogleDriveFile[]>([]);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'info',
+    visible: false,
+  });
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
+
+  useEffect(() => {
+    checkConfiguration();
+  }, []);
+
+  const checkConfiguration = () => {
+    if (!GoogleDriveService.isConfigured()) {
+      showNotification(
+        'Google Drive requires one-time setup with Google Cloud Console credentials.',
+        'info'
+      );
+    }
+  };
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type, visible: true });
+  };
+
+  const hideNotification = () => {
+    setNotification(prev => ({ ...prev, visible: false }));
+  };
+
+  const handleAuthenticate = async () => {
+    if (!GoogleDriveService.isConfigured()) {
+      Alert.alert(
+        'Configuration Required',
+        GoogleDriveService.getConfigurationInstructions(),
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await GoogleDriveService.authenticate();
+      if (result.success && result.accessToken) {
+        setIsAuthenticated(true);
+        setAccessToken(result.accessToken);
+        showNotification('Successfully authenticated with Google Drive!', 'success');
+        await loadBackupFiles(result.accessToken);
+      } else {
+        showNotification(result.error || 'Authentication failed', 'error');
+      }
+    } catch (error) {
+      console.log('Authentication error:', error);
+      showNotification('Authentication failed', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadBackupFiles = async (token: string) => {
+    setIsLoading(true);
+    try {
+      const result = await GoogleDriveService.listBackups(token);
+      if (result.success) {
+        setBackupFiles(result.files);
+        if (result.files.length === 0) {
+          showNotification('No backups found on Google Drive', 'info');
+        }
+      } else {
+        showNotification(result.message || 'Failed to load backups', 'error');
+      }
+    } catch (error) {
+      console.log('Error loading backup files:', error);
+      showNotification('Failed to load backups', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackupToGoogleDrive = async () => {
+    if (!accessToken) {
+      showNotification('Please authenticate first', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Create local backup first
+      const localBackupResult = await BackupService.createBackup();
+      if (!localBackupResult.success) {
+        showNotification(localBackupResult.message, 'error');
+        return;
+      }
+
+      // Get backup data
+      const jobs = await StorageService.getJobs();
+      const settings = await StorageService.getSettings();
+
+      const backupData: BackupData = {
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        jobs,
+        settings: {
+          ...settings,
+          isAuthenticated: false, // Don't backup authentication state
+        },
+        metadata: {
+          totalJobs: jobs.length,
+          totalAWs: jobs.reduce((sum, job) => sum + job.awValue, 0),
+          exportDate: new Date().toISOString(),
+          appVersion: '1.0.0',
+        },
+      };
+
+      // Upload to Google Drive
+      const uploadResult = await GoogleDriveService.uploadBackup(accessToken, backupData);
+      if (uploadResult.success) {
+        showNotification(uploadResult.message, 'success');
+        await loadBackupFiles(accessToken); // Refresh the list
+      } else {
+        showNotification(uploadResult.message, 'error');
+      }
+    } catch (error) {
+      console.log('Error backing up to Google Drive:', error);
+      showNotification('Failed to backup to Google Drive', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestoreFromGoogleDrive = async (fileId: string, fileName: string) => {
+    if (!accessToken) {
+      showNotification('Please authenticate first', 'error');
+      return;
+    }
+
+    Alert.alert(
+      'Restore Backup',
+      `Are you sure you want to restore from "${fileName}"?\n\nThis will replace all current data and you will need to sign in again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              const downloadResult = await GoogleDriveService.downloadBackup(accessToken, fileId);
+              if (downloadResult.success && downloadResult.data) {
+                const restoreResult = await BackupService.restoreFromBackup(downloadResult.data);
+                if (restoreResult.success) {
+                  showNotification(restoreResult.message, 'success');
+                  // Close the component after successful restore
+                  setTimeout(() => {
+                    onClose?.();
+                  }, 2000);
+                } else {
+                  showNotification(restoreResult.message, 'error');
+                }
+              } else {
+                showNotification(downloadResult.message, 'error');
+              }
+            } catch (error) {
+              console.log('Error restoring from Google Drive:', error);
+              showNotification('Failed to restore from Google Drive', 'error');
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteBackup = async (fileId: string, fileName: string) => {
+    if (!accessToken) {
+      showNotification('Please authenticate first', 'error');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Backup',
+      `Are you sure you want to delete "${fileName}" from Google Drive?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              const deleteResult = await GoogleDriveService.deleteBackup(accessToken, fileId);
+              if (deleteResult.success) {
+                showNotification(deleteResult.message, 'success');
+                await loadBackupFiles(accessToken); // Refresh the list
+              } else {
+                showNotification(deleteResult.message, 'error');
+              }
+            } catch (error) {
+              console.log('Error deleting backup from Google Drive:', error);
+              showNotification('Failed to delete backup', 'error');
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (showSetupGuide) {
+    return <GoogleDriveSetup onClose={() => setShowSetupGuide(false)} />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <NotificationToast
+        message={notification.message}
+        type={notification.type}
+        visible={notification.visible}
+        onHide={hideNotification}
+      />
+
+      <View style={styles.header}>
+        <Text style={styles.title}>Google Drive Backup</Text>
+        {onClose && (
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {!GoogleDriveService.isConfigured() && (
+          <GoogleDriveInstructions onSetupGuide={() => setShowSetupGuide(true)} />
+        )}
+
+        {!isAuthenticated ? (
+          <View style={styles.authSection}>
+            <Text style={styles.sectionTitle}>Authentication Required</Text>
+            <Text style={styles.description}>
+              Sign in to your Google account to backup and restore your TechTrace data to Google Drive.
+            </Text>
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton]}
+              onPress={handleAuthenticate}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.background} size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Sign in to Google Drive</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.authenticatedSection}>
+            <Text style={styles.sectionTitle}>Backup & Restore</Text>
+            
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton]}
+              onPress={handleBackupToGoogleDrive}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.background} size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Backup to Google Drive</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={() => accessToken && loadBackupFiles(accessToken)}
+              disabled={isLoading}
+            >
+              <Text style={styles.secondaryButtonText}>Refresh Backup List</Text>
+            </TouchableOpacity>
+
+            {backupFiles.length > 0 && (
+              <View style={styles.backupList}>
+                <Text style={styles.sectionTitle}>Available Backups</Text>
+                {backupFiles.map((file) => (
+                  <View key={file.id} style={styles.backupItem}>
+                    <View style={styles.backupInfo}>
+                      <Text style={styles.backupName}>{file.name}</Text>
+                      <Text style={styles.backupDate}>
+                        {formatDate(file.modifiedTime)}
+                      </Text>
+                      {file.size && (
+                        <Text style={styles.backupSize}>
+                          {Math.round(parseInt(file.size) / 1024)} KB
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.backupActions}>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.restoreButton]}
+                        onPress={() => handleRestoreFromGoogleDrive(file.id, file.name)}
+                        disabled={isLoading}
+                      >
+                        <Text style={styles.actionButtonText}>Restore</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => handleDeleteBackup(file.id, file.name)}
+                        disabled={isLoading}
+                      >
+                        <Text style={styles.actionButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  closeButton: {
+    padding: 5,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: colors.text,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  configWarning: {
+    backgroundColor: colors.warning || '#FFF3CD',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  configWarningText: {
+    color: colors.text,
+    marginBottom: 10,
+  },
+  configButton: {
+    backgroundColor: colors.primary,
+    padding: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  configButtonText: {
+    color: colors.background,
+    fontWeight: '600',
+  },
+  authSection: {
+    alignItems: 'center',
+  },
+  authenticatedSection: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 15,
+  },
+  description: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  button: {
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  buttonText: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backupList: {
+    marginTop: 20,
+  },
+  backupItem: {
+    backgroundColor: colors.cardBackground,
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  backupInfo: {
+    flex: 1,
+  },
+  backupName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  backupDate: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  backupSize: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  backupActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  restoreButton: {
+    backgroundColor: colors.success || colors.primary,
+  },
+  deleteButton: {
+    backgroundColor: colors.error || '#DC3545',
+  },
+  actionButtonText: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});
+
+export default GoogleDriveBackup;
