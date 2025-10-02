@@ -10,7 +10,7 @@ import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, cacheDirectory, moveAsync } from 'expo-file-system';
 
 export default function ExportScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -576,20 +576,16 @@ export default function ExportScreen() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const fileName = `TechRecords_${reportType.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.pdf`;
       
-      // Try to get a writable directory - fix the FileSystem access
+      // Try to get a writable directory - using the destructured imports
       let baseDirectory: string | null = null;
       
       try {
-        // Access the directories directly from FileSystem constants
-        const docDir = FileSystem.documentDirectory;
-        const cacheDir = FileSystem.cacheDirectory;
-        
-        if (docDir) {
-          baseDirectory = docDir;
-          console.log('Using document directory:', docDir);
-        } else if (cacheDir) {
-          baseDirectory = cacheDir;
-          console.log('Using cache directory:', cacheDir);
+        if (documentDirectory) {
+          baseDirectory = documentDirectory;
+          console.log('Using document directory:', documentDirectory);
+        } else if (cacheDirectory) {
+          baseDirectory = cacheDirectory;
+          console.log('Using cache directory:', cacheDirectory);
         }
       } catch (error) {
         console.log('Error accessing FileSystem directories:', error);
@@ -605,7 +601,7 @@ export default function ExportScreen() {
       
       try {
         // Move the file to a permanent location
-        await FileSystem.moveAsync({
+        await moveAsync({
           from: uri,
           to: newUri,
         });
