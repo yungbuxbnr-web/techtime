@@ -12,6 +12,7 @@ export default function AuthScreen() {
   const [pin, setPin] = useState('');
   const [correctPin, setCorrectPin] = useState('3101');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
+  const [isShaking, setIsShaking] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -67,9 +68,16 @@ export default function AuthScreen() {
         showNotification('Authentication Error', 'error');
       }
     } else {
-      showNotification('Incorrect PIN', 'error');
+      // Enhanced wrong PIN notification with shake animation
+      showNotification('Wrong PIN entered. Please try again.', 'error');
       setPin('');
+      setIsShaking(true);
       console.log('Incorrect PIN entered');
+      
+      // Reset shake animation after a short delay
+      setTimeout(() => {
+        setIsShaking(false);
+      }, 600);
     }
   };
 
@@ -97,7 +105,7 @@ export default function AuthScreen() {
           />
           
           <View style={styles.content}>
-            <View style={styles.authCard}>
+            <View style={[styles.authCard, isShaking && styles.shakeAnimation]}>
               <Text style={styles.title}>Technician Records</Text>
               <Text style={styles.subtitle}>Buckston Rugge</Text>
               
@@ -110,6 +118,8 @@ export default function AuthScreen() {
                 onSubmitPress={() => handlePinSubmit()}
                 maxLength={4}
               />
+              
+              {/* Removed sign-in button as requested */}
             </View>
           </View>
         </SafeAreaView>
@@ -143,6 +153,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
     elevation: 8,
+  },
+  shakeAnimation: {
+    transform: [{ translateX: 5 }],
   },
   title: {
     fontSize: 24,

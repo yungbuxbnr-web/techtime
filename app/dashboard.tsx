@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ImageBackground } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ImageBackground, BackHandler, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -21,6 +21,11 @@ export default function DashboardScreen() {
     utilizationPercentage: 0
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  
+  // For double-tap back to exit functionality
+  const backPressCount = useRef(0);
+  const backPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -54,11 +59,85 @@ export default function DashboardScreen() {
     }
   }, [loadData]);
 
+  // Handle back button press for double-tap to exit
+  const handleBackPress = useCallback(() => {
+    backPressCount.current += 1;
+    console.log('Back button pressed, count:', backPressCount.current);
+    
+    if (backPressCount.current === 1) {
+      showNotification('Press back again to exit app', 'info');
+      
+      // Reset counter after 2 seconds
+      backPressTimer.current = setTimeout(() => {
+        backPressCount.current = 0;
+        console.log('Back press counter reset');
+      }, 2000);
+      
+      return true; // Prevent default back action
+    } else if (backPressCount.current >= 2) {
+      // Clear timer and exit app
+      if (backPressTimer.current) {
+        clearTimeout(backPressTimer.current);
+      }
+      
+      console.log('Double back press detected - exiting app');
+      if (Platform.OS === 'android') {
+        BackHandler.exitApp();
+      }
+      return false;
+    }
+    
+    return true;
+  }, [showNotification]);
+
+  // Handle exit from options menu
+  const handleExitApp = () => {
+    Alert.alert(
+      'Exit App',
+      'Are you sure you want to exit the application?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => setShowOptionsMenu(false),
+        },
+        {
+          text: 'Exit',
+          style: 'destructive',
+          onPress: () => {
+            console.log('User confirmed app exit from options menu');
+            if (Platform.OS === 'android') {
+              BackHandler.exitApp();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useFocusEffect(
     useCallback(() => {
       checkAuthAndLoadData();
       console.log('Dashboard focused, checking auth and loading data');
-    }, [checkAuthAndLoadData])
+      
+      // Reset back press counter when screen is focused
+      backPressCount.current = 0;
+      if (backPressTimer.current) {
+        clearTimeout(backPressTimer.current);
+      }
+      
+      // Add back handler
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+      
+      return () => {
+        backHandler.remove();
+        // Clear timer on unmount
+        if (backPressTimer.current) {
+          clearTimeout(backPressTimer.current);
+        }
+        console.log('Dashboard unfocused, back handler removed');
+      };
+    }, [checkAuthAndLoadData, handleBackPress])
   );
 
   const hideNotification = () => {
@@ -81,6 +160,10 @@ export default function DashboardScreen() {
     router.push(`/stats?type=${type}`);
   };
 
+  const toggleOptionsMenu = () => {
+    setShowOptionsMenu(!showOptionsMenu);
+  };
+
   return (
     <ImageBackground
       source={require('../assets/images/daebef9d-f2fa-4b34-88c6-4226954942a0.png')}
@@ -96,10 +179,56 @@ export default function DashboardScreen() {
             onHide={hideNotification}
           />
           
+          {/* Options Menu */}
+          {showOptionsMenu && (
+            <View style={styles.optionsOverlay}>
+              <TouchableOpacity 
+                style={styles.optionsBackdrop} 
+                onPress={() => setShowOptionsMenu(false)}
+                activeOpacity={1}
+              />
+              <View style={styles.optionsMenu}>
+                <Text style={styles.optionsTitle}>Options</Text>
+                
+                <TouchableOpacity
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setShowOptionsMenu(false);
+                    navigateToSettings();
+                  }}
+                >
+                  <Text style={styles.optionText}>Settings</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.optionItem}
+                  onPress={handleExitApp}
+                >
+                  <Text style={[styles.optionText, styles.exitText]}>Exit App</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.optionItem, styles.cancelOption]}
+                  onPress={() => setShowOptionsMenu(false)}
+                >
+                  <Text style={styles.optionText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          
           <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Text style={styles.title}>Technician Records</Text>
               <Text style={styles.subtitle}>Buckston Rugge</Text>
+              
+              {/* Options Button */}
+              <TouchableOpacity
+                style={styles.optionsButton}
+                onPress={toggleOptionsMenu}
+              >
+                <Text style={styles.optionsButtonText}>⋯</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.progressSection}>
@@ -202,6 +331,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
+    position: 'relative',
   },
   title: {
     fontSize: 28,
@@ -215,6 +345,82 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
+  },
+  optionsButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  optionsButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  optionsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  optionsBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  optionsMenu: {
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    maxWidth: 300,
+    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+    elevation: 8,
+  },
+  optionsTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  optionItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cancelOption: {
+    backgroundColor: colors.backgroundAlt,
+    marginTop: 8,
+  },
+  optionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  exitText: {
+    color: colors.error,
   },
   progressSection: {
     alignItems: 'center',
