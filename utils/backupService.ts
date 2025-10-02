@@ -1,5 +1,5 @@
 
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, getInfoAsync, makeDirectoryAsync, writeAsStringAsync, readAsStringAsync, readDirectoryAsync } from 'expo-file-system';
 import { StorageService } from './storage';
 import { Job, AppSettings } from '../types';
 
@@ -25,17 +25,17 @@ export const BackupService = {
       console.log('Starting backup process...');
       
       // Check if document directory is available
-      if (!FileSystem.documentDirectory) {
+      if (!documentDirectory) {
         console.log('Document directory not available');
         return { success: false, message: 'Document directory not available on this device' };
       }
 
       // Create techtrace folder if it doesn't exist
-      const backupFolderPath = `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      const backupFolderPath = `${documentDirectory}${BACKUP_FOLDER_NAME}/`;
+      const folderInfo = await getInfoAsync(backupFolderPath);
       
       if (!folderInfo.exists) {
-        await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
+        await makeDirectoryAsync(backupFolderPath, { intermediates: true });
         console.log('Created techtrace backup folder');
       }
 
@@ -70,7 +70,7 @@ export const BackupService = {
       const backupFilePath = `${backupFolderPath}${backupFileName}`;
 
       // Write backup data to file
-      await FileSystem.writeAsStringAsync(
+      await writeAsStringAsync(
         backupFilePath,
         JSON.stringify(backupData, null, 2),
         { encoding: 'utf8' }
@@ -78,7 +78,7 @@ export const BackupService = {
 
       // Also create a latest backup file for easy access
       const latestBackupPath = `${backupFolderPath}${BACKUP_FILE_NAME}`;
-      await FileSystem.writeAsStringAsync(
+      await writeAsStringAsync(
         latestBackupPath,
         JSON.stringify(backupData, null, 2),
         { encoding: 'utf8' }
@@ -105,14 +105,14 @@ export const BackupService = {
       console.log('Starting import process...');
       
       // Check if document directory is available
-      if (!FileSystem.documentDirectory) {
+      if (!documentDirectory) {
         console.log('Document directory not available');
         return { success: false, message: 'Document directory not available on this device' };
       }
 
       // Check if techtrace folder exists
-      const backupFolderPath = `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      const backupFolderPath = `${documentDirectory}${BACKUP_FOLDER_NAME}/`;
+      const folderInfo = await getInfoAsync(backupFolderPath);
       
       if (!folderInfo.exists) {
         console.log('Backup folder does not exist');
@@ -121,7 +121,7 @@ export const BackupService = {
 
       // Check if backup file exists
       const backupFilePath = `${backupFolderPath}${BACKUP_FILE_NAME}`;
-      const fileInfo = await FileSystem.getInfoAsync(backupFilePath);
+      const fileInfo = await getInfoAsync(backupFilePath);
       
       if (!fileInfo.exists) {
         console.log('Backup file does not exist');
@@ -129,7 +129,7 @@ export const BackupService = {
       }
 
       // Read backup file
-      const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
+      const backupContent = await readAsStringAsync(backupFilePath, {
         encoding: 'utf8'
       });
 
@@ -201,18 +201,18 @@ export const BackupService = {
 
   async listBackupFiles(): Promise<{ success: boolean; files: string[]; message?: string }> {
     try {
-      if (!FileSystem.documentDirectory) {
+      if (!documentDirectory) {
         return { success: false, files: [], message: 'Document directory not available' };
       }
 
-      const backupFolderPath = `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      const backupFolderPath = `${documentDirectory}${BACKUP_FOLDER_NAME}/`;
+      const folderInfo = await getInfoAsync(backupFolderPath);
       
       if (!folderInfo.exists) {
         return { success: false, files: [], message: 'Backup folder does not exist' };
       }
 
-      const files = await FileSystem.readDirectoryAsync(backupFolderPath);
+      const files = await readDirectoryAsync(backupFolderPath);
       const backupFiles = files.filter(file => file.endsWith('.json'));
       
       console.log('Found backup files:', backupFiles);
@@ -225,23 +225,23 @@ export const BackupService = {
   },
 
   async getBackupFolderPath(): Promise<string | null> {
-    if (!FileSystem.documentDirectory) {
+    if (!documentDirectory) {
       return null;
     }
-    return `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
+    return `${documentDirectory}${BACKUP_FOLDER_NAME}/`;
   },
 
   async ensureBackupFolderExists(): Promise<{ success: boolean; message: string }> {
     try {
-      if (!FileSystem.documentDirectory) {
+      if (!documentDirectory) {
         return { success: false, message: 'Document directory not available on this device' };
       }
 
-      const backupFolderPath = `${FileSystem.documentDirectory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      const backupFolderPath = `${documentDirectory}${BACKUP_FOLDER_NAME}/`;
+      const folderInfo = await getInfoAsync(backupFolderPath);
       
       if (!folderInfo.exists) {
-        await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
+        await makeDirectoryAsync(backupFolderPath, { intermediates: true });
         console.log('Created techtrace backup folder at:', backupFolderPath);
         return { 
           success: true, 
