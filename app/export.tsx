@@ -580,7 +580,7 @@ export default function ExportScreen() {
       let baseDirectory: string | null = null;
       
       try {
-        // Check if we have access to document directory first
+        // Access documentDirectory and cacheDirectory directly as properties
         const documentDir = FileSystem.documentDirectory;
         const cacheDir = FileSystem.cacheDirectory;
         
