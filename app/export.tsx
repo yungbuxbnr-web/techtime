@@ -56,6 +56,14 @@ export default function ExportScreen() {
     setNotification(prev => ({ ...prev, visible: false }));
   }, []);
 
+  const getMonthName = useCallback((month: number) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month];
+  }, []);
+
   const generateStylishPDFHTML = useCallback((exportJobs: Job[], title: string, reportType: string) => {
     const totalJobs = exportJobs.length;
     const totalAWs = exportJobs.reduce((sum, job) => sum + job.awValue, 0);
@@ -502,7 +510,7 @@ export default function ExportScreen() {
         </body>
       </html>
     `;
-  }, []);
+  }, [getMonthName]);
 
   const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all', customMonth?: number, customYear?: number) => {
     try {
@@ -668,14 +676,6 @@ export default function ExportScreen() {
 
     return count;
   }, [jobs]);
-
-  const getMonthName = (month: number) => {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month];
-  };
 
   const handleMonthChange = (direction: 'prev' | 'next') => {
     let newMonth = selectedMonth;
