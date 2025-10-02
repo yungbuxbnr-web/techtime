@@ -352,13 +352,10 @@ export default function ExportScreen() {
       
       try {
         // Access the properties directly from FileSystem
-        const docDir = FileSystem.documentDirectory;
-        const cacheDir = FileSystem.cacheDirectory;
-        
-        if (docDir) {
-          baseDirectory = docDir;
-        } else if (cacheDir) {
-          baseDirectory = cacheDir;
+        if (FileSystem.documentDirectory) {
+          baseDirectory = FileSystem.documentDirectory;
+        } else if (FileSystem.cacheDirectory) {
+          baseDirectory = FileSystem.cacheDirectory;
         }
       } catch (error) {
         console.log('Error accessing FileSystem directories:', error);

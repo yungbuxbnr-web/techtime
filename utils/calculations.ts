@@ -92,7 +92,7 @@ export const CalculationService = {
   },
 
   // Get available months that have jobs
-  getAvailableMonths(jobs: Job[]): Array<{ month: number; year: number; count: number }> {
+  getAvailableMonths(jobs: Job[]): { month: number; year: number; count: number }[] {
     const monthMap = new Map<string, number>();
     
     jobs.forEach(job => {
@@ -101,7 +101,7 @@ export const CalculationService = {
       monthMap.set(key, (monthMap.get(key) || 0) + 1);
     });
 
-    const result: Array<{ month: number; year: number; count: number }> = [];
+    const result: { month: number; year: number; count: number }[] = [];
     
     monthMap.forEach((count, key) => {
       const [year, month] = key.split('-').map(Number);

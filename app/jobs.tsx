@@ -21,6 +21,15 @@ export default function JobsScreen() {
     setNotification({ visible: true, message, type });
   }, []);
 
+  const filterJobsByMonth = useCallback((jobsData: Job[], month: number, year: number) => {
+    const filtered = jobsData.filter(job => {
+      const jobDate = new Date(job.dateCreated);
+      return jobDate.getMonth() === month && jobDate.getFullYear() === year;
+    });
+    setFilteredJobs(filtered);
+    console.log(`Filtered jobs for ${month + 1}/${year}:`, filtered.length);
+  }, []);
+
   const loadJobs = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
@@ -32,16 +41,7 @@ export default function JobsScreen() {
       console.log('Error loading jobs:', error);
       showNotification('Error loading jobs', 'error');
     }
-  }, [showNotification, selectedMonth, selectedYear]);
-
-  const filterJobsByMonth = useCallback((jobsData: Job[], month: number, year: number) => {
-    const filtered = jobsData.filter(job => {
-      const jobDate = new Date(job.dateCreated);
-      return jobDate.getMonth() === month && jobDate.getFullYear() === year;
-    });
-    setFilteredJobs(filtered);
-    console.log(`Filtered jobs for ${month + 1}/${year}:`, filtered.length);
-  }, []);
+  }, [showNotification, selectedMonth, selectedYear, filterJobsByMonth]);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
