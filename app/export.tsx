@@ -576,15 +576,20 @@ export default function ExportScreen() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const fileName = `TechRecords_${reportType.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.pdf`;
       
-      // Try to get a writable directory - accessing properties correctly
+      // Try to get a writable directory - using the correct approach for expo-file-system
       let baseDirectory: string | null = null;
       
       try {
-        // Access the properties directly from FileSystem
-        if (FileSystem.documentDirectory) {
-          baseDirectory = FileSystem.documentDirectory;
-        } else if (FileSystem.cacheDirectory) {
-          baseDirectory = FileSystem.cacheDirectory;
+        // Check if we have access to document directory first
+        const documentDir = FileSystem.documentDirectory;
+        const cacheDir = FileSystem.cacheDirectory;
+        
+        if (documentDir) {
+          baseDirectory = documentDir;
+          console.log('Using document directory:', documentDir);
+        } else if (cacheDir) {
+          baseDirectory = cacheDir;
+          console.log('Using cache directory:', cacheDir);
         }
       } catch (error) {
         console.log('Error accessing FileSystem directories:', error);
