@@ -91,6 +91,11 @@ export const CalculationService = {
     });
   },
 
+  // Get jobs by month and year (alias for compatibility)
+  getJobsByMonthYear(jobs: Job[], month: number, year: number): Job[] {
+    return this.getJobsByMonth(jobs, month, year);
+  },
+
   // Get available months that have jobs
   getAvailableMonths(jobs: Job[]): { month: number; year: number; count: number }[] {
     const monthMap = new Map<string, number>();
@@ -104,7 +109,8 @@ export const CalculationService = {
     const result: { month: number; year: number; count: number }[] = [];
     
     monthMap.forEach((count, key) => {
-      const [year, month] = key.split('-').map(Number);
+      const numberArray = key.split('-').map(Number);
+      const [year, month] = numberArray;
       result.push({ month, year, count });
     });
 
@@ -112,6 +118,14 @@ export const CalculationService = {
     return result.sort((a, b) => {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;
+    });
+  },
+
+  // Filter jobs by month for display
+  filterJobsByMonth(jobs: Job[], month: number, year: number): Job[] {
+    return jobs.filter(job => {
+      const jobDate = new Date(job.dateCreated);
+      return jobDate.getMonth() === month && jobDate.getFullYear() === year;
     });
   }
 };
