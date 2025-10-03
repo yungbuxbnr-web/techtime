@@ -39,11 +39,11 @@ export default function RootLayout() {
       
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         // App has come to the foreground from background/inactive state
-        console.log('App came to foreground - requiring PIN authentication');
+        console.log('App came to foreground - requiring PIN authentication for fresh start');
         try {
           const settings = await StorageService.getSettings();
           await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-          console.log('Authentication reset due to app state change');
+          console.log('Authentication reset due to app state change - ensuring fresh start');
         } catch (error) {
           console.log('Error resetting auth on app state change:', error);
         }

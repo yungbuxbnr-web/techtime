@@ -1,6 +1,9 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { Job, AppSettings } from '../types';
+import { Platform } from 'react-native';
 
 const JOBS_KEY = 'jobs';
 const SETTINGS_KEY = 'settings';
@@ -85,6 +88,96 @@ export const StorageService = {
       console.log('All data cleared successfully');
     } catch (error) {
       console.log('Error clearing data:', error);
+      throw error;
+    }
+  },
+
+  // Enhanced storage functionality with folder selection
+  async selectFolderAndSaveFile(fileUri: string, fileName: string): Promise<string> {
+    try {
+      if (Platform.OS === 'web') {
+        // On web, we can't select folders, so just download the file
+        const response = await fetch(fileUri);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return 'Downloaded to default folder';
+      }
+
+      // For mobile platforms, use document picker to select directory
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: false,
+        multiple: false,
+      });
+
+      if (result.canceled) {
+        throw new Error('Folder selection cancelled');
+      }
+
+      // Get the directory from the selected file
+      const selectedFile = result.assets[0];
+      const directoryPath = selectedFile.uri.substring(0, selectedFile.uri.lastIndexOf('/'));
+      
+      // Copy the file to the selected directory
+      const destinationPath = `${directoryPath}/${fileName}`;
+      await FileSystem.copyAsync({
+        from: fileUri,
+        to: destinationPath,
+      });
+
+      console.log('File saved to selected folder:', destinationPath);
+      return destinationPath;
+    } catch (error) {
+      console.log('Error saving file to selected folder:', error);
+      throw error;
+    }
+  },
+
+  async saveFileToCustomLocation(fileUri: string, fileName: string): Promise<string> {
+    try {
+      if (Platform.OS === 'android') {
+        // On Android, try to use the system file picker to select a save location
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'application/*',
+          copyToCacheDirectory: false,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const selectedPath = result.assets[0].uri;
+          const directoryPath = selectedPath.substring(0, selectedPath.lastIndexOf('/'));
+          const destinationPath = `${directoryPath}/${fileName}`;
+          
+          await FileSystem.copyAsync({
+            from: fileUri,
+            to: destinationPath,
+          });
+          
+          return destinationPath;
+        }
+      }
+
+      // Fallback: save to documents directory
+      const documentsDirectory = FileSystem.documentDirectory;
+      if (!documentsDirectory) {
+        throw new Error('Documents directory not available');
+      }
+
+      const destinationPath = `${documentsDirectory}${fileName}`;
+      await FileSystem.copyAsync({
+        from: fileUri,
+        to: destinationPath,
+      });
+
+      return destinationPath;
+    } catch (error) {
+      console.log('Error saving file to custom location:', error);
       throw error;
     }
   }

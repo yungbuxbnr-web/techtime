@@ -75,12 +75,20 @@ export default function DashboardScreen() {
       
       return true; // Prevent default back action
     } else if (backPressCount.current >= 2) {
-      // Clear timer and exit app
+      // Clear timer and reset app to fresh state before exit
       if (backPressTimer.current) {
         clearTimeout(backPressTimer.current);
       }
       
-      console.log('Double back press detected - exiting app');
+      console.log('Double back press detected - resetting app and exiting');
+      
+      // Reset authentication to ensure fresh start on next launch
+      StorageService.getSettings().then(settings => {
+        StorageService.saveSettings({ ...settings, isAuthenticated: false });
+      }).catch(error => {
+        console.log('Error resetting auth on exit:', error);
+      });
+      
       if (Platform.OS === 'android') {
         BackHandler.exitApp();
       }
@@ -94,7 +102,7 @@ export default function DashboardScreen() {
   const handleExitApp = () => {
     Alert.alert(
       'Exit App',
-      'Are you sure you want to exit the application?',
+      'Are you sure you want to exit the application? The app will start fresh from the home page when reopened.',
       [
         {
           text: 'Cancel',
@@ -104,8 +112,18 @@ export default function DashboardScreen() {
         {
           text: 'Exit',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             console.log('User confirmed app exit from options menu');
+            
+            // Reset authentication to ensure fresh start on next launch
+            try {
+              const settings = await StorageService.getSettings();
+              await StorageService.saveSettings({ ...settings, isAuthenticated: false });
+              console.log('Authentication reset for fresh app start');
+            } catch (error) {
+              console.log('Error resetting auth on exit:', error);
+            }
+            
             if (Platform.OS === 'android') {
               BackHandler.exitApp();
             }

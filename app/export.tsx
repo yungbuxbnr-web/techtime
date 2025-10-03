@@ -92,12 +92,14 @@ export default function ExportScreen() {
     return months[month];
   }, []);
 
-  const generateStylishPDFHTML = useCallback((exportJobs: Job[], title: string, reportType: string) => {
-    const totalJobs = exportJobs.length;
-    const totalAWs = exportJobs.reduce((sum, job) => sum + job.awValue, 0);
-    const totalMinutes = totalAWs * 5;
-    const totalHours = CalculationService.minutesToHours(totalMinutes);
-    const formattedTotalTime = CalculationService.formatTime(totalMinutes);
+  const generateStylishPDFHTML = useCallback((exportJobs: Job[], title: string, reportType: string, exportType: 'daily' | 'weekly' | 'monthly' | 'all') => {
+    // Calculate performance metrics based on export type
+    let performanceType: 'daily' | 'weekly' | 'monthly' = 'monthly';
+    if (exportType === 'daily') performanceType = 'daily';
+    else if (exportType === 'weekly') performanceType = 'weekly';
+    else if (exportType === 'monthly') performanceType = 'monthly';
+    
+    const metrics = CalculationService.calculatePerformanceMetrics(exportJobs, performanceType);
     
     const currentDate = new Date().toLocaleDateString('en-GB', { 
       weekday: 'long', 
@@ -142,12 +144,12 @@ export default function ExportScreen() {
     }).join('');
 
     // Calculate average AWs per job
-    const avgAWs = totalJobs > 0 ? (totalAWs / totalJobs).toFixed(1) : '0';
+    const avgAWs = exportJobs.length > 0 ? (metrics.totalAWs / exportJobs.length).toFixed(1) : '0';
     
-    // Calculate efficiency metrics
-    const targetAWsPerHour = 12; // Assuming 12 AWs per hour as target
-    const actualAWsPerHour = totalHours > 0 ? (totalAWs / totalHours).toFixed(1) : '0';
-    const efficiency = totalHours > 0 ? Math.min(((totalAWs / totalHours) / targetAWsPerHour) * 100, 100).toFixed(0) : '0';
+    // Format performance metrics for display
+    const formattedTotalTime = CalculationService.formatTime(metrics.totalMinutes);
+    const remainingHours = Math.max(0, metrics.targetHours - metrics.totalHours);
+    const formattedRemainingTime = CalculationService.formatTime(remainingHours * 60);
 
     return `
       <!DOCTYPE html>
@@ -270,44 +272,51 @@ export default function ExportScreen() {
               letter-spacing: 1px;
               font-weight: 600;
             }
-            .efficiency-section {
+            .performance-section {
               background: linear-gradient(135deg, #e8f0fe 0%, #f1f8e9 100%);
-              padding: 24px;
+              padding: 32px;
               border-radius: 12px;
               margin-top: 24px;
               border: 1px solid #dadce0;
             }
-            .efficiency-title {
-              font-size: 18px;
-              font-weight: 700;
-              color: #1a73e8;
-              margin: 0 0 16px 0;
-              text-align: center;
-            }
-            .efficiency-grid {
-              display: grid;
-              grid-template-columns: repeat(3, 1fr);
-              gap: 16px;
-            }
-            .efficiency-item {
-              text-align: center;
-              background: white;
-              padding: 16px;
-              border-radius: 8px;
-              border: 1px solid #e8eaed;
-            }
-            .efficiency-number {
+            .performance-title {
               font-size: 24px;
               font-weight: 700;
-              color: #34a853;
-              margin: 0 0 4px 0;
+              color: #1a73e8;
+              margin: 0 0 24px 0;
+              text-align: center;
             }
-            .efficiency-label {
-              font-size: 11px;
+            .performance-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 20px;
+            }
+            .performance-item {
+              text-align: center;
+              background: white;
+              padding: 20px;
+              border-radius: 12px;
+              border: 1px solid #e8eaed;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            }
+            .performance-number {
+              font-size: 32px;
+              font-weight: 700;
+              color: #34a853;
+              margin: 0 0 8px 0;
+            }
+            .performance-label {
+              font-size: 12px;
               color: #5f6368;
               text-transform: uppercase;
               letter-spacing: 0.5px;
               font-weight: 600;
+              margin-bottom: 4px;
+            }
+            .performance-subtitle {
+              font-size: 11px;
+              color: #9aa0a6;
+              font-style: italic;
             }
             .content {
               padding: 40px;
@@ -451,15 +460,15 @@ export default function ExportScreen() {
               <h3>📊 Report Summary</h3>
               <div class="summary-grid">
                 <div class="summary-item">
-                  <div class="summary-number">${totalJobs}</div>
+                  <div class="summary-number">${exportJobs.length}</div>
                   <div class="summary-label">Total Jobs</div>
                 </div>
                 <div class="summary-item">
-                  <div class="summary-number">${totalAWs}</div>
+                  <div class="summary-number">${metrics.totalAWs}</div>
                   <div class="summary-label">Total AWs</div>
                 </div>
                 <div class="summary-item">
-                  <div class="summary-number">${totalHours.toFixed(1)}h</div>
+                  <div class="summary-number">${metrics.totalHours.toFixed(1)}h</div>
                   <div class="summary-label">Total Hours</div>
                 </div>
                 <div class="summary-item">
@@ -468,20 +477,28 @@ export default function ExportScreen() {
                 </div>
               </div>
               
-              <div class="efficiency-section">
-                <div class="efficiency-title">⚡ Performance Metrics</div>
-                <div class="efficiency-grid">
-                  <div class="efficiency-item">
-                    <div class="efficiency-number">${actualAWsPerHour}</div>
-                    <div class="efficiency-label">AWs per Hour</div>
+              <div class="performance-section">
+                <div class="performance-title">⚡ Performance Metrics</div>
+                <div class="performance-grid">
+                  <div class="performance-item">
+                    <div class="performance-number">${metrics.utilizationPercentage.toFixed(1)}%</div>
+                    <div class="performance-label">Utilization</div>
+                    <div class="performance-subtitle">Out of ${metrics.targetHours}h target</div>
                   </div>
-                  <div class="efficiency-item">
-                    <div class="efficiency-number">${efficiency}%</div>
-                    <div class="efficiency-label">Efficiency</div>
+                  <div class="performance-item">
+                    <div class="performance-number">${metrics.avgAWsPerHour.toFixed(1)}</div>
+                    <div class="performance-label">AWs per Hour</div>
+                    <div class="performance-subtitle">Average productivity</div>
                   </div>
-                  <div class="efficiency-item">
-                    <div class="efficiency-number">${formattedTotalTime}</div>
-                    <div class="efficiency-label">Total Time</div>
+                  <div class="performance-item">
+                    <div class="performance-number">${metrics.efficiency.toFixed(0)}%</div>
+                    <div class="performance-label">Efficiency</div>
+                    <div class="performance-subtitle">vs 12 AWs/hour target</div>
+                  </div>
+                  <div class="performance-item">
+                    <div class="performance-number">${formattedRemainingTime}</div>
+                    <div class="performance-label">Remaining</div>
+                    <div class="performance-subtitle">To reach target</div>
                   </div>
                 </div>
               </div>
@@ -512,16 +529,20 @@ export default function ExportScreen() {
               <div class="totals-title">📈 Final Totals</div>
               <div class="totals-grid">
                 <div class="totals-item">
-                  <div class="totals-number">${totalJobs}</div>
+                  <div class="totals-number">${exportJobs.length}</div>
                   <div class="totals-label">Jobs Completed</div>
                 </div>
                 <div class="totals-item">
-                  <div class="totals-number">${totalAWs}</div>
+                  <div class="totals-number">${metrics.totalAWs}</div>
                   <div class="totals-label">Total AWs</div>
                 </div>
                 <div class="totals-item">
                   <div class="totals-number">${formattedTotalTime}</div>
                   <div class="totals-label">Total Time</div>
+                </div>
+                <div class="totals-item">
+                  <div class="totals-number">${metrics.utilizationPercentage.toFixed(1)}%</div>
+                  <div class="totals-label">Utilization</div>
                 </div>
               </div>
             </div>
@@ -587,6 +608,17 @@ export default function ExportScreen() {
     }
   }, [mediaLibraryPermission, requestMediaLibraryPermission]);
 
+  const saveToCustomFolder = useCallback(async (pdfUri: string, fileName: string) => {
+    try {
+      const savedPath = await StorageService.saveFileToCustomLocation(pdfUri, fileName);
+      console.log('PDF saved to custom location:', savedPath);
+      return savedPath;
+    } catch (error) {
+      console.log('Error saving to custom folder:', error);
+      throw error;
+    }
+  }, []);
+
   const handleExport = useCallback(async (type: 'daily' | 'weekly' | 'monthly' | 'all', customMonth?: number, customYear?: number) => {
     try {
       const today = new Date();
@@ -629,9 +661,9 @@ export default function ExportScreen() {
         return;
       }
 
-      showNotification('Generating stylish PDF report...', 'info');
+      showNotification('Generating PDF with performance metrics...', 'info');
 
-      const htmlContent = generateStylishPDFHTML(exportJobs, title, reportType);
+      const htmlContent = generateStylishPDFHTML(exportJobs, title, reportType, type);
       
       // Generate PDF with high quality settings
       const { uri } = await Print.printToFileAsync({
@@ -656,7 +688,7 @@ export default function ExportScreen() {
       // Show options for what to do with the PDF
       Alert.alert(
         'PDF Generated Successfully! 📄',
-        `${reportType} report is ready. What would you like to do?`,
+        `${reportType} report with performance metrics is ready. What would you like to do?`,
         [
           {
             text: 'Share to Apps',
@@ -692,6 +724,18 @@ export default function ExportScreen() {
             }
           },
           {
+            text: 'Choose Folder',
+            onPress: async () => {
+              try {
+                await saveToCustomFolder(uri, fileName);
+                showNotification('PDF saved to selected folder! 📁', 'success');
+              } catch (error) {
+                console.log('Error saving to custom folder:', error);
+                showNotification('Error saving to custom folder. Try default storage.', 'error');
+              }
+            }
+          },
+          {
             text: 'Save to Storage',
             onPress: async () => {
               try {
@@ -719,7 +763,7 @@ export default function ExportScreen() {
       console.log('Error exporting PDF:', error);
       showNotification('Error exporting PDF. Please try again.', 'error');
     }
-  }, [jobs, showNotification, generateStylishPDFHTML, getMonthName, saveToBackupFolder, saveToMediaLibrary]);
+  }, [jobs, showNotification, generateStylishPDFHTML, getMonthName, saveToBackupFolder, saveToMediaLibrary, saveToCustomFolder]);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -799,7 +843,7 @@ export default function ExportScreen() {
 
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
-          Export your job records as stylish PDF reports with professional formatting, detailed tables, and comprehensive totals. Share to other apps or save to device storage.
+          Export your job records as stylish PDF reports with professional formatting, detailed tables, and comprehensive performance metrics calculated based on your data.
         </Text>
 
         {/* Permission Status */}
@@ -820,8 +864,8 @@ export default function ExportScreen() {
           </View>
           <Text style={styles.permissionDescription}>
             {mediaLibraryPermission 
-              ? 'You can save PDFs directly to device storage and backup folder.'
-              : 'Grant permission to save PDFs to device storage. You can still share to other apps without permission.'
+              ? 'You can save PDFs directly to device storage, backup folder, or choose custom folders.'
+              : 'Grant permission to save PDFs to device storage. You can still share to other apps and choose custom folders without permission.'
             }
           </Text>
         </View>
@@ -829,7 +873,7 @@ export default function ExportScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📅 Daily Export</Text>
           <Text style={styles.sectionDescription}>
-            Export today&apos;s jobs ({getJobCount('daily')} jobs)
+            Export today&apos;s jobs ({getJobCount('daily')} jobs) - Performance calculated out of 8.5 hours
           </Text>
           <TouchableOpacity
             style={[styles.exportButton, styles.pdfButton]}
@@ -842,7 +886,7 @@ export default function ExportScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 Weekly Export</Text>
           <Text style={styles.sectionDescription}>
-            Export this week&apos;s jobs ({getJobCount('weekly')} jobs)
+            Export this week&apos;s jobs ({getJobCount('weekly')} jobs) - Performance calculated out of 45 hours
           </Text>
           <TouchableOpacity
             style={[styles.exportButton, styles.pdfButton]}
@@ -882,7 +926,7 @@ export default function ExportScreen() {
           </View>
 
           <Text style={styles.sectionDescription}>
-            Export jobs for {getMonthName(selectedMonth)} {selectedYear} ({getJobCount('monthly', selectedMonth, selectedYear)} jobs)
+            Export jobs for {getMonthName(selectedMonth)} {selectedYear} ({getJobCount('monthly', selectedMonth, selectedYear)} jobs) - Performance calculated out of 180 hours
           </Text>
           <TouchableOpacity
             style={[styles.exportButton, styles.pdfButton]}
@@ -895,7 +939,7 @@ export default function ExportScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📋 Complete History Export</Text>
           <Text style={styles.sectionDescription}>
-            Export all recorded jobs ({getJobCount('all')} jobs)
+            Export all recorded jobs ({getJobCount('all')} jobs) - Performance calculated as monthly totals
           </Text>
           <TouchableOpacity
             style={[styles.exportButton, styles.pdfButton]}
@@ -914,10 +958,16 @@ export default function ExportScreen() {
             • 📊 Comprehensive summary statistics with visual formatting
           </Text>
           <Text style={styles.infoText}>
-            • 📋 Detailed job table with all information organized clearly
+            • ⚡ Performance metrics calculated based on actual data and time periods
           </Text>
           <Text style={styles.infoText}>
-            • 📈 Performance metrics and efficiency calculations
+            • 📈 Utilization percentages: Daily (8.5h), Weekly (45h), Monthly (180h)
+          </Text>
+          <Text style={styles.infoText}>
+            • 🎯 Efficiency calculations based on 12 AWs/hour target
+          </Text>
+          <Text style={styles.infoText}>
+            • 📋 Detailed job table with all information organized clearly
           </Text>
           <Text style={styles.infoText}>
             • 🔢 Complete totals section at the bottom of each report
@@ -927,6 +977,9 @@ export default function ExportScreen() {
           </Text>
           <Text style={styles.infoText}>
             • 💾 Save to backup folder for device migration
+          </Text>
+          <Text style={styles.infoText}>
+            • 📁 Choose custom folder to save to on device storage
           </Text>
           <Text style={styles.infoText}>
             • 📱 Save directly to device storage (with permission)

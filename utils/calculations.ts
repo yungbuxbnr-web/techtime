@@ -19,6 +19,49 @@ export const CalculationService = {
     return `${hours}h ${mins}m`;
   },
 
+  // Calculate performance metrics for different time periods
+  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly'): {
+    totalAWs: number;
+    totalMinutes: number;
+    totalHours: number;
+    targetHours: number;
+    utilizationPercentage: number;
+    efficiency: number;
+    avgAWsPerHour: number;
+  } {
+    const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
+    const totalMinutes = totalAWs * 5;
+    const totalHours = this.minutesToHours(totalMinutes);
+    
+    let targetHours = 0;
+    switch (type) {
+      case 'daily':
+        targetHours = 8.5; // 8.5 hours per day
+        break;
+      case 'weekly':
+        targetHours = 45; // 45 hours per week
+        break;
+      case 'monthly':
+        targetHours = 180; // 180 hours per month
+        break;
+    }
+    
+    const utilizationPercentage = targetHours > 0 ? Math.min((totalHours / targetHours) * 100, 100) : 0;
+    const targetAWsPerHour = 12; // Assuming 12 AWs per hour as target
+    const avgAWsPerHour = totalHours > 0 ? totalAWs / totalHours : 0;
+    const efficiency = targetAWsPerHour > 0 ? Math.min((avgAWsPerHour / targetAWsPerHour) * 100, 100) : 0;
+    
+    return {
+      totalAWs,
+      totalMinutes,
+      totalHours,
+      targetHours,
+      utilizationPercentage,
+      efficiency,
+      avgAWsPerHour
+    };
+  },
+
   // Calculate monthly stats
   calculateMonthlyStats(jobs: Job[]): MonthlyStats {
     const currentMonth = new Date().getMonth();
