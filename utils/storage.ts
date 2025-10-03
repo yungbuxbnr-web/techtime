@@ -8,6 +8,11 @@ import { Platform } from 'react-native';
 const JOBS_KEY = 'jobs';
 const SETTINGS_KEY = 'settings';
 
+// Helper function to get document directory
+const getDocumentDirectory = (): string | null => {
+  return (FileSystem as any).documentDirectory || null;
+};
+
 export const StorageService = {
   // Jobs
   async getJobs(): Promise<Job[]> {
@@ -164,7 +169,7 @@ export const StorageService = {
       }
 
       // Fallback: save to documents directory
-      const documentsDirectory = FileSystem.documentDirectory;
+      const documentsDirectory = getDocumentDirectory();
       if (!documentsDirectory) {
         throw new Error('Documents directory not available');
       }
