@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ImageBackground, BackHandler, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -149,201 +149,193 @@ export default function DashboardScreen() {
   const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
 
   return (
-    <SafeAreaView style={commonStyles.container}>
-      <ImageBackground
-        source={require('../assets/images/c086552e-d095-4d0e-829e-f1ee408c6095.png')}
-        style={styles.backgroundImage}
-        resizeMode="cover"
-      >
-        {/* Enhanced overlay for better readability */}
-        <View style={styles.overlay}>
-          <NotificationToast
-            message={notification.message}
-            type={notification.type}
-            visible={notification.visible}
-            onHide={hideNotification}
-          />
-          
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.welcomeText}>Technician Records</Text>
-              <Text style={styles.nameText}>Buckston Rugge</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.optionsButton}
-              onPress={toggleOptionsMenu}
-            >
-              <Text style={styles.optionsButtonText}>⋯</Text>
-            </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.whiteBackground}>
+        <NotificationToast
+          message={notification.message}
+          type={notification.type}
+          visible={notification.visible}
+          onHide={hideNotification}
+        />
+        
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.welcomeText}>Technician Records</Text>
+            <Text style={styles.nameText}>Buckston Rugge</Text>
           </View>
-
-          {showOptionsMenu && (
-            <View style={styles.optionsMenu}>
-              <TouchableOpacity
-                style={styles.optionItem}
-                onPress={() => {
-                  setShowOptionsMenu(false);
-                  router.push('/export');
-                }}
-              >
-                <Text style={styles.optionText}>Export Data</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.optionItem}
-                onPress={() => {
-                  setShowOptionsMenu(false);
-                  handleExitApp();
-                }}
-              >
-                <Text style={styles.optionText}>Exit App</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Monthly Progress Circle */}
-            <View style={styles.progressSection}>
-              <TouchableOpacity onPress={() => navigateToStats('remaining')}>
-                <ProgressCircle
-                  percentage={monthlyStats.utilizationPercentage}
-                  size={160}
-                  strokeWidth={12}
-                  color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
-                />
-                <View style={styles.progressTextContainer}>
-                  <Text style={styles.progressPercentage}>
-                    {monthlyStats.utilizationPercentage.toFixed(1)}%
-                  </Text>
-                  <Text style={styles.progressLabel}>Monthly Progress</Text>
-                  <Text style={styles.progressSubtext}>
-                    {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours}h
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Stats Grid */}
-            <View style={styles.statsGrid}>
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={() => navigateToStats('aws')}
-              >
-                <Text style={styles.statValue}>{monthlyStats.totalAWs}</Text>
-                <Text style={styles.statLabel}>Total AWs</Text>
-                <Text style={styles.statSubtext}>This Month</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={() => navigateToStats('time')}
-              >
-                <Text style={styles.statValue}>
-                  {CalculationService.formatTime(monthlyStats.totalTime)}
-                </Text>
-                <Text style={styles.statLabel}>Time Logged</Text>
-                <Text style={styles.statSubtext}>This Month</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={() => navigateToStats('jobs')}
-              >
-                <Text style={styles.statValue}>{monthlyStats.totalJobs}</Text>
-                <Text style={styles.statLabel}>Jobs Done</Text>
-                <Text style={styles.statSubtext}>This Month</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.statCard}
-                onPress={() => navigateToStats('remaining')}
-              >
-                <Text style={styles.statValue}>
-                  {CalculationService.formatTime(Math.max(0, (monthlyStats.targetHours * 60) - monthlyStats.totalTime))}
-                </Text>
-                <Text style={styles.statLabel}>Remaining</Text>
-                <Text style={styles.statSubtext}>This Month</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Today & Week Summary */}
-            <View style={styles.summarySection}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Today</Text>
-                <Text style={styles.summaryValue}>
-                  {dailyJobs.length} jobs • {dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
-                </Text>
-                <Text style={styles.summaryTime}>
-                  {CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
-                </Text>
-              </View>
-
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>This Week</Text>
-                <Text style={styles.summaryValue}>
-                  {weeklyJobs.length} jobs • {weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
-                </Text>
-                <Text style={styles.summaryTime}>
-                  {CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
-                </Text>
-              </View>
-            </View>
-
-            {/* Quick Actions */}
-            <View style={styles.actionsSection}>
-              <TouchableOpacity
-                style={styles.primaryAction}
-                onPress={navigateToAddJob}
-              >
-                <Text style={styles.primaryActionText}>+ Add New Job</Text>
-              </TouchableOpacity>
-
-              <View style={styles.secondaryActions}>
-                <TouchableOpacity
-                  style={styles.secondaryAction}
-                  onPress={navigateToJobs}
-                >
-                  <Text style={styles.secondaryActionText}>View All Jobs</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.secondaryAction}
-                  onPress={navigateToStatistics}
-                >
-                  <Text style={styles.secondaryActionText}>Statistics</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-
-          <View style={styles.bottomNav}>
-            <TouchableOpacity style={styles.navItem} onPress={() => {}}>
-              <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
-              <Text style={styles.navText}>Jobs</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>
-              <Text style={styles.navText}>Statistics</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
-              <Text style={styles.navText}>Settings</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.optionsButton}
+            onPress={toggleOptionsMenu}
+          >
+            <Text style={styles.optionsButtonText}>⋯</Text>
+          </TouchableOpacity>
         </View>
-      </ImageBackground>
+
+        {showOptionsMenu && (
+          <View style={styles.optionsMenu}>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                setShowOptionsMenu(false);
+                router.push('/export');
+              }}
+            >
+              <Text style={styles.optionText}>Export Data</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                setShowOptionsMenu(false);
+                handleExitApp();
+              }}
+            >
+              <Text style={styles.optionText}>Exit App</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Monthly Progress Circle */}
+          <View style={styles.progressSection}>
+            <TouchableOpacity onPress={() => navigateToStats('remaining')}>
+              <ProgressCircle
+                percentage={monthlyStats.utilizationPercentage}
+                size={160}
+                strokeWidth={12}
+                color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
+              />
+              <View style={styles.progressTextContainer}>
+                <Text style={styles.progressPercentage}>
+                  {monthlyStats.utilizationPercentage.toFixed(1)}%
+                </Text>
+                <Text style={styles.progressLabel}>Monthly Progress</Text>
+                <Text style={styles.progressSubtext}>
+                  {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours}h
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            <TouchableOpacity 
+              style={styles.statCard}
+              onPress={() => navigateToStats('aws')}
+            >
+              <Text style={styles.statValue}>{monthlyStats.totalAWs}</Text>
+              <Text style={styles.statLabel}>Total AWs</Text>
+              <Text style={styles.statSubtext}>This Month</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.statCard}
+              onPress={() => navigateToStats('time')}
+            >
+              <Text style={styles.statValue}>
+                {CalculationService.formatTime(monthlyStats.totalTime)}
+              </Text>
+              <Text style={styles.statLabel}>Time Logged</Text>
+              <Text style={styles.statSubtext}>This Month</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.statCard}
+              onPress={() => navigateToStats('jobs')}
+            >
+              <Text style={styles.statValue}>{monthlyStats.totalJobs}</Text>
+              <Text style={styles.statLabel}>Jobs Done</Text>
+              <Text style={styles.statSubtext}>This Month</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.statCard}
+              onPress={() => navigateToStats('remaining')}
+            >
+              <Text style={styles.statValue}>
+                {CalculationService.formatTime(Math.max(0, (monthlyStats.targetHours * 60) - monthlyStats.totalTime))}
+              </Text>
+              <Text style={styles.statLabel}>Remaining</Text>
+              <Text style={styles.statSubtext}>This Month</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Today & Week Summary */}
+          <View style={styles.summarySection}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>Today</Text>
+              <Text style={styles.summaryValue}>
+                {dailyJobs.length} jobs • {dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
+              </Text>
+              <Text style={styles.summaryTime}>
+                {CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
+              </Text>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>This Week</Text>
+              <Text style={styles.summaryValue}>
+                {weeklyJobs.length} jobs • {weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
+              </Text>
+              <Text style={styles.summaryTime}>
+                {CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
+              </Text>
+            </View>
+          </View>
+
+          {/* Quick Actions */}
+          <View style={styles.actionsSection}>
+            <TouchableOpacity
+              style={styles.primaryAction}
+              onPress={navigateToAddJob}
+            >
+              <Text style={styles.primaryActionText}>+ Add New Job</Text>
+            </TouchableOpacity>
+
+            <View style={styles.secondaryActions}>
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={navigateToJobs}
+              >
+                <Text style={styles.secondaryActionText}>View All Jobs</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={navigateToStatistics}
+              >
+                <Text style={styles.secondaryActionText}>Statistics</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem} onPress={() => {}}>
+            <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
+            <Text style={styles.navText}>Jobs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>
+            <Text style={styles.navText}>Statistics</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
+            <Text style={styles.navText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  container: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    backgroundColor: '#ffffff',
   },
-  overlay: {
+  whiteBackground: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Increased opacity for better readability
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -351,39 +343,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 20,
+    backgroundColor: '#ffffff',
   },
   welcomeText: {
     fontSize: 16,
-    color: colors.background,
-    opacity: 0.95,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   nameText: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.background,
+    color: colors.text,
     marginTop: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   optionsButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: colors.card,
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: colors.border,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
   optionsButtonText: {
-    color: colors.background,
+    color: colors.text,
     fontSize: 20,
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   optionsMenu: {
     position: 'absolute',
@@ -396,6 +384,8 @@ const styles = StyleSheet.create({
     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
     elevation: 4,
     zIndex: 1000,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   optionItem: {
     paddingHorizontal: 16,
@@ -409,6 +399,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    backgroundColor: '#ffffff',
   },
   progressSection: {
     alignItems: 'center',
@@ -425,32 +416,21 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 28,
     fontWeight: '700',
-    color: colors.background,
+    color: colors.text,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   progressLabel: {
     fontSize: 14,
-    color: colors.background,
-    opacity: 0.95,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   progressSubtext: {
     fontSize: 12,
-    color: colors.background,
-    opacity: 0.9,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -459,15 +439,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   statCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     width: '48%',
     alignItems: 'center',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.border,
   },
   statValue: {
     fontSize: 20,
@@ -493,13 +473,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   summaryCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.border,
   },
   summaryTitle: {
     fontSize: 16,
@@ -540,12 +520,12 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backgroundColor: colors.card,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: colors.border,
   },
   secondaryActionText: {
     color: colors.text,
@@ -554,9 +534,9 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: colors.border,
     paddingVertical: 12,
   },
   navItem: {
