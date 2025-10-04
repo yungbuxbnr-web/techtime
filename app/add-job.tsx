@@ -24,6 +24,27 @@ export default function AddJobScreen() {
   const vehicleRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
+  const checkAuth = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings.isAuthenticated) {
+        console.log('User not authenticated, redirecting to auth');
+        router.replace('/auth');
+      }
+    } catch (error) {
+      console.log('Error checking auth:', error);
+      router.replace('/auth');
+    }
+  };
+
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+  }, []);
+
+  const hideNotification = () => {
+    setNotification({ ...notification, visible: false });
+  };
+
   const loadJobForEditing = useCallback(async (jobId: string) => {
     try {
       const jobs = await StorageService.getJobs();
@@ -53,27 +74,6 @@ export default function AddJobScreen() {
       loadJobForEditing(editId);
     }
   }, [editId, loadJobForEditing]);
-
-  const checkAuth = async () => {
-    try {
-      const settings = await StorageService.getSettings();
-      if (!settings.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
-        router.replace('/auth');
-      }
-    } catch (error) {
-      console.log('Error checking auth:', error);
-      router.replace('/auth');
-    }
-  };
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
-  };
-
-  const hideNotification = () => {
-    setNotification({ ...notification, visible: false });
-  };
 
   const validateForm = () => {
     if (!wipNumber.trim()) {
