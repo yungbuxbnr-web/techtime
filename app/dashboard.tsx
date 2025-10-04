@@ -155,6 +155,7 @@ export default function DashboardScreen() {
         style={styles.backgroundImage}
         resizeMode="cover"
       >
+        {/* Enhanced overlay for better readability */}
         <View style={styles.overlay}>
           <NotificationToast
             message={notification.message}
@@ -165,7 +166,7 @@ export default function DashboardScreen() {
           
           <View style={styles.header}>
             <View>
-              <Text style={styles.welcomeText}>Welcome back</Text>
+              <Text style={styles.welcomeText}>Technician Records</Text>
               <Text style={styles.nameText}>Buckston Rugge</Text>
             </View>
             <TouchableOpacity
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Increased opacity for better readability
   },
   header: {
     flexDirection: 'row',
@@ -354,26 +355,35 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 16,
     color: colors.background,
-    opacity: 0.9,
+    opacity: 0.95,
+    fontWeight: '500',
   },
   nameText: {
     fontSize: 24,
     fontWeight: '700',
     color: colors.background,
     marginTop: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   optionsButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   optionsButtonText: {
     color: colors.background,
     fontSize: 20,
     fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   optionsMenu: {
     position: 'absolute',
@@ -417,20 +427,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.background,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   progressLabel: {
     fontSize: 14,
     color: colors.background,
-    opacity: 0.9,
+    opacity: 0.95,
     textAlign: 'center',
     marginTop: 4,
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   progressSubtext: {
     fontSize: 12,
     color: colors.background,
-    opacity: 0.8,
+    opacity: 0.9,
     textAlign: 'center',
     marginTop: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -439,13 +459,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   statCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderRadius: 12,
     padding: 16,
     width: '48%',
     alignItems: 'center',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   statValue: {
     fontSize: 20,
@@ -471,11 +493,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   summaryCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderRadius: 12,
     padding: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   summaryTitle: {
     fontSize: 16,
@@ -502,8 +526,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 12,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    elevation: 3,
   },
   primaryActionText: {
     color: colors.background,
@@ -516,12 +540,12 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   secondaryActionText: {
     color: colors.text,
@@ -530,9 +554,9 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
     paddingVertical: 12,
   },
   navItem: {

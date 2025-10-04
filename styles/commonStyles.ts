@@ -3,6 +3,7 @@ import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
 export const colors = {
   primary: '#2563eb',      // Blue
+  primaryLight: '#e3f2fd', // Light blue for selections
   secondary: '#1d4ed8',    // Darker Blue
   accent: '#3b82f6',       // Light Blue
   success: '#10b981',      // Green
