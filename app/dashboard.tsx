@@ -2,49 +2,46 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ImageBackground, BackHandler, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job, MonthlyStats } from '../types';
-import NotificationToast from '../components/NotificationToast';
 import ProgressCircle from '../components/ProgressCircle';
+import NotificationToast from '../components/NotificationToast';
 
 export default function DashboardScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({
+    totalJobs: 0,
     totalAWs: 0,
     totalTime: 0,
-    totalJobs: 0,
     targetHours: 180,
-    utilizationPercentage: 0
+    utilizationPercentage: 0,
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-  
-  // For double-tap back to exit functionality
   const backPressCount = useRef(0);
-  const backPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
   }, []);
 
-  const loadData = useCallback(async () => {
+  const loadJobs = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
       setJobs(jobsData);
       const stats = CalculationService.calculateMonthlyStats(jobsData);
       setMonthlyStats(stats);
-      console.log('Dashboard data loaded:', { jobs: jobsData.length, stats });
+      console.log('Dashboard loaded:', jobsData.length, 'jobs');
     } catch (error) {
-      console.log('Error loading data:', error);
+      console.log('Error loading jobs:', error);
       showNotification('Error loading data', 'error');
     }
   }, [showNotification]);
 
-  const checkAuthAndLoadData = useCallback(async () => {
+  const checkAuthAndLoadJobs = useCallback(async () => {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
@@ -52,111 +49,72 @@ export default function DashboardScreen() {
         router.replace('/auth');
         return;
       }
-      await loadData();
+      await loadJobs();
     } catch (error) {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  }, [loadData]);
-
-  // Handle back button press for double-tap to exit
-  const handleBackPress = useCallback(() => {
-    backPressCount.current += 1;
-    console.log('Back button pressed, count:', backPressCount.current);
-    
-    if (backPressCount.current === 1) {
-      showNotification('Press back again to exit app', 'info');
-      
-      // Reset counter after 2 seconds
-      backPressTimer.current = setTimeout(() => {
-        backPressCount.current = 0;
-        console.log('Back press counter reset');
-      }, 2000);
-      
-      return true; // Prevent default back action
-    } else if (backPressCount.current >= 2) {
-      // Clear timer and reset app to fresh state before exit
-      if (backPressTimer.current) {
-        clearTimeout(backPressTimer.current);
-      }
-      
-      console.log('Double back press detected - resetting app and exiting');
-      
-      // Reset authentication to ensure fresh start on next launch
-      StorageService.getSettings().then(settings => {
-        StorageService.saveSettings({ ...settings, isAuthenticated: false });
-      }).catch(error => {
-        console.log('Error resetting auth on exit:', error);
-      });
-      
-      if (Platform.OS === 'android') {
-        BackHandler.exitApp();
-      }
-      return false;
-    }
-    
-    return true;
-  }, [showNotification]);
-
-  // Handle exit from options menu
-  const handleExitApp = () => {
-    Alert.alert(
-      'Exit App',
-      'Are you sure you want to exit the application? The app will start fresh from the home page when reopened.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-          onPress: () => setShowOptionsMenu(false),
-        },
-        {
-          text: 'Exit',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('User confirmed app exit from options menu');
-            
-            // Reset authentication to ensure fresh start on next launch
-            try {
-              const settings = await StorageService.getSettings();
-              await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-              console.log('Authentication reset for fresh app start');
-            } catch (error) {
-              console.log('Error resetting auth on exit:', error);
-            }
-            
-            if (Platform.OS === 'android') {
-              BackHandler.exitApp();
-            }
-          },
-        },
-      ]
-    );
-  };
+  }, [loadJobs]);
 
   useFocusEffect(
     useCallback(() => {
-      checkAuthAndLoadData();
-      console.log('Dashboard focused, checking auth and loading data');
+      checkAuthAndLoadJobs();
       
-      // Reset back press counter when screen is focused
-      backPressCount.current = 0;
-      if (backPressTimer.current) {
-        clearTimeout(backPressTimer.current);
-      }
-      
-      // Add back handler
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-      
-      return () => {
-        backHandler.remove();
-        // Clear timer on unmount
-        if (backPressTimer.current) {
-          clearTimeout(backPressTimer.current);
+      const onBackPress = () => {
+        backPressCount.current += 1;
+        
+        if (backPressCount.current === 1) {
+          showNotification('Press back again to exit', 'info');
+          setTimeout(() => {
+            backPressCount.current = 0;
+          }, 2000);
+          return true;
+        } else if (backPressCount.current === 2) {
+          handleExitApp();
+          return true;
         }
-        console.log('Dashboard unfocused, back handler removed');
+        
+        return false;
       };
-    }, [checkAuthAndLoadData, handleBackPress])
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      
+      return () => subscription.remove();
+    }, [checkAuthAndLoadJobs, showNotification])
   );
+
+  const handleExitApp = () => {
+    Alert.alert(
+      'Exit App',
+      'Are you sure you want to exit?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Exit',
+          onPress: async () => {
+            try {
+              // Reset authentication to ensure fresh start next time
+              const settings = await StorageService.getSettings();
+              await StorageService.saveSettings({ ...settings, isAuthenticated: false });
+              console.log('Authentication reset for fresh start');
+              
+              if (Platform.OS === 'android') {
+                BackHandler.exitApp();
+              } else {
+                // For iOS, we can't actually exit the app, so just show a message
+                showNotification('App will close when you switch away', 'info');
+              }
+            } catch (error) {
+              console.log('Error during app exit:', error);
+              if (Platform.OS === 'android') {
+                BackHandler.exitApp();
+              }
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const hideNotification = () => {
     setNotification({ ...notification, visible: false });
@@ -168,6 +126,10 @@ export default function DashboardScreen() {
 
   const navigateToAddJob = () => {
     router.push('/add-job');
+  };
+
+  const navigateToStatistics = () => {
+    router.push('/statistics');
   };
 
   const navigateToSettings = () => {
@@ -182,14 +144,18 @@ export default function DashboardScreen() {
     setShowOptionsMenu(!showOptionsMenu);
   };
 
+  const today = new Date();
+  const dailyJobs = CalculationService.getDailyJobs(jobs, today);
+  const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
+
   return (
-    <ImageBackground
-      source={require('../assets/images/daebef9d-f2fa-4b34-88c6-4226954942a0.png')}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay}>
-        <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container}>
+      <ImageBackground
+        source={require('../assets/images/c086552e-d095-4d0e-829e-f1ee408c6095.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay}>
           <NotificationToast
             message={notification.message}
             type={notification.type}
@@ -197,83 +163,76 @@ export default function DashboardScreen() {
             onHide={hideNotification}
           />
           
-          {/* Options Menu */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.welcomeText}>Welcome back</Text>
+              <Text style={styles.nameText}>Buckston Rugge</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.optionsButton}
+              onPress={toggleOptionsMenu}
+            >
+              <Text style={styles.optionsButtonText}>⋯</Text>
+            </TouchableOpacity>
+          </View>
+
           {showOptionsMenu && (
-            <View style={styles.optionsOverlay}>
-              <TouchableOpacity 
-                style={styles.optionsBackdrop} 
-                onPress={() => setShowOptionsMenu(false)}
-                activeOpacity={1}
-              />
-              <View style={styles.optionsMenu}>
-                <Text style={styles.optionsTitle}>Options</Text>
-                
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => {
-                    setShowOptionsMenu(false);
-                    navigateToSettings();
-                  }}
-                >
-                  <Text style={styles.optionText}>Settings</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={handleExitApp}
-                >
-                  <Text style={[styles.optionText, styles.exitText]}>Exit App</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.optionItem, styles.cancelOption]}
-                  onPress={() => setShowOptionsMenu(false)}
-                >
-                  <Text style={styles.optionText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.optionsMenu}>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => {
+                  setShowOptionsMenu(false);
+                  router.push('/export');
+                }}
+              >
+                <Text style={styles.optionText}>Export Data</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => {
+                  setShowOptionsMenu(false);
+                  handleExitApp();
+                }}
+              >
+                <Text style={styles.optionText}>Exit App</Text>
+              </TouchableOpacity>
             </View>
           )}
-          
-          <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Technician Records</Text>
-              <Text style={styles.subtitle}>Buckston Rugge</Text>
-              
-              {/* Options Button */}
-              <TouchableOpacity
-                style={styles.optionsButton}
-                onPress={toggleOptionsMenu}
-              >
-                <Text style={styles.optionsButtonText}>⋯</Text>
+
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Monthly Progress Circle */}
+            <View style={styles.progressSection}>
+              <TouchableOpacity onPress={() => navigateToStats('remaining')}>
+                <ProgressCircle
+                  percentage={monthlyStats.utilizationPercentage}
+                  size={160}
+                  strokeWidth={12}
+                  color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
+                />
+                <View style={styles.progressTextContainer}>
+                  <Text style={styles.progressPercentage}>
+                    {monthlyStats.utilizationPercentage.toFixed(1)}%
+                  </Text>
+                  <Text style={styles.progressLabel}>Monthly Progress</Text>
+                  <Text style={styles.progressSubtext}>
+                    {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours}h
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.progressSection}>
-              <ProgressCircle
-                percentage={monthlyStats.utilizationPercentage}
-                size={120}
-                strokeWidth={8}
-                color={colors.primary}
-              />
-              <Text style={styles.progressText}>
-                {monthlyStats.utilizationPercentage.toFixed(1)}% Monthly Progress
-              </Text>
-              <Text style={styles.progressSubtext}>
-                {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours}h
-              </Text>
-            </View>
-
+            {/* Stats Grid */}
             <View style={styles.statsGrid}>
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.statCard}
                 onPress={() => navigateToStats('aws')}
               >
                 <Text style={styles.statValue}>{monthlyStats.totalAWs}</Text>
                 <Text style={styles.statLabel}>Total AWs</Text>
+                <Text style={styles.statSubtext}>This Month</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.statCard}
                 onPress={() => navigateToStats('time')}
               >
@@ -281,41 +240,77 @@ export default function DashboardScreen() {
                   {CalculationService.formatTime(monthlyStats.totalTime)}
                 </Text>
                 <Text style={styles.statLabel}>Time Logged</Text>
+                <Text style={styles.statSubtext}>This Month</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.statCard}
                 onPress={() => navigateToStats('jobs')}
               >
                 <Text style={styles.statValue}>{monthlyStats.totalJobs}</Text>
-                <Text style={styles.statLabel}>Jobs Completed</Text>
+                <Text style={styles.statLabel}>Jobs Done</Text>
+                <Text style={styles.statSubtext}>This Month</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.statCard}
                 onPress={() => navigateToStats('remaining')}
               >
                 <Text style={styles.statValue}>
-                  {CalculationService.formatTime((monthlyStats.targetHours * 60) - monthlyStats.totalTime)}
+                  {CalculationService.formatTime(Math.max(0, (monthlyStats.targetHours * 60) - monthlyStats.totalTime))}
                 </Text>
-                <Text style={styles.statLabel}>Hours Remaining</Text>
+                <Text style={styles.statLabel}>Remaining</Text>
+                <Text style={styles.statSubtext}>This Month</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.actionButtons}>
+            {/* Today & Week Summary */}
+            <View style={styles.summarySection}>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Today</Text>
+                <Text style={styles.summaryValue}>
+                  {dailyJobs.length} jobs • {dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
+                </Text>
+                <Text style={styles.summaryTime}>
+                  {CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
+                </Text>
+              </View>
+
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>This Week</Text>
+                <Text style={styles.summaryValue}>
+                  {weeklyJobs.length} jobs • {weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
+                </Text>
+                <Text style={styles.summaryTime}>
+                  {CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
+                </Text>
+              </View>
+            </View>
+
+            {/* Quick Actions */}
+            <View style={styles.actionsSection}>
               <TouchableOpacity
-                style={[commonStyles.button, styles.primaryButton]}
+                style={styles.primaryAction}
                 onPress={navigateToAddJob}
               >
-                <Text style={commonStyles.buttonText}>Add Job</Text>
+                <Text style={styles.primaryActionText}>+ Add New Job</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[commonStyles.button, styles.secondaryButton]}
-                onPress={navigateToJobs}
-              >
-                <Text style={[commonStyles.buttonText, { color: colors.text }]}>View All Jobs</Text>
-              </TouchableOpacity>
+              <View style={styles.secondaryActions}>
+                <TouchableOpacity
+                  style={styles.secondaryAction}
+                  onPress={navigateToJobs}
+                >
+                  <Text style={styles.secondaryActionText}>View All Jobs</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryAction}
+                  onPress={navigateToStatistics}
+                >
+                  <Text style={styles.secondaryActionText}>Statistics</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
 
@@ -326,13 +321,16 @@ export default function DashboardScreen() {
             <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
               <Text style={styles.navText}>Jobs</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>
+              <Text style={styles.navText}>Statistics</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
               <Text style={styles.navText}>Settings</Text>
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
-      </View>
-    </ImageBackground>
+        </View>
+      </ImageBackground>
+    </SafeAreaView>
   );
 }
 
@@ -344,161 +342,195 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
-    position: 'relative',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
-  title: {
-    fontSize: 28,
+  welcomeText: {
+    fontSize: 16,
+    color: colors.background,
+    opacity: 0.9,
+  },
+  nameText: {
+    fontSize: 24,
     fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    textAlign: 'center',
+    color: colors.background,
     marginTop: 4,
   },
   optionsButton: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.card,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    justifyContent: 'center',
   },
   optionsButtonText: {
+    color: colors.background,
     fontSize: 20,
     fontWeight: '600',
-    color: colors.text,
-  },
-  optionsOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  optionsBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   optionsMenu: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 20,
-    width: '80%',
-    maxWidth: 300,
-    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
-  },
-  optionsTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 20,
+    position: 'absolute',
+    top: 80,
+    right: 20,
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    paddingVertical: 8,
+    minWidth: 150,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 4,
+    zIndex: 1000,
   },
   optionItem: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cancelOption: {
-    backgroundColor: colors.backgroundAlt,
-    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   optionText: {
     fontSize: 16,
-    fontWeight: '500',
     color: colors.text,
-    textAlign: 'center',
+    fontWeight: '500',
   },
-  exitText: {
-    color: colors.error,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   progressSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    paddingVertical: 32,
+    position: 'relative',
   },
-  progressText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
+  progressTextContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 160,
+    height: 160,
+  },
+  progressPercentage: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.background,
+    textAlign: 'center',
+  },
+  progressLabel: {
+    fontSize: 14,
+    color: colors.background,
+    opacity: 0.9,
+    textAlign: 'center',
+    marginTop: 4,
   },
   progressSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
+    fontSize: 12,
+    color: colors.background,
+    opacity: 0.8,
+    textAlign: 'center',
+    marginTop: 2,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 32,
+    gap: 12,
+    marginBottom: 24,
   },
   statCard: {
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
     padding: 16,
     width: '48%',
     alignItems: 'center',
-    marginBottom: 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 2,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.primary,
     marginBottom: 4,
+    textAlign: 'center',
   },
   statLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    fontWeight: '600',
+    color: colors.text,
     textAlign: 'center',
   },
-  actionButtons: {
+  statSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  summarySection: {
     gap: 12,
-    marginBottom: 32,
+    marginBottom: 24,
   },
-  primaryButton: {
+  summaryCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  summaryTime: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  actionsSection: {
+    marginBottom: 24,
+  },
+  primaryAction: {
     backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
-  secondaryButton: {
-    backgroundColor: colors.backgroundAlt,
+  primaryActionText: {
+    color: colors.background,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryAction: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
+  secondaryActionText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   bottomNav: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingVertical: 12,

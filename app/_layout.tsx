@@ -86,6 +86,7 @@ export default function RootLayout() {
           <Stack.Screen name="dashboard" />
           <Stack.Screen name="jobs" />
           <Stack.Screen name="add-job" />
+          <Stack.Screen name="statistics" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="export" />
           <Stack.Screen name="stats" />

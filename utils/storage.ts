@@ -1,24 +1,38 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 import { Job, AppSettings } from '../types';
-import { Platform } from 'react-native';
 
 const JOBS_KEY = 'jobs';
 const SETTINGS_KEY = 'settings';
 
+const defaultSettings: AppSettings = {
+  pin: '3101',
+  isAuthenticated: false,
+  targetHours: 180,
+};
+
 // Helper function to get document directory
-const getDocumentDirectory = (): string | null => {
-  return (FileSystem as any).documentDirectory || null;
+const getDocumentDirectory = () => {
+  if (FileSystem.documentDirectory) {
+    return FileSystem.documentDirectory;
+  }
+  // Fallback for web or other platforms
+  return FileSystem.cacheDirectory || '';
 };
 
 export const StorageService = {
-  // Jobs
+  // Jobs management
   async getJobs(): Promise<Job[]> {
     try {
       const jobsJson = await AsyncStorage.getItem(JOBS_KEY);
-      return jobsJson ? JSON.parse(jobsJson) : [];
+      if (jobsJson) {
+        const jobs = JSON.parse(jobsJson);
+        console.log('Retrieved jobs from storage:', jobs.length);
+        return jobs;
+      }
+      return [];
     } catch (error) {
       console.log('Error getting jobs:', error);
       return [];
@@ -27,16 +41,9 @@ export const StorageService = {
 
   async saveJob(job: Job): Promise<void> {
     try {
-      const jobs = await this.getJobs();
-      const existingIndex = jobs.findIndex(j => j.id === job.id);
-      
-      if (existingIndex >= 0) {
-        jobs[existingIndex] = job;
-      } else {
-        jobs.push(job);
-      }
-      
-      await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
+      const existingJobs = await this.getJobs();
+      const updatedJobs = [...existingJobs, job];
+      await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(updatedJobs));
       console.log('Job saved successfully:', job.wipNumber);
     } catch (error) {
       console.log('Error saving job:', error);
@@ -44,20 +51,28 @@ export const StorageService = {
     }
   },
 
-  async saveJobs(jobs: Job[]): Promise<void> {
+  async updateJob(updatedJob: Job): Promise<void> {
     try {
-      await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
-      console.log('Jobs saved successfully:', jobs.length);
+      const existingJobs = await this.getJobs();
+      const jobIndex = existingJobs.findIndex(job => job.id === updatedJob.id);
+      
+      if (jobIndex === -1) {
+        throw new Error('Job not found');
+      }
+
+      existingJobs[jobIndex] = updatedJob;
+      await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(existingJobs));
+      console.log('Job updated successfully:', updatedJob.wipNumber);
     } catch (error) {
-      console.log('Error saving jobs:', error);
+      console.log('Error updating job:', error);
       throw error;
     }
   },
 
   async deleteJob(jobId: string): Promise<void> {
     try {
-      const jobs = await this.getJobs();
-      const filteredJobs = jobs.filter(job => job.id !== jobId);
+      const existingJobs = await this.getJobs();
+      const filteredJobs = existingJobs.filter(job => job.id !== jobId);
       await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(filteredJobs));
       console.log('Job deleted successfully:', jobId);
     } catch (error) {
@@ -66,14 +81,28 @@ export const StorageService = {
     }
   },
 
-  // Settings
+  async saveJobs(jobs: Job[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
+      console.log('All jobs saved successfully:', jobs.length);
+    } catch (error) {
+      console.log('Error saving jobs:', error);
+      throw error;
+    }
+  },
+
+  // Settings management
   async getSettings(): Promise<AppSettings> {
     try {
       const settingsJson = await AsyncStorage.getItem(SETTINGS_KEY);
-      return settingsJson ? JSON.parse(settingsJson) : { pin: '3101', isAuthenticated: false };
+      if (settingsJson) {
+        const settings = JSON.parse(settingsJson);
+        return { ...defaultSettings, ...settings };
+      }
+      return defaultSettings;
     } catch (error) {
       console.log('Error getting settings:', error);
-      return { pin: '3101', isAuthenticated: false };
+      return defaultSettings;
     }
   },
 
@@ -87,6 +116,79 @@ export const StorageService = {
     }
   },
 
+  // File operations
+  async saveToFile(content: string, filename: string, allowFolderSelection: boolean = false): Promise<string> {
+    try {
+      let targetDirectory = getDocumentDirectory();
+      
+      if (allowFolderSelection) {
+        try {
+          const result = await DocumentPicker.getDocumentAsync({
+            type: 'application/*',
+            copyToCacheDirectory: false,
+          });
+          
+          if (!result.canceled && result.assets && result.assets.length > 0) {
+            const selectedUri = result.assets[0].uri;
+            // Extract directory from selected file URI
+            const lastSlash = selectedUri.lastIndexOf('/');
+            if (lastSlash !== -1) {
+              targetDirectory = selectedUri.substring(0, lastSlash + 1);
+            }
+          }
+        } catch (pickerError) {
+          console.log('Folder selection failed, using default directory:', pickerError);
+          // Continue with default directory
+        }
+      }
+
+      const fileUri = `${targetDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(fileUri, content, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      
+      console.log('File saved successfully to:', fileUri);
+      return fileUri;
+    } catch (error) {
+      console.log('Error saving file:', error);
+      throw error;
+    }
+  },
+
+  async readFromFile(uri: string): Promise<string> {
+    try {
+      const content = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      console.log('File read successfully from:', uri);
+      return content;
+    } catch (error) {
+      console.log('Error reading file:', error);
+      throw error;
+    }
+  },
+
+  async fileExists(uri: string): Promise<boolean> {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      return fileInfo.exists;
+    } catch (error) {
+      console.log('Error checking file existence:', error);
+      return false;
+    }
+  },
+
+  async deleteFile(uri: string): Promise<void> {
+    try {
+      await FileSystem.deleteAsync(uri);
+      console.log('File deleted successfully:', uri);
+    } catch (error) {
+      console.log('Error deleting file:', error);
+      throw error;
+    }
+  },
+
+  // Data management
   async clearAllData(): Promise<void> {
     try {
       await AsyncStorage.multiRemove([JOBS_KEY, SETTINGS_KEY]);
@@ -97,93 +199,77 @@ export const StorageService = {
     }
   },
 
-  // Enhanced storage functionality with folder selection
-  async selectFolderAndSaveFile(fileUri: string, fileName: string): Promise<string> {
+  async exportData(): Promise<string> {
     try {
-      if (Platform.OS === 'web') {
-        // On web, we can't select folders, so just download the file
-        const response = await fetch(fileUri);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        return 'Downloaded to default folder';
-      }
-
-      // For mobile platforms, use document picker to select directory
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: false,
-        multiple: false,
-      });
-
-      if (result.canceled) {
-        throw new Error('Folder selection cancelled');
-      }
-
-      // Get the directory from the selected file
-      const selectedFile = result.assets[0];
-      const directoryPath = selectedFile.uri.substring(0, selectedFile.uri.lastIndexOf('/'));
+      const jobs = await this.getJobs();
+      const settings = await this.getSettings();
       
-      // Copy the file to the selected directory
-      const destinationPath = `${directoryPath}/${fileName}`;
-      await FileSystem.copyAsync({
-        from: fileUri,
-        to: destinationPath,
-      });
-
-      console.log('File saved to selected folder:', destinationPath);
-      return destinationPath;
+      const exportData = {
+        jobs,
+        settings: {
+          ...settings,
+          isAuthenticated: false, // Don't export authentication state
+        },
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+      };
+      
+      return JSON.stringify(exportData, null, 2);
     } catch (error) {
-      console.log('Error saving file to selected folder:', error);
+      console.log('Error exporting data:', error);
       throw error;
     }
   },
 
-  async saveFileToCustomLocation(fileUri: string, fileName: string): Promise<string> {
+  async importData(jsonData: string): Promise<void> {
     try {
-      if (Platform.OS === 'android') {
-        // On Android, try to use the system file picker to select a save location
-        const result = await DocumentPicker.getDocumentAsync({
-          type: 'application/*',
-          copyToCacheDirectory: false,
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const selectedPath = result.assets[0].uri;
-          const directoryPath = selectedPath.substring(0, selectedPath.lastIndexOf('/'));
-          const destinationPath = `${directoryPath}/${fileName}`;
-          
-          await FileSystem.copyAsync({
-            from: fileUri,
-            to: destinationPath,
-          });
-          
-          return destinationPath;
-        }
+      const importData = JSON.parse(jsonData);
+      
+      if (importData.jobs && Array.isArray(importData.jobs)) {
+        await this.saveJobs(importData.jobs);
       }
-
-      // Fallback: save to documents directory
-      const documentsDirectory = getDocumentDirectory();
-      if (!documentsDirectory) {
-        throw new Error('Documents directory not available');
+      
+      if (importData.settings) {
+        const currentSettings = await this.getSettings();
+        const newSettings = {
+          ...currentSettings,
+          ...importData.settings,
+          isAuthenticated: false, // Always require re-authentication after import
+        };
+        await this.saveSettings(newSettings);
       }
-
-      const destinationPath = `${documentsDirectory}${fileName}`;
-      await FileSystem.copyAsync({
-        from: fileUri,
-        to: destinationPath,
-      });
-
-      return destinationPath;
+      
+      console.log('Data imported successfully');
     } catch (error) {
-      console.log('Error saving file to custom location:', error);
+      console.log('Error importing data:', error);
       throw error;
     }
-  }
+  },
+
+  // Backup and restore
+  async createBackup(): Promise<string> {
+    try {
+      const exportData = await this.exportData();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `techtimetracking_backup_${timestamp}.json`;
+      
+      const backupUri = await this.saveToFile(exportData, filename, true);
+      console.log('Backup created successfully:', backupUri);
+      return backupUri;
+    } catch (error) {
+      console.log('Error creating backup:', error);
+      throw error;
+    }
+  },
+
+  async restoreFromBackup(backupUri: string): Promise<void> {
+    try {
+      const backupData = await this.readFromFile(backupUri);
+      await this.importData(backupData);
+      console.log('Backup restored successfully');
+    } catch (error) {
+      console.log('Error restoring backup:', error);
+      throw error;
+    }
+  },
 };

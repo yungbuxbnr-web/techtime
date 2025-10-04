@@ -92,12 +92,21 @@ export default function JobsScreen() {
     );
   };
 
+  const handleEditJob = (job: Job) => {
+    // Navigate to edit job (we can use the same add-job screen with job data)
+    router.push(`/add-job?editId=${job.id}`);
+  };
+
   const navigateToAddJob = () => {
     router.push('/add-job');
   };
 
   const navigateToDashboard = () => {
     router.push('/dashboard');
+  };
+
+  const navigateToStatistics = () => {
+    router.push('/statistics');
   };
 
   const navigateToSettings = () => {
@@ -154,6 +163,15 @@ export default function JobsScreen() {
     filterJobsByMonth(jobs, currentMonth, currentYear);
   };
 
+  const monthlyTotals = filteredJobs.reduce(
+    (totals, job) => ({
+      jobs: totals.jobs + 1,
+      aws: totals.aws + job.awValue,
+      time: totals.time + job.timeInMinutes,
+    }),
+    { jobs: 0, aws: 0, time: 0 }
+  );
+
   return (
     <SafeAreaView style={commonStyles.container}>
       <NotificationToast
@@ -164,7 +182,7 @@ export default function JobsScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={commonStyles.title}>All Jobs</Text>
+        <Text style={commonStyles.title}>Jobs</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={navigateToAddJob}
@@ -202,6 +220,24 @@ export default function JobsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Monthly Summary */}
+      {filteredJobs.length > 0 && (
+        <View style={styles.monthlySummary}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{monthlyTotals.jobs}</Text>
+            <Text style={styles.summaryLabel}>Jobs</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{monthlyTotals.aws}</Text>
+            <Text style={styles.summaryLabel}>AWs</Text>
+          </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{CalculationService.formatTime(monthlyTotals.time)}</Text>
+            <Text style={styles.summaryLabel}>Time</Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {filteredJobs.length === 0 ? (
           <View style={styles.emptyState}>
@@ -218,12 +254,20 @@ export default function JobsScreen() {
               <View key={job.id} style={styles.jobCard}>
                 <View style={styles.jobHeader}>
                   <Text style={styles.wipNumber}>WIP: {job.wipNumber}</Text>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteJob(job)}
-                    style={styles.deleteButton}
-                  >
-                    <Text style={styles.deleteButtonText}>×</Text>
-                  </TouchableOpacity>
+                  <View style={styles.jobActions}>
+                    <TouchableOpacity
+                      onPress={() => handleEditJob(job)}
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteJob(job)}
+                      style={styles.deleteButton}
+                    >
+                      <Text style={styles.deleteButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 
                 <View style={styles.jobDetails}>
@@ -268,6 +312,9 @@ export default function JobsScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => {}}>
           <Text style={[styles.navText, styles.navTextActive]}>Jobs</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>
+          <Text style={styles.navText}>Statistics</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
           <Text style={styles.navText}>Settings</Text>
@@ -338,6 +385,29 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  monthlySummary: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -378,6 +448,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.primary,
+  },
+  jobActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    backgroundColor: colors.backgroundAlt,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editButtonText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '600',
   },
   deleteButton: {
     backgroundColor: colors.error,
