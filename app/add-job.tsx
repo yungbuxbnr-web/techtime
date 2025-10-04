@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -24,14 +24,7 @@ export default function AddJobScreen() {
   const vehicleRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    checkAuth();
-    if (editId) {
-      loadJobForEditing(editId);
-    }
-  }, [editId]);
-
-  const loadJobForEditing = async (jobId: string) => {
+  const loadJobForEditing = useCallback(async (jobId: string) => {
     try {
       const jobs = await StorageService.getJobs();
       const jobToEdit = jobs.find(job => job.id === jobId);
@@ -52,7 +45,14 @@ export default function AddJobScreen() {
       showNotification('Error loading job', 'error');
       router.back();
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+    if (editId) {
+      loadJobForEditing(editId);
+    }
+  }, [editId, loadJobForEditing]);
 
   const checkAuth = async () => {
     try {

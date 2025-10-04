@@ -13,13 +13,29 @@ const defaultSettings: AppSettings = {
   targetHours: 180,
 };
 
-// Helper function to get document directory
-const getDocumentDirectory = () => {
-  if (FileSystem.documentDirectory) {
-    return FileSystem.documentDirectory;
+// Helper function to get document directory with proper type handling
+const getDocumentDirectory = (): string => {
+  // Use type assertion to access documentDirectory
+  const fs = FileSystem as any;
+  if (fs.documentDirectory) {
+    return fs.documentDirectory;
   }
   // Fallback for web or other platforms
-  return FileSystem.cacheDirectory || '';
+  return fs.cacheDirectory || '';
+};
+
+// Helper function to get cache directory with proper type handling
+const getCacheDirectory = (): string => {
+  // Use type assertion to access cacheDirectory
+  const fs = FileSystem as any;
+  return fs.cacheDirectory || '';
+};
+
+// Helper function to get encoding type with proper type handling
+const getEncodingType = () => {
+  // Use type assertion to access EncodingType
+  const fs = FileSystem as any;
+  return fs.EncodingType?.UTF8 || 'utf8';
 };
 
 export const StorageService = {
@@ -144,7 +160,7 @@ export const StorageService = {
 
       const fileUri = `${targetDirectory}${filename}`;
       await FileSystem.writeAsStringAsync(fileUri, content, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: getEncodingType(),
       });
       
       console.log('File saved successfully to:', fileUri);
@@ -158,7 +174,7 @@ export const StorageService = {
   async readFromFile(uri: string): Promise<string> {
     try {
       const content = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: getEncodingType(),
       });
       console.log('File read successfully from:', uri);
       return content;

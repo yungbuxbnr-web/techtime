@@ -28,6 +28,39 @@ export default function DashboardScreen() {
     setNotification({ visible: true, message, type });
   }, []);
 
+  const handleExitApp = useCallback(() => {
+    Alert.alert(
+      'Exit App',
+      'Are you sure you want to exit?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Exit',
+          onPress: async () => {
+            try {
+              // Reset authentication to ensure fresh start next time
+              const settings = await StorageService.getSettings();
+              await StorageService.saveSettings({ ...settings, isAuthenticated: false });
+              console.log('Authentication reset for fresh start');
+              
+              if (Platform.OS === 'android') {
+                BackHandler.exitApp();
+              } else {
+                // For iOS, we can't actually exit the app, so just show a message
+                showNotification('App will close when you switch away', 'info');
+              }
+            } catch (error) {
+              console.log('Error during app exit:', error);
+              if (Platform.OS === 'android') {
+                BackHandler.exitApp();
+              }
+            }
+          }
+        }
+      ]
+    );
+  }, [showNotification]);
+
   const loadJobs = useCallback(async () => {
     try {
       const jobsData = await StorageService.getJobs();
@@ -80,41 +113,8 @@ export default function DashboardScreen() {
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       
       return () => subscription.remove();
-    }, [checkAuthAndLoadJobs, showNotification])
+    }, [checkAuthAndLoadJobs, showNotification, handleExitApp])
   );
-
-  const handleExitApp = () => {
-    Alert.alert(
-      'Exit App',
-      'Are you sure you want to exit?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Exit',
-          onPress: async () => {
-            try {
-              // Reset authentication to ensure fresh start next time
-              const settings = await StorageService.getSettings();
-              await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-              console.log('Authentication reset for fresh start');
-              
-              if (Platform.OS === 'android') {
-                BackHandler.exitApp();
-              } else {
-                // For iOS, we can't actually exit the app, so just show a message
-                showNotification('App will close when you switch away', 'info');
-              }
-            } catch (error) {
-              console.log('Error during app exit:', error);
-              if (Platform.OS === 'android') {
-                BackHandler.exitApp();
-              }
-            }
-          }
-        }
-      ]
-    );
-  };
 
   const hideNotification = () => {
     setNotification({ ...notification, visible: false });
