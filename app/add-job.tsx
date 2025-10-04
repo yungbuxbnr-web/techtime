@@ -45,7 +45,7 @@ export default function AddJobScreen() {
       showNotification('Error loading job', 'error');
       router.back();
     }
-  }, []);
+  }, [showNotification]);
 
   useEffect(() => {
     checkAuth();
@@ -108,7 +108,7 @@ export default function AddJobScreen() {
     }
 
     try {
-      const timeInMinutes = CalculationService.calculateTimeFromAWs(awValue);
+      const timeInMinutes = awValue * 5;
       
       if (isEditing && editingJob) {
         // Update existing job
@@ -238,7 +238,7 @@ export default function AddJobScreen() {
                 </Picker>
               </View>
               <Text style={styles.helperText}>
-                1 AW = 5 minutes • Selected: {CalculationService.formatTime(CalculationService.calculateTimeFromAWs(awValue))}
+                1 AW = 5 minutes • Selected: {CalculationService.formatTime(awValue * 5)}
               </Text>
             </View>
 

@@ -7,6 +7,11 @@ export const CalculationService = {
     return aws * 5;
   },
 
+  // Alias for awsToMinutes for backward compatibility
+  calculateTimeFromAWs(aws: number): number {
+    return aws * 5;
+  },
+
   // Convert minutes to hours
   minutesToHours(minutes: number): number {
     return minutes / 60;
