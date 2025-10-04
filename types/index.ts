@@ -48,3 +48,35 @@ export interface PDFExportData {
   signature: string;
   appVersion: string;
 }
+
+// New interfaces for enhanced features
+export interface ScreenResolution {
+  width: number;
+  height: number;
+  scale: number;
+  fontScale: number;
+  isTablet: boolean;
+  deviceType: 'phone' | 'tablet' | 'desktop';
+  orientation: 'portrait' | 'landscape';
+  pixelDensity: 'ldpi' | 'mdpi' | 'hdpi' | 'xhdpi' | 'xxhdpi' | 'xxxhdpi';
+}
+
+export interface JobTableRow extends Job {
+  isSelected: boolean;
+  isEditing: boolean;
+}
+
+export interface CalculatedStats {
+  totalAWs: number;
+  totalTime: number; // in minutes
+  totalJobs: number;
+  averageAWsPerJob: number;
+  totalHours: string; // formatted string
+}
+
+export interface EditableJobData {
+  wipNumber: string;
+  vehicleRegistration: string;
+  awValue: number;
+  notes: string;
+}
