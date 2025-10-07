@@ -10,6 +10,7 @@ import { CalculationService } from '../utils/calculations';
 import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import GoogleDriveBackup from '../components/GoogleDriveBackup';
+import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
 
 export default function SettingsScreen() {
@@ -21,6 +22,7 @@ export default function SettingsScreen() {
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
+  const [showImportTally, setShowImportTally] = useState(false);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -309,6 +311,14 @@ export default function SettingsScreen() {
           >
             <Text style={styles.buttonText}>☁️ Google Drive Backup</Text>
           </TouchableOpacity>
+
+          {/* Import & Tally from Google Drive */}
+          <TouchableOpacity
+            style={[styles.button, styles.tallyButton]}
+            onPress={() => setShowImportTally(true)}
+          >
+            <Text style={styles.buttonText}>📊 Import & Tally from Google Drive</Text>
+          </TouchableOpacity>
           
           {/* Backup Folder Setup */}
           <TouchableOpacity
@@ -340,15 +350,15 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.backupInfo}>
-            <Text style={styles.infoTitle}>📁 Local Backup Information</Text>
+            <Text style={styles.infoTitle}>📁 Backup & Import Information</Text>
             <Text style={styles.infoText}>
-              • Backups are saved to: Documents/techtrace/
+              • Local backups: Documents/techtrace/
             </Text>
             <Text style={styles.infoText}>
-              • backup.json - Latest backup file
+              • Google Drive: Cloud backup & restore
             </Text>
             <Text style={styles.infoText}>
-              • backup_YYYY-MM-DD.json - Dated backups
+              • Import & Tally: Analyze backup data with detailed statistics
             </Text>
             <Text style={styles.infoText}>
               • Use "Setup Backup Folder" to ensure proper permissions
@@ -448,6 +458,14 @@ export default function SettingsScreen() {
       >
         <GoogleDriveBackup onClose={() => setShowGoogleDriveBackup(false)} />
       </SimpleBottomSheet>
+
+      {/* Import & Tally Bottom Sheet */}
+      <SimpleBottomSheet
+        isVisible={showImportTally}
+        onClose={() => setShowImportTally(false)}
+      >
+        <GoogleDriveImportTally onClose={() => setShowImportTally(false)} />
+      </SimpleBottomSheet>
     </SafeAreaView>
   );
 }
@@ -533,6 +551,9 @@ const styles = StyleSheet.create({
   },
   googleDriveButton: {
     backgroundColor: '#4285f4',
+  },
+  tallyButton: {
+    backgroundColor: '#9c27b0',
   },
   setupButton: {
     backgroundColor: '#ff9800',
