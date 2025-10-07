@@ -63,7 +63,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
         }
       }
     }
-  }, []);
+  }, [showNotification, loadSelectedFolder, loadBackupFiles]);
 
   const loadSelectedFolder = useCallback(async () => {
     try {
@@ -73,6 +73,26 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       console.log('Error loading selected folder:', error);
     }
   }, []);
+
+  const loadBackupFiles = useCallback(async (token: string) => {
+    setIsLoading(true);
+    try {
+      const result = await GoogleDriveService.listBackups(token);
+      if (result.success) {
+        setBackupFiles(result.files);
+        if (result.files.length === 0) {
+          showNotification('No backups found in the selected folder', 'info');
+        }
+      } else {
+        showNotification(result.message || 'Failed to load backups', 'error');
+      }
+    } catch (error) {
+      console.log('Error loading backup files:', error);
+      showNotification('Failed to load backups', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showNotification]);
 
   useEffect(() => {
     checkConfiguration();

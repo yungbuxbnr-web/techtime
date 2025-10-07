@@ -516,9 +516,6 @@ export const BackupService = {
     }
   }
 };
-</write file>
-
-Now let me also update the storage service to use the proper FileSystem API:
 
 <write file="utils/storage.ts">
 import AsyncStorage from '@react-native-async-storage/async-storage';

@@ -35,31 +35,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
     visible: false,
   });
 
-  const checkAuthAndLoadFiles = useCallback(async () => {
-    const authenticated = await GoogleDriveService.isAuthenticated();
-    if (authenticated) {
-      const token = await GoogleDriveService.getCurrentToken();
-      if (token) {
-        setIsAuthenticated(true);
-        setAccessToken(token);
-        await loadBackupFiles(token);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    checkAuthAndLoadFiles();
-  }, [checkAuthAndLoadFiles]);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ message, type, visible: true });
-  };
-
-  const hideNotification = () => {
-    setNotification(prev => ({ ...prev, visible: false }));
-  };
-
-  const loadBackupFiles = async (token: string) => {
+  const loadBackupFiles = useCallback(async (token: string) => {
     setIsLoading(true);
     try {
       const result = await GoogleDriveService.listBackups(token);
@@ -77,7 +53,33 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
     } finally {
       setIsLoading(false);
     }
+  }, [showNotification]);
+
+  const checkAuthAndLoadFiles = useCallback(async () => {
+    const authenticated = await GoogleDriveService.isAuthenticated();
+    if (authenticated) {
+      const token = await GoogleDriveService.getCurrentToken();
+      if (token) {
+        setIsAuthenticated(true);
+        setAccessToken(token);
+        await loadBackupFiles(token);
+      }
+    }
+  }, [loadBackupFiles]);
+
+  useEffect(() => {
+    checkAuthAndLoadFiles();
+  }, [checkAuthAndLoadFiles]);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type, visible: true });
   };
+
+  const hideNotification = () => {
+    setNotification(prev => ({ ...prev, visible: false }));
+  };
+
+
 
   const handleAuthenticate = async () => {
     setIsLoading(true);
