@@ -204,10 +204,7 @@ export default function DashboardScreen() {
                 strokeWidth={12}
                 color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
               />
-              <View style={styles.progressTextContainer}>
-                <Text style={styles.progressPercentage}>
-                  {monthlyStats.utilizationPercentage.toFixed(1)}%
-                </Text>
+              <View style={styles.progressLabelsContainer}>
                 <Text style={styles.progressLabel}>Monthly Progress</Text>
                 <Text style={styles.progressSubtext}>
                   {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours}h
@@ -404,33 +401,22 @@ const styles = StyleSheet.create({
   progressSection: {
     alignItems: 'center',
     paddingVertical: 32,
-    position: 'relative',
   },
-  progressTextContainer: {
-    position: 'absolute',
+  progressLabelsContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    width: 160,
-    height: 160,
-  },
-  progressPercentage: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
+    marginTop: 16,
   },
   progressLabel: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  progressSubtext: {
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
-    fontWeight: '500',
-  },
-  progressSubtext: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 2,
   },
   statsGrid: {
     flexDirection: 'row',
