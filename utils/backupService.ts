@@ -1,7 +1,9 @@
 
 import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { StorageService } from './storage';
 import { Job, AppSettings } from '../types';
+import { Platform } from 'react-native';
 
 const BACKUP_FOLDER_NAME = 'techtrace';
 const BACKUP_FILE_NAME = 'backup.json';
@@ -24,11 +26,54 @@ const getDocumentDirectory = (): string | null => {
   return (FileSystem as any).documentDirectory || null;
 };
 
+// Request storage permissions
+const requestStoragePermissions = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('Requesting storage permissions...');
+    
+    if (Platform.OS === 'android') {
+      // Request media library permissions for Android
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      
+      if (status === 'granted') {
+        console.log('Storage permissions granted');
+        return { success: true, message: 'Storage permissions granted' };
+      } else {
+        console.log('Storage permissions denied');
+        return { 
+          success: false, 
+          message: 'Storage permissions are required to create backup folders. Please grant permissions in your device settings.' 
+        };
+      }
+    } else {
+      // iOS doesn't require explicit permissions for document directory
+      console.log('iOS - no explicit permissions needed for document directory');
+      return { success: true, message: 'Permissions not required on iOS' };
+    }
+  } catch (error) {
+    console.log('Error requesting storage permissions:', error);
+    return { 
+      success: false, 
+      message: `Failed to request permissions: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
+  }
+};
+
 export const BackupService = {
+  async requestPermissions(): Promise<{ success: boolean; message: string }> {
+    return await requestStoragePermissions();
+  },
+
   async createBackup(): Promise<{ success: boolean; message: string; filePath?: string }> {
     try {
       console.log('Starting backup process...');
       
+      // First, request permissions
+      const permissionResult = await requestStoragePermissions();
+      if (!permissionResult.success) {
+        return permissionResult;
+      }
+
       // Check if document directory is available
       const documentDirectory = getDocumentDirectory();
       if (!documentDirectory) {
@@ -41,8 +86,27 @@ export const BackupService = {
       const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
       
       if (!folderInfo.exists) {
-        await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
-        console.log('Created techtrace backup folder');
+        try {
+          await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
+          console.log('Created techtrace backup folder at:', backupFolderPath);
+        } catch (folderError) {
+          console.log('Error creating backup folder:', folderError);
+          return { 
+            success: false, 
+            message: `Failed to create backup folder: ${folderError instanceof Error ? folderError.message : 'Unknown error'}` 
+          };
+        }
+      } else {
+        console.log('Backup folder already exists at:', backupFolderPath);
+      }
+
+      // Verify folder was created successfully
+      const verifyFolderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      if (!verifyFolderInfo.exists) {
+        return { 
+          success: false, 
+          message: 'Failed to create backup folder. Please check storage permissions and try again.' 
+        };
       }
 
       // Get all data from storage
@@ -76,24 +140,39 @@ export const BackupService = {
       const backupFilePath = `${backupFolderPath}${backupFileName}`;
 
       // Write backup data to file
-      await FileSystem.writeAsStringAsync(
-        backupFilePath,
-        JSON.stringify(backupData, null, 2),
-        { encoding: 'utf8' }
-      );
+      try {
+        await FileSystem.writeAsStringAsync(
+          backupFilePath,
+          JSON.stringify(backupData, null, 2),
+          { encoding: 'utf8' }
+        );
+        console.log('Backup file written successfully');
+      } catch (writeError) {
+        console.log('Error writing backup file:', writeError);
+        return { 
+          success: false, 
+          message: `Failed to write backup file: ${writeError instanceof Error ? writeError.message : 'Unknown error'}` 
+        };
+      }
 
       // Also create a latest backup file for easy access
       const latestBackupPath = `${backupFolderPath}${BACKUP_FILE_NAME}`;
-      await FileSystem.writeAsStringAsync(
-        latestBackupPath,
-        JSON.stringify(backupData, null, 2),
-        { encoding: 'utf8' }
-      );
+      try {
+        await FileSystem.writeAsStringAsync(
+          latestBackupPath,
+          JSON.stringify(backupData, null, 2),
+          { encoding: 'utf8' }
+        );
+        console.log('Latest backup file written successfully');
+      } catch (latestWriteError) {
+        console.log('Error writing latest backup file:', latestWriteError);
+        // Don't fail the entire backup if latest file fails
+      }
 
       console.log('Backup created successfully at:', backupFilePath);
       return {
         success: true,
-        message: `Backup created successfully!\n\nLocation: Documents/techtrace/\nJobs backed up: ${jobs.length}\nTotal AWs: ${totalAWs}`,
+        message: `Backup created successfully!\n\nLocation: Documents/techtrace/\nFile: ${backupFileName}\nJobs backed up: ${jobs.length}\nTotal AWs: ${totalAWs}`,
         filePath: backupFilePath
       };
 
@@ -242,6 +321,14 @@ export const BackupService = {
 
   async ensureBackupFolderExists(): Promise<{ success: boolean; message: string }> {
     try {
+      console.log('Ensuring backup folder exists...');
+      
+      // First, request permissions
+      const permissionResult = await requestStoragePermissions();
+      if (!permissionResult.success) {
+        return permissionResult;
+      }
+
       const documentDirectory = getDocumentDirectory();
       if (!documentDirectory) {
         return { success: false, message: 'Document directory not available on this device' };
@@ -251,24 +338,42 @@ export const BackupService = {
       const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
       
       if (!folderInfo.exists) {
-        await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
-        console.log('Created techtrace backup folder at:', backupFolderPath);
-        return { 
-          success: true, 
-          message: `Backup folder created successfully at:\nDocuments/${BACKUP_FOLDER_NAME}/` 
-        };
+        try {
+          await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
+          console.log('Created techtrace backup folder at:', backupFolderPath);
+          
+          // Verify folder was created
+          const verifyInfo = await FileSystem.getInfoAsync(backupFolderPath);
+          if (!verifyInfo.exists) {
+            return { 
+              success: false, 
+              message: 'Failed to create backup folder. Please check storage permissions.' 
+            };
+          }
+          
+          return { 
+            success: true, 
+            message: `Backup folder created successfully!\n\nLocation: Documents/${BACKUP_FOLDER_NAME}/\n\nYou can now create backups.` 
+          };
+        } catch (createError) {
+          console.log('Error creating backup folder:', createError);
+          return {
+            success: false,
+            message: `Failed to create backup folder: ${createError instanceof Error ? createError.message : 'Unknown error'}\n\nPlease check storage permissions in your device settings.`
+          };
+        }
       } else {
         console.log('Backup folder already exists at:', backupFolderPath);
         return { 
           success: true, 
-          message: `Backup folder already exists at:\nDocuments/${BACKUP_FOLDER_NAME}/` 
+          message: `Backup folder already exists!\n\nLocation: Documents/${BACKUP_FOLDER_NAME}/` 
         };
       }
     } catch (error) {
       console.log('Error ensuring backup folder exists:', error);
       return {
         success: false,
-        message: `Failed to create backup folder: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Failed to ensure backup folder exists: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }

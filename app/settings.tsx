@@ -128,6 +128,25 @@ export default function SettingsScreen() {
     );
   }, [showNotification]);
 
+  const handleEnsureBackupFolder = useCallback(async () => {
+    showNotification('Checking backup folder permissions...', 'info');
+
+    try {
+      const result = await BackupService.ensureBackupFolderExists();
+      
+      if (result.success) {
+        showNotification(result.message, 'success');
+        console.log('Backup folder ensured successfully');
+      } else {
+        showNotification(result.message, 'error');
+        console.log('Failed to ensure backup folder:', result.message);
+      }
+    } catch (error) {
+      console.log('Error ensuring backup folder:', error);
+      showNotification('Unexpected error checking backup folder', 'error');
+    }
+  }, [showNotification]);
+
   const handleCreateBackup = useCallback(async () => {
     if (isBackupInProgress) return;
     
@@ -291,6 +310,14 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>☁️ Google Drive Backup</Text>
           </TouchableOpacity>
           
+          {/* Backup Folder Setup */}
+          <TouchableOpacity
+            style={[styles.button, styles.setupButton]}
+            onPress={handleEnsureBackupFolder}
+          >
+            <Text style={styles.buttonText}>📁 Setup Backup Folder</Text>
+          </TouchableOpacity>
+          
           {/* Local Backup */}
           <TouchableOpacity
             style={[styles.button, styles.backupButton, isBackupInProgress && styles.buttonDisabled]}
@@ -313,15 +340,18 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.backupInfo}>
-            <Text style={styles.infoTitle}>📁 Local Backup Location</Text>
+            <Text style={styles.infoTitle}>📁 Local Backup Information</Text>
             <Text style={styles.infoText}>
-              Backups are saved to: Documents/techtrace/
+              • Backups are saved to: Documents/techtrace/
             </Text>
             <Text style={styles.infoText}>
               • backup.json - Latest backup file
             </Text>
             <Text style={styles.infoText}>
               • backup_YYYY-MM-DD.json - Dated backups
+            </Text>
+            <Text style={styles.infoText}>
+              • Use "Setup Backup Folder" to ensure proper permissions
             </Text>
           </View>
         </View>
@@ -503,6 +533,9 @@ const styles = StyleSheet.create({
   },
   googleDriveButton: {
     backgroundColor: '#4285f4',
+  },
+  setupButton: {
+    backgroundColor: '#ff9800',
   },
   backupButton: {
     backgroundColor: '#34a853',

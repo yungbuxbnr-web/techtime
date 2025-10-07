@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,39 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { colors } from '../styles/commonStyles';
+import { GoogleDriveService, GoogleDriveConfig } from '../utils/googleDriveService';
+import NotificationToast from './NotificationToast';
 
 interface GoogleDriveSetupProps {
   onClose?: () => void;
 }
 
 const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'info',
+    visible: false,
+  });
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type, visible: true });
+  };
+
+  const hideNotification = () => {
+    setNotification(prev => ({ ...prev, visible: false }));
+  };
+
   const openGoogleCloudConsole = () => {
     Linking.openURL('https://console.cloud.google.com/');
   };
@@ -23,8 +48,59 @@ const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
     Linking.openURL('https://developers.google.com/drive/api/quickstart/nodejs');
   };
 
+  const handleSaveConfig = useCallback(async () => {
+    if (!clientId.trim() || !clientSecret.trim()) {
+      showNotification('Please enter both Client ID and Client Secret', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const config: GoogleDriveConfig = {
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim(),
+      };
+
+      await GoogleDriveService.saveConfig(config);
+      showNotification('Google Drive configuration saved successfully!', 'success');
+      
+      setTimeout(() => {
+        onClose?.();
+      }, 2000);
+    } catch (error) {
+      console.log('Error saving config:', error);
+      showNotification('Failed to save configuration', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clientId, clientSecret, onClose]);
+
+  const loadExistingConfig = useCallback(async () => {
+    try {
+      const config = await GoogleDriveService.getConfig();
+      if (config) {
+        setClientId(config.clientId);
+        setClientSecret(config.clientSecret);
+        showNotification('Existing configuration loaded', 'info');
+      }
+    } catch (error) {
+      console.log('Error loading config:', error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadExistingConfig();
+  }, [loadExistingConfig]);
+
   return (
     <View style={styles.container}>
+      <NotificationToast
+        message={notification.message}
+        type={notification.type}
+        visible={notification.visible}
+        onHide={hideNotification}
+      />
+
       <View style={styles.header}>
         <Text style={styles.title}>Google Drive Setup</Text>
         {onClose && (
@@ -36,103 +112,141 @@ const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Setup Instructions</Text>
-          <Text style={styles.description}>
-            To enable Google Drive backup, you need to configure Google Cloud Console credentials. 
-            This is a one-time setup process.
+          <Text style={styles.sectionTitle}>📋 Quick Setup Guide</Text>
+          <Text style={styles.stepText}>
+            Follow these steps to enable Google Drive backup:
           </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.stepTitle}>Step 1: Create Google Cloud Project</Text>
-          <Text style={styles.stepDescription}>
-            • Go to Google Cloud Console
-            {'\n'}• Create a new project or select an existing one
-            {'\n'}• Note down your project ID
-          </Text>
+          
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>1.</Text>
+            <Text style={styles.stepDescription}>
+              Go to Google Cloud Console and create a new project (or select existing)
+            </Text>
+          </View>
+          
           <TouchableOpacity style={styles.linkButton} onPress={openGoogleCloudConsole}>
             <Text style={styles.linkButtonText}>🌐 Open Google Cloud Console</Text>
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.stepTitle}>Step 2: Enable Google Drive API</Text>
-          <Text style={styles.stepDescription}>
-            • In your Google Cloud project, go to "APIs & Services" → "Library"
-            {'\n'}• Search for "Google Drive API"
-            {'\n'}• Click on it and press "Enable"
-          </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.stepTitle}>Step 3: Create OAuth 2.0 Credentials</Text>
-          <Text style={styles.stepDescription}>
-            • Go to "APIs & Services" → "Credentials"
-            {'\n'}• Click "Create Credentials" → "OAuth 2.0 Client IDs"
-            {'\n'}• Choose "Web application" as application type
-            {'\n'}• Add authorized redirect URIs:
-          </Text>
-          <View style={styles.codeBlock}>
-            <Text style={styles.codeText}>https://auth.expo.io/@your-username/your-app-slug</Text>
-            <Text style={styles.codeText}>exp://localhost:19000/--/</Text>
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>2.</Text>
+            <Text style={styles.stepDescription}>
+              Enable the Google Drive API for your project
+            </Text>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.stepTitle}>Step 4: Configure App Credentials</Text>
-          <Text style={styles.stepDescription}>
-            • Copy your Client ID and Client Secret
-            {'\n'}• Update the credentials in googleDriveService.ts:
-          </Text>
-          <View style={styles.codeBlock}>
-            <Text style={styles.codeText}>const GOOGLE_CLIENT_ID = 'your-client-id';</Text>
-            <Text style={styles.codeText}>const GOOGLE_CLIENT_SECRET = 'your-client-secret';</Text>
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>3.</Text>
+            <Text style={styles.stepDescription}>
+              Create OAuth 2.0 credentials (Web application type)
+            </Text>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.stepTitle}>Step 5: Test the Integration</Text>
-          <Text style={styles.stepDescription}>
-            • Rebuild your app after updating the credentials
-            {'\n'}• Try the "Sign in to Google Drive" button
-            {'\n'}• Grant permissions when prompted
-            {'\n'}• Test backup and restore functionality
-          </Text>
-        </View>
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>4.</Text>
+            <Text style={styles.stepDescription}>
+              Add authorized redirect URIs (use the Expo development URL)
+            </Text>
+          </View>
 
-        <View style={styles.warningSection}>
-          <Text style={styles.warningTitle}>⚠️ Important Notes</Text>
-          <Text style={styles.warningText}>
-            • Keep your Client Secret secure and never commit it to version control
-            {'\n'}• For production apps, consider using environment variables
-            {'\n'}• The OAuth consent screen may need verification for public use
-            {'\n'}• Test thoroughly before deploying to users
-          </Text>
-        </View>
+          <View style={styles.step}>
+            <Text style={styles.stepNumber}>5.</Text>
+            <Text style={styles.stepDescription}>
+              Copy your Client ID and Client Secret and enter them below
+            </Text>
+          </View>
 
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.guideButton} onPress={openDriveAPIGuide}>
-            <Text style={styles.guideButtonText}>📚 View Official Google Drive API Guide</Text>
+          <TouchableOpacity style={styles.linkButton} onPress={openDriveAPIGuide}>
+            <Text style={styles.linkButtonText}>📖 Detailed Setup Guide</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.troubleshootTitle}>🔧 Troubleshooting</Text>
-          <Text style={styles.troubleshootText}>
-            <Text style={styles.bold}>Authentication fails:</Text>
-            {'\n'}• Check that redirect URIs are correctly configured
-            {'\n'}• Ensure Google Drive API is enabled
-            {'\n'}• Verify Client ID and Secret are correct
-            {'\n\n'}
-            <Text style={styles.bold}>Upload/Download fails:</Text>
-            {'\n'}• Check internet connection
-            {'\n'}• Verify Google Drive API quotas
-            {'\n'}• Ensure proper scopes are requested
-            {'\n\n'}
-            <Text style={styles.bold}>App crashes:</Text>
-            {'\n'}• Check console logs for detailed error messages
-            {'\n'}• Ensure all dependencies are properly installed
-            {'\n'}• Verify the backup data format is correct
+          <Text style={styles.sectionTitle}>🔑 Configuration</Text>
+          
+          <Text style={styles.label}>Client ID</Text>
+          <TextInput
+            style={styles.input}
+            value={clientId}
+            onChangeText={setClientId}
+            placeholder="Enter your Google OAuth Client ID"
+            placeholderTextColor={colors.textSecondary}
+            multiline
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <Text style={styles.label}>Client Secret</Text>
+          <TextInput
+            style={styles.input}
+            value={clientSecret}
+            onChangeText={setClientSecret}
+            placeholder="Enter your Google OAuth Client Secret"
+            placeholderTextColor={colors.textSecondary}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <TouchableOpacity
+            style={[styles.saveButton, (!clientId.trim() || !clientSecret.trim()) && styles.saveButtonDisabled]}
+            onPress={handleSaveConfig}
+            disabled={isLoading || !clientId.trim() || !clientSecret.trim()}
+          >
+            <Text style={styles.saveButtonText}>
+              {isLoading ? '⏳ Saving...' : '💾 Save Configuration'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⚠️ Important Notes</Text>
+          
+          <View style={styles.noteItem}>
+            <Text style={styles.noteIcon}>🔒</Text>
+            <Text style={styles.noteText}>
+              Your credentials are stored securely on your device and never shared
+            </Text>
+          </View>
+
+          <View style={styles.noteItem}>
+            <Text style={styles.noteIcon}>🌐</Text>
+            <Text style={styles.noteText}>
+              Make sure to add the correct redirect URIs in your Google Cloud Console
+            </Text>
+          </View>
+
+          <View style={styles.noteItem}>
+            <Text style={styles.noteIcon}>📱</Text>
+            <Text style={styles.noteText}>
+              You only need to set this up once per device
+            </Text>
+          </View>
+
+          <View style={styles.noteItem}>
+            <Text style={styles.noteIcon}>🔄</Text>
+            <Text style={styles.noteText}>
+              After setup, you can select a backup folder and all future backups will go there automatically
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🆘 Need Help?</Text>
+          <Text style={styles.helpText}>
+            If you encounter issues during setup:
+          </Text>
+          <Text style={styles.helpText}>
+            • Make sure the Google Drive API is enabled
+          </Text>
+          <Text style={styles.helpText}>
+            • Check that your redirect URIs are correct
+          </Text>
+          <Text style={styles.helpText}>
+            • Verify your OAuth credentials are for a "Web application"
+          </Text>
+          <Text style={styles.helpText}>
+            • Try creating a new set of credentials if needed
           </Text>
         </View>
       </ScrollView>
@@ -171,100 +285,106 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 15,
   },
-  description: {
+  stepText: {
     fontSize: 16,
     color: colors.textSecondary,
+    marginBottom: 20,
     lineHeight: 22,
   },
-  stepTitle: {
+  step: {
+    flexDirection: 'row',
+    marginBottom: 15,
+    alignItems: 'flex-start',
+  },
+  stepNumber: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: colors.primary,
-    marginBottom: 8,
+    marginRight: 10,
+    minWidth: 20,
   },
   stepDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  codeBlock: {
-    backgroundColor: colors.backgroundAlt,
-    padding: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 8,
-  },
-  codeText: {
-    fontFamily: 'monospace',
-    fontSize: 12,
+    fontSize: 16,
     color: colors.text,
-    marginBottom: 4,
+    flex: 1,
+    lineHeight: 22,
   },
   linkButton: {
     backgroundColor: colors.primary,
     padding: 12,
-    borderRadius: 6,
+    borderRadius: 8,
     alignItems: 'center',
+    marginVertical: 10,
   },
   linkButtonText: {
     color: colors.background,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
-  guideButton: {
-    backgroundColor: colors.success,
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    marginTop: 15,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.background,
+    marginBottom: 15,
+    minHeight: 40,
+  },
+  saveButton: {
+    backgroundColor: colors.success || colors.primary,
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 10,
   },
-  guideButtonText: {
+  saveButtonDisabled: {
+    backgroundColor: colors.textSecondary,
+    opacity: 0.6,
+  },
+  saveButtonText: {
     color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },
-  warningSection: {
-    backgroundColor: colors.warning + '20',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.warning,
-    marginBottom: 20,
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.warning,
-    marginBottom: 8,
-  },
-  warningText: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  troubleshootTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
+  noteItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
-  troubleshootText: {
+  noteIcon: {
+    fontSize: 16,
+    marginRight: 10,
+    minWidth: 25,
+  },
+  noteText: {
     fontSize: 14,
     color: colors.textSecondary,
+    flex: 1,
     lineHeight: 20,
   },
-  bold: {
-    fontWeight: '600',
-    color: colors.text,
+  helpText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    lineHeight: 20,
   },
 });
 

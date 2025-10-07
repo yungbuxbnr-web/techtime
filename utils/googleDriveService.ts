@@ -2,6 +2,7 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackupData } from './backupService';
 
 // Complete the auth session for web
@@ -11,6 +12,11 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GOOGLE_DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 const GOOGLE_DRIVE_UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3';
+
+// Storage keys for persistent data
+const GOOGLE_DRIVE_TOKEN_KEY = 'google_drive_token';
+const GOOGLE_DRIVE_FOLDER_KEY = 'google_drive_backup_folder';
+const GOOGLE_DRIVE_CONFIG_KEY = 'google_drive_config';
 
 // You'll need to get these from Google Cloud Console
 // For now, using placeholder values - user needs to set these up
@@ -34,19 +40,122 @@ export interface GoogleDriveFile {
   createdTime: string;
   modifiedTime: string;
   size?: string;
+  mimeType?: string;
+}
+
+export interface GoogleDriveFolder {
+  id: string;
+  name: string;
+  path: string;
+}
+
+export interface GoogleDriveConfig {
+  clientId: string;
+  clientSecret: string;
 }
 
 export const GoogleDriveService = {
+  // Configuration management
+  async saveConfig(config: GoogleDriveConfig): Promise<void> {
+    try {
+      await AsyncStorage.setItem(GOOGLE_DRIVE_CONFIG_KEY, JSON.stringify(config));
+      console.log('Google Drive config saved');
+    } catch (error) {
+      console.log('Error saving Google Drive config:', error);
+      throw error;
+    }
+  },
+
+  async getConfig(): Promise<GoogleDriveConfig | null> {
+    try {
+      const configJson = await AsyncStorage.getItem(GOOGLE_DRIVE_CONFIG_KEY);
+      if (configJson) {
+        return JSON.parse(configJson);
+      }
+      return null;
+    } catch (error) {
+      console.log('Error getting Google Drive config:', error);
+      return null;
+    }
+  },
+
+  // Token management
+  async saveToken(token: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(GOOGLE_DRIVE_TOKEN_KEY, token);
+      console.log('Google Drive token saved');
+    } catch (error) {
+      console.log('Error saving Google Drive token:', error);
+      throw error;
+    }
+  },
+
+  async getToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(GOOGLE_DRIVE_TOKEN_KEY);
+    } catch (error) {
+      console.log('Error getting Google Drive token:', error);
+      return null;
+    }
+  },
+
+  async clearToken(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(GOOGLE_DRIVE_TOKEN_KEY);
+      console.log('Google Drive token cleared');
+    } catch (error) {
+      console.log('Error clearing Google Drive token:', error);
+    }
+  },
+
+  // Folder management
+  async saveSelectedFolder(folder: GoogleDriveFolder): Promise<void> {
+    try {
+      await AsyncStorage.setItem(GOOGLE_DRIVE_FOLDER_KEY, JSON.stringify(folder));
+      console.log('Google Drive backup folder saved:', folder.name);
+    } catch (error) {
+      console.log('Error saving Google Drive folder:', error);
+      throw error;
+    }
+  },
+
+  async getSelectedFolder(): Promise<GoogleDriveFolder | null> {
+    try {
+      const folderJson = await AsyncStorage.getItem(GOOGLE_DRIVE_FOLDER_KEY);
+      if (folderJson) {
+        return JSON.parse(folderJson);
+      }
+      return null;
+    } catch (error) {
+      console.log('Error getting Google Drive folder:', error);
+      return null;
+    }
+  },
+
+  async clearSelectedFolder(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(GOOGLE_DRIVE_FOLDER_KEY);
+      console.log('Google Drive backup folder cleared');
+    } catch (error) {
+      console.log('Error clearing Google Drive folder:', error);
+    }
+  },
+
   // Authentication
   async authenticate(): Promise<GoogleDriveAuthResult> {
     try {
       console.log('Starting Google Drive authentication...');
 
+      // Check if we have saved config
+      const config = await this.getConfig();
+      const clientId = config?.clientId || GOOGLE_CLIENT_ID;
+      const clientSecret = config?.clientSecret || GOOGLE_CLIENT_SECRET;
+
       // Check if client ID is configured
-      if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+      if (clientId === 'YOUR_GOOGLE_CLIENT_ID' || !clientId) {
         return {
           success: false,
-          error: 'Google Drive integration not configured. Please set up Google Cloud Console credentials.'
+          error: 'Google Drive integration not configured. Please set up Google Cloud Console credentials in the setup guide.'
         };
       }
 
@@ -55,7 +164,7 @@ export const GoogleDriveService = {
       });
 
       const request = new AuthSession.AuthRequest({
-        clientId: GOOGLE_CLIENT_ID,
+        clientId,
         scopes: [GOOGLE_DRIVE_SCOPE],
         responseType: AuthSession.ResponseType.Code,
         redirectUri,
@@ -72,8 +181,8 @@ export const GoogleDriveService = {
         // Exchange code for access token
         const tokenResult = await AuthSession.exchangeCodeAsync(
           {
-            clientId: GOOGLE_CLIENT_ID,
-            clientSecret: GOOGLE_CLIENT_SECRET,
+            clientId,
+            clientSecret,
             code: result.params.code,
             redirectUri,
           },
@@ -81,6 +190,9 @@ export const GoogleDriveService = {
             tokenEndpoint: 'https://oauth2.googleapis.com/token',
           }
         );
+
+        // Save token for future use
+        await this.saveToken(tokenResult.accessToken);
 
         console.log('Google Drive authentication successful');
         return {
@@ -103,10 +215,114 @@ export const GoogleDriveService = {
     }
   },
 
-  // Upload backup to Google Drive
-  async uploadBackup(accessToken: string, backupData: BackupData): Promise<{ success: boolean; message: string; fileId?: string }> {
+  // Check if user is authenticated
+  async isAuthenticated(): Promise<boolean> {
+    const token = await this.getToken();
+    return token !== null;
+  },
+
+  // Get current access token
+  async getCurrentToken(): Promise<string | null> {
+    return await this.getToken();
+  },
+
+  // List folders for selection
+  async listFolders(accessToken: string, parentId?: string): Promise<{ success: boolean; folders: GoogleDriveFile[]; message?: string }> {
+    try {
+      console.log('Listing folders from Google Drive...');
+
+      const query = parentId 
+        ? `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`
+        : `mimeType='application/vnd.google-apps.folder' and trashed=false`;
+
+      const response = await fetch(
+        `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,parents)&orderBy=name`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Found folders on Google Drive:', result.files.length);
+        return {
+          success: true,
+          folders: result.files || [],
+        };
+      } else {
+        const errorText = await response.text();
+        console.log('Error listing Google Drive folders:', errorText);
+        return {
+          success: false,
+          folders: [],
+          message: `Failed to list folders: ${response.status} ${response.statusText}`,
+        };
+      }
+    } catch (error) {
+      console.log('Error listing Google Drive folders:', error);
+      return {
+        success: false,
+        folders: [],
+        message: `Failed to list folders: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  },
+
+  // Create a new folder
+  async createFolder(accessToken: string, folderName: string, parentId?: string): Promise<{ success: boolean; folder?: GoogleDriveFile; message: string }> {
+    try {
+      console.log('Creating folder on Google Drive:', folderName);
+
+      const metadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: parentId ? [parentId] : undefined,
+      };
+
+      const response = await fetch(`${GOOGLE_DRIVE_API_BASE}/files`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(metadata),
+      });
+
+      if (response.ok) {
+        const folder = await response.json();
+        console.log('Folder created successfully:', folder.id);
+        return {
+          success: true,
+          folder,
+          message: `Folder "${folderName}" created successfully!`,
+        };
+      } else {
+        const errorText = await response.text();
+        console.log('Error creating folder:', errorText);
+        return {
+          success: false,
+          message: `Failed to create folder: ${response.status} ${response.statusText}`,
+        };
+      }
+    } catch (error) {
+      console.log('Error creating folder:', error);
+      return {
+        success: false,
+        message: `Failed to create folder: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  },
+
+  // Upload backup to Google Drive (to selected folder)
+  async uploadBackup(accessToken: string, backupData: BackupData, folderId?: string): Promise<{ success: boolean; message: string; fileId?: string }> {
     try {
       console.log('Uploading backup to Google Drive...');
+
+      // Use selected folder if available
+      const selectedFolder = await this.getSelectedFolder();
+      const targetFolderId = folderId || selectedFolder?.id;
 
       const fileName = `techtrace_backup_${new Date().toISOString().split('T')[0]}.json`;
       const fileContent = JSON.stringify(backupData, null, 2);
@@ -114,7 +330,7 @@ export const GoogleDriveService = {
       // Create file metadata
       const metadata = {
         name: fileName,
-        parents: [], // Will be uploaded to root folder
+        parents: targetFolderId ? [targetFolderId] : [], // Upload to selected folder or root
         description: `TechTrace backup created on ${new Date().toLocaleDateString()}`,
       };
 
@@ -144,9 +360,12 @@ export const GoogleDriveService = {
       if (response.ok) {
         const result = await response.json();
         console.log('Backup uploaded successfully to Google Drive:', result.id);
+        
+        const folderInfo = selectedFolder ? `\nFolder: ${selectedFolder.name}` : '\nFolder: Root';
+        
         return {
           success: true,
-          message: `Backup uploaded successfully to Google Drive!\n\nFile: ${fileName}\nJobs backed up: ${backupData.jobs.length}\nTotal AWs: ${backupData.metadata.totalAWs}`,
+          message: `Backup uploaded successfully to Google Drive!${folderInfo}\n\nFile: ${fileName}\nJobs backed up: ${backupData.jobs.length}\nTotal AWs: ${backupData.metadata.totalAWs}`,
           fileId: result.id,
         };
       } else {
@@ -166,12 +385,20 @@ export const GoogleDriveService = {
     }
   },
 
-  // List backups from Google Drive
-  async listBackups(accessToken: string): Promise<{ success: boolean; files: GoogleDriveFile[]; message?: string }> {
+  // List backups from Google Drive (from selected folder)
+  async listBackups(accessToken: string, folderId?: string): Promise<{ success: boolean; files: GoogleDriveFile[]; message?: string }> {
     try {
       console.log('Listing backups from Google Drive...');
 
-      const query = "name contains 'techtrace_backup' and mimeType='application/json'";
+      // Use selected folder if available
+      const selectedFolder = await this.getSelectedFolder();
+      const targetFolderId = folderId || selectedFolder?.id;
+
+      let query = "name contains 'techtrace_backup' and mimeType='application/json' and trashed=false";
+      if (targetFolderId) {
+        query += ` and '${targetFolderId}' in parents`;
+      }
+
       const response = await fetch(
         `${GOOGLE_DRIVE_API_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,createdTime,modifiedTime,size)&orderBy=modifiedTime desc`,
         {
@@ -289,8 +516,10 @@ export const GoogleDriveService = {
   },
 
   // Check if Google Drive is configured
-  isConfigured(): boolean {
-    return GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID' && GOOGLE_CLIENT_SECRET !== 'YOUR_GOOGLE_CLIENT_SECRET';
+  async isConfigured(): Promise<boolean> {
+    const config = await this.getConfig();
+    return (config?.clientId && config.clientId !== 'YOUR_GOOGLE_CLIENT_ID') ||
+           (GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID');
   },
 
   // Get configuration instructions
@@ -302,9 +531,20 @@ export const GoogleDriveService = {
 3. Enable the Google Drive API
 4. Create OAuth 2.0 credentials (Web application)
 5. Add your app's redirect URI
-6. Update the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in googleDriveService.ts
+6. Update the credentials in the setup guide
 
 For detailed instructions, visit:
 https://developers.google.com/drive/api/quickstart/nodejs`;
+  },
+
+  // Sign out and clear all data
+  async signOut(): Promise<void> {
+    try {
+      await this.clearToken();
+      await this.clearSelectedFolder();
+      console.log('Google Drive sign out completed');
+    } catch (error) {
+      console.log('Error during Google Drive sign out:', error);
+    }
   },
 };

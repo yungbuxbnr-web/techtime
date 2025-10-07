@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../styles/commonStyles';
-import { GoogleDriveService, GoogleDriveFile } from '../utils/googleDriveService';
+import { GoogleDriveService, GoogleDriveFile, GoogleDriveFolder } from '../utils/googleDriveService';
 import { BackupService, BackupData } from '../utils/backupService';
 import { StorageService } from '../utils/storage';
 import NotificationToast from './NotificationToast';
 import GoogleDriveSetup from './GoogleDriveSetup';
 import GoogleDriveInstructions from './GoogleDriveInstructions';
+import GoogleDriveFolderSelector from './GoogleDriveFolderSelector';
 
 interface GoogleDriveBackupProps {
   onClose?: () => void;
@@ -26,6 +27,8 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [backupFiles, setBackupFiles] = useState<GoogleDriveFile[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<GoogleDriveFolder | null>(null);
+  const [showFolderSelector, setShowFolderSelector] = useState(false);
   const [notification, setNotification] = useState<{
     message: string;
     type: 'success' | 'error' | 'info';
@@ -36,13 +39,38 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     visible: false,
   });
   const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
 
-  const checkConfiguration = useCallback(() => {
-    if (!GoogleDriveService.isConfigured()) {
+  const checkConfiguration = useCallback(async () => {
+    const configured = await GoogleDriveService.isConfigured();
+    setIsConfigured(configured);
+    
+    if (!configured) {
       showNotification(
         'Google Drive requires one-time setup with Google Cloud Console credentials.',
         'info'
       );
+    } else {
+      // Check if user is already authenticated
+      const authenticated = await GoogleDriveService.isAuthenticated();
+      if (authenticated) {
+        const token = await GoogleDriveService.getCurrentToken();
+        if (token) {
+          setIsAuthenticated(true);
+          setAccessToken(token);
+          await loadSelectedFolder();
+          await loadBackupFiles(token);
+        }
+      }
+    }
+  }, []);
+
+  const loadSelectedFolder = useCallback(async () => {
+    try {
+      const folder = await GoogleDriveService.getSelectedFolder();
+      setSelectedFolder(folder);
+    } catch (error) {
+      console.log('Error loading selected folder:', error);
     }
   }, []);
 
@@ -59,11 +87,14 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   };
 
   const handleAuthenticate = async () => {
-    if (!GoogleDriveService.isConfigured()) {
+    if (!isConfigured) {
       Alert.alert(
         'Configuration Required',
-        GoogleDriveService.getConfigurationInstructions(),
-        [{ text: 'OK' }]
+        'Please complete the Google Drive setup first.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Setup', onPress: () => setShowSetupGuide(true) }
+        ]
       );
       return;
     }
@@ -75,6 +106,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
         setIsAuthenticated(true);
         setAccessToken(result.accessToken);
         showNotification('Successfully authenticated with Google Drive!', 'success');
+        await loadSelectedFolder();
         await loadBackupFiles(result.accessToken);
       } else {
         showNotification(result.error || 'Authentication failed', 'error');
@@ -94,7 +126,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       if (result.success) {
         setBackupFiles(result.files);
         if (result.files.length === 0) {
-          showNotification('No backups found on Google Drive', 'info');
+          showNotification('No backups found in the selected folder', 'info');
         }
       } else {
         showNotification(result.message || 'Failed to load backups', 'error');
@@ -104,6 +136,30 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       showNotification('Failed to load backups', 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSelectFolder = () => {
+    if (!accessToken) {
+      showNotification('Please authenticate first', 'error');
+      return;
+    }
+    setShowFolderSelector(true);
+  };
+
+  const handleFolderSelected = async (folder: GoogleDriveFolder) => {
+    try {
+      await GoogleDriveService.saveSelectedFolder(folder);
+      setSelectedFolder(folder);
+      showNotification(`Backup folder set to: ${folder.path}`, 'success');
+      
+      // Reload backups from the new folder
+      if (accessToken) {
+        await loadBackupFiles(accessToken);
+      }
+    } catch (error) {
+      console.log('Error saving selected folder:', error);
+      showNotification('Failed to save folder selection', 'error');
     }
   };
 
@@ -142,7 +198,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
         },
       };
 
-      // Upload to Google Drive
+      // Upload to Google Drive (will use selected folder automatically)
       const uploadResult = await GoogleDriveService.uploadBackup(accessToken, backupData);
       if (uploadResult.success) {
         showNotification(uploadResult.message, 'success');
@@ -238,6 +294,32 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     );
   };
 
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of Google Drive? You will need to authenticate again for future backups.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          onPress: async () => {
+            try {
+              await GoogleDriveService.signOut();
+              setIsAuthenticated(false);
+              setAccessToken(null);
+              setSelectedFolder(null);
+              setBackupFiles([]);
+              showNotification('Signed out of Google Drive', 'info');
+            } catch (error) {
+              console.log('Error signing out:', error);
+              showNotification('Error signing out', 'error');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -250,6 +332,16 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
 
   if (showSetupGuide) {
     return <GoogleDriveSetup onClose={() => setShowSetupGuide(false)} />;
+  }
+
+  if (showFolderSelector && accessToken) {
+    return (
+      <GoogleDriveFolderSelector
+        accessToken={accessToken}
+        onFolderSelected={handleFolderSelected}
+        onClose={() => setShowFolderSelector(false)}
+      />
+    );
   }
 
   return (
@@ -271,7 +363,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {!GoogleDriveService.isConfigured() && (
+        {!isConfigured && (
           <GoogleDriveInstructions onSetupGuide={() => setShowSetupGuide(true)} />
         )}
 
@@ -297,6 +389,31 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
           <View style={styles.authenticatedSection}>
             <Text style={styles.sectionTitle}>Backup & Restore</Text>
             
+            {/* Folder Selection */}
+            <View style={styles.folderSection}>
+              <Text style={styles.folderLabel}>Backup Folder:</Text>
+              <View style={styles.folderInfo}>
+                <Text style={styles.folderPath}>
+                  {selectedFolder ? selectedFolder.path : 'Root (not selected)'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.selectFolderButton}
+                  onPress={handleSelectFolder}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.selectFolderButtonText}>
+                    {selectedFolder ? 'Change' : 'Select'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.folderDescription}>
+                {selectedFolder 
+                  ? 'All backups will be saved to this folder automatically.'
+                  : 'Select a folder to organize your backups. You can create new folders during selection.'
+                }
+              </Text>
+            </View>
+            
             <TouchableOpacity
               style={[styles.button, styles.primaryButton]}
               onPress={handleBackupToGoogleDrive}
@@ -315,6 +432,14 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
               disabled={isLoading}
             >
               <Text style={styles.secondaryButtonText}>Refresh Backup List</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.signOutButton]}
+              onPress={handleSignOut}
+              disabled={isLoading}
+            >
+              <Text style={styles.signOutButtonText}>Sign Out</Text>
             </TouchableOpacity>
 
             {backupFiles.length > 0 && (
@@ -390,26 +515,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  configWarning: {
-    backgroundColor: colors.warning || '#FFF3CD',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  configWarningText: {
-    color: colors.text,
-    marginBottom: 10,
-  },
-  configButton: {
-    backgroundColor: colors.primary,
-    padding: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  configButtonText: {
-    color: colors.background,
-    fontWeight: '600',
-  },
   authSection: {
     alignItems: 'center',
   },
@@ -429,6 +534,48 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 22,
   },
+  folderSection: {
+    backgroundColor: colors.cardBackground,
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  folderLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  folderInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  folderPath: {
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+    marginRight: 10,
+  },
+  selectFolderButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  selectFolderButtonText: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  folderDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
   button: {
     padding: 15,
     borderRadius: 8,
@@ -443,6 +590,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  signOutButton: {
+    backgroundColor: colors.error || '#DC3545',
+  },
   buttonText: {
     color: colors.background,
     fontSize: 16,
@@ -450,6 +600,11 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  signOutButtonText: {
+    color: colors.background,
     fontSize: 16,
     fontWeight: '600',
   },
