@@ -22,18 +22,41 @@ export interface BackupData {
   };
 }
 
+// Helper function to get document directory with proper type handling
+const getDocumentDirectory = (): string | null => {
+  // Use type assertion to access documentDirectory
+  const fs = FileSystem as any;
+  return fs.documentDirectory || null;
+};
+
+// Helper function to get cache directory with proper type handling
+const getCacheDirectory = (): string | null => {
+  // Use type assertion to access cacheDirectory
+  const fs = FileSystem as any;
+  return fs.cacheDirectory || null;
+};
+
+// Helper function to get encoding type with proper type handling
+const getEncodingType = () => {
+  // Use type assertion to access EncodingType
+  const fs = FileSystem as any;
+  return fs.EncodingType?.UTF8 || 'utf8';
+};
+
 // Helper function to get available directories with fallback
 const getAvailableDirectory = (): { directory: string; type: 'document' | 'cache' } => {
   // Try document directory first
-  if (FileSystem.documentDirectory) {
-    console.log('Using document directory:', FileSystem.documentDirectory);
-    return { directory: FileSystem.documentDirectory, type: 'document' };
+  const documentDir = getDocumentDirectory();
+  if (documentDir) {
+    console.log('Using document directory:', documentDir);
+    return { directory: documentDir, type: 'document' };
   }
   
   // Fallback to cache directory
-  if (FileSystem.cacheDirectory) {
-    console.log('Document directory not available, using cache directory:', FileSystem.cacheDirectory);
-    return { directory: FileSystem.cacheDirectory, type: 'cache' };
+  const cacheDir = getCacheDirectory();
+  if (cacheDir) {
+    console.log('Document directory not available, using cache directory:', cacheDir);
+    return { directory: cacheDir, type: 'cache' };
   }
   
   throw new Error('No file system directory available');
@@ -82,7 +105,7 @@ const requestStoragePermissions = async (): Promise<{ success: boolean; message:
 const checkDirectoryWritable = async (directoryPath: string): Promise<boolean> => {
   try {
     const testFilePath = `${directoryPath}test_write.tmp`;
-    await FileSystem.writeAsStringAsync(testFilePath, 'test', { encoding: FileSystem.EncodingType.UTF8 });
+    await FileSystem.writeAsStringAsync(testFilePath, 'test', { encoding: getEncodingType() });
     await FileSystem.deleteAsync(testFilePath, { idempotent: true });
     return true;
   } catch (error) {
@@ -194,7 +217,7 @@ export const BackupService = {
         await FileSystem.writeAsStringAsync(
           backupFilePath,
           JSON.stringify(backupData, null, 2),
-          { encoding: FileSystem.EncodingType.UTF8 }
+          { encoding: getEncodingType() }
         );
         console.log('Backup file written successfully');
       } catch (writeError) {
@@ -211,7 +234,7 @@ export const BackupService = {
         await FileSystem.writeAsStringAsync(
           latestBackupPath,
           JSON.stringify(backupData, null, 2),
-          { encoding: FileSystem.EncodingType.UTF8 }
+          { encoding: getEncodingType() }
         );
         console.log('Latest backup file written successfully');
       } catch (latestWriteError) {
@@ -282,7 +305,7 @@ export const BackupService = {
 
       // Read backup file
       const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
-        encoding: FileSystem.EncodingType.UTF8
+        encoding: getEncodingType()
       });
 
       // Parse backup data
@@ -496,7 +519,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         filePath,
         content,
-        { encoding: FileSystem.EncodingType.UTF8 }
+        { encoding: getEncodingType() }
       );
 
       const directoryTypeText = type === 'document' ? 'Documents' : 'Cache';
