@@ -35,6 +35,14 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
     visible: false,
   });
 
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type, visible: true });
+  }, []);
+
+  const hideNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, visible: false }));
+  }, []);
+
   const loadBackupFiles = useCallback(async (token: string) => {
     setIsLoading(true);
     try {
@@ -70,16 +78,6 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
   useEffect(() => {
     checkAuthAndLoadFiles();
   }, [checkAuthAndLoadFiles]);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ message, type, visible: true });
-  };
-
-  const hideNotification = () => {
-    setNotification(prev => ({ ...prev, visible: false }));
-  };
-
-
 
   const handleAuthenticate = async () => {
     setIsLoading(true);

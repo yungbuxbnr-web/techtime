@@ -41,29 +41,13 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
 
-  const checkConfiguration = useCallback(async () => {
-    const configured = await GoogleDriveService.isConfigured();
-    setIsConfigured(configured);
-    
-    if (!configured) {
-      showNotification(
-        'Google Drive requires one-time setup with Google Cloud Console credentials.',
-        'info'
-      );
-    } else {
-      // Check if user is already authenticated
-      const authenticated = await GoogleDriveService.isAuthenticated();
-      if (authenticated) {
-        const token = await GoogleDriveService.getCurrentToken();
-        if (token) {
-          setIsAuthenticated(true);
-          setAccessToken(token);
-          await loadSelectedFolder();
-          await loadBackupFiles(token);
-        }
-      }
-    }
-  }, [showNotification, loadSelectedFolder, loadBackupFiles]);
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type, visible: true });
+  }, []);
+
+  const hideNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, visible: false }));
+  }, []);
 
   const loadSelectedFolder = useCallback(async () => {
     try {
@@ -94,17 +78,33 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     }
   }, [showNotification]);
 
+  const checkConfiguration = useCallback(async () => {
+    const configured = await GoogleDriveService.isConfigured();
+    setIsConfigured(configured);
+    
+    if (!configured) {
+      showNotification(
+        'Google Drive requires one-time setup with Google Cloud Console credentials.',
+        'info'
+      );
+    } else {
+      // Check if user is already authenticated
+      const authenticated = await GoogleDriveService.isAuthenticated();
+      if (authenticated) {
+        const token = await GoogleDriveService.getCurrentToken();
+        if (token) {
+          setIsAuthenticated(true);
+          setAccessToken(token);
+          await loadSelectedFolder();
+          await loadBackupFiles(token);
+        }
+      }
+    }
+  }, [showNotification, loadSelectedFolder, loadBackupFiles]);
+
   useEffect(() => {
     checkConfiguration();
   }, [checkConfiguration]);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ message, type, visible: true });
-  };
-
-  const hideNotification = () => {
-    setNotification(prev => ({ ...prev, visible: false }));
-  };
 
   const handleAuthenticate = async () => {
     if (!isConfigured) {
@@ -134,26 +134,6 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     } catch (error) {
       console.log('Authentication error:', error);
       showNotification('Authentication failed', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadBackupFiles = async (token: string) => {
-    setIsLoading(true);
-    try {
-      const result = await GoogleDriveService.listBackups(token);
-      if (result.success) {
-        setBackupFiles(result.files);
-        if (result.files.length === 0) {
-          showNotification('No backups found in the selected folder', 'info');
-        }
-      } else {
-        showNotification(result.message || 'Failed to load backups', 'error');
-      }
-    } catch (error) {
-      console.log('Error loading backup files:', error);
-      showNotification('Failed to load backups', 'error');
     } finally {
       setIsLoading(false);
     }
