@@ -99,7 +99,7 @@ export default function AuthScreen() {
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
           <NotificationToast
             message={notification.message}
             type={notification.type}
@@ -111,11 +111,10 @@ export default function AuthScreen() {
             <View style={styles.header}>
               <Text style={styles.title}>Technician Records</Text>
               <Text style={styles.subtitle}>Buckston Rugge</Text>
+              <Text style={styles.label}>Enter PIN</Text>
             </View>
             
             <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
-              <Text style={styles.label}>Enter PIN</Text>
-              
               <Keypad
                 pin={pin}
                 onNumberPress={handleNumberPress}
@@ -150,11 +149,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 40,
   },
   header: {
     alignItems: 'center',
-    paddingTop: 20,
+    paddingTop: 40,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 32,
@@ -171,6 +170,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '500',
     color: '#ffffff',
     textAlign: 'center',
+    marginBottom: 30,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  label: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
@@ -179,19 +188,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   shakeAnimation: {
     transform: [{ translateX: 5 }],
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 40,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
 });
