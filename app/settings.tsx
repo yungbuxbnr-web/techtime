@@ -94,7 +94,7 @@ export default function SettingsScreen() {
   }, [newPin, confirmPin, settings, showNotification]);
 
   const handleUpdateTargetHours = useCallback(async () => {
-    const hours = parseInt(targetHours, 10);
+    const hours = parseFloat(targetHours);
     
     if (isNaN(hours) || hours <= 0) {
       showNotification('Please enter a valid number of hours', 'error');
@@ -117,6 +117,66 @@ export default function SettingsScreen() {
       showNotification('Error updating target hours', 'error');
     }
   }, [targetHours, settings, showNotification]);
+
+  const handleDeductFullDay = useCallback(async () => {
+    const currentTarget = settings.targetHours || 180;
+    const newTarget = Math.max(0, currentTarget - 8.5);
+    
+    Alert.alert(
+      'Deduct Full Day',
+      `This will deduct 8.5 hours from your target.\n\nCurrent: ${currentTarget} hours\nNew: ${newTarget} hours\n\nContinue?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deduct',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const updatedSettings = { ...settings, targetHours: newTarget };
+              await StorageService.saveSettings(updatedSettings);
+              setSettings(updatedSettings);
+              setTargetHours(String(newTarget));
+              showNotification(`Full day deducted. New target: ${newTarget} hours`, 'success');
+              console.log('Full day deducted successfully:', newTarget);
+            } catch (error) {
+              console.log('Error deducting full day:', error);
+              showNotification('Error updating target hours', 'error');
+            }
+          }
+        }
+      ]
+    );
+  }, [settings, showNotification]);
+
+  const handleDeductHalfDay = useCallback(async () => {
+    const currentTarget = settings.targetHours || 180;
+    const newTarget = Math.max(0, currentTarget - 4.25);
+    
+    Alert.alert(
+      'Deduct Half Day',
+      `This will deduct 4.25 hours from your target.\n\nCurrent: ${currentTarget} hours\nNew: ${newTarget} hours\n\nContinue?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deduct',
+          style: 'default',
+          onPress: async () => {
+            try {
+              const updatedSettings = { ...settings, targetHours: newTarget };
+              await StorageService.saveSettings(updatedSettings);
+              setSettings(updatedSettings);
+              setTargetHours(String(newTarget));
+              showNotification(`Half day deducted. New target: ${newTarget} hours`, 'success');
+              console.log('Half day deducted successfully:', newTarget);
+            } catch (error) {
+              console.log('Error deducting half day:', error);
+              showNotification('Error updating target hours', 'error');
+            }
+          }
+        }
+      ]
+    );
+  }, [settings, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -338,7 +398,7 @@ export default function SettingsScreen() {
             onChangeText={setTargetHours}
             placeholder="Enter target hours (e.g., 180)"
             keyboardType="numeric"
-            maxLength={3}
+            maxLength={5}
           />
           
           <View style={styles.targetInfo}>
@@ -356,6 +416,44 @@ export default function SettingsScreen() {
           <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdateTargetHours}>
             <Text style={styles.buttonText}>🔄 Update Target Hours</Text>
           </TouchableOpacity>
+
+          {/* Quick Deduction Buttons */}
+          <View style={styles.deductionSection}>
+            <Text style={styles.deductionTitle}>⚡ Quick Deductions</Text>
+            <Text style={styles.deductionDescription}>
+              Quickly adjust your target hours by deducting time off
+            </Text>
+            
+            <View style={styles.deductionButtons}>
+              <TouchableOpacity 
+                style={[styles.button, styles.deductButton, styles.halfDayButton]} 
+                onPress={handleDeductHalfDay}
+              >
+                <Text style={styles.buttonText}>➖ Half Day</Text>
+                <Text style={styles.deductButtonSubtext}>4.25 hours</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.button, styles.deductButton, styles.fullDayButton]} 
+                onPress={handleDeductFullDay}
+              >
+                <Text style={styles.buttonText}>➖ Full Day</Text>
+                <Text style={styles.deductButtonSubtext}>8.5 hours</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.deductionInfo}>
+              <Text style={styles.infoText}>
+                ℹ️ Use these buttons to quickly deduct time off from your monthly target
+              </Text>
+              <Text style={styles.infoText}>
+                • Half Day = 4.25 hours
+              </Text>
+              <Text style={styles.infoText}>
+                • Full Day = 8.5 hours
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Backup & Import Section */}
@@ -601,6 +699,52 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  deductionSection: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  deductionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  deductionDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  deductionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  deductButton: {
+    flex: 1,
+    paddingVertical: 16,
+  },
+  halfDayButton: {
+    backgroundColor: '#ff9800',
+  },
+  fullDayButton: {
+    backgroundColor: '#f44336',
+  },
+  deductButtonSubtext: {
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 4,
+  },
+  deductionInfo: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
