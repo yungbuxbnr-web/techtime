@@ -72,6 +72,8 @@ export default function NotificationToast({ message, type, visible, onHide }: No
     }
   };
 
+  const styles = createStyles(colors);
+
   return (
     <Animated.View
       style={[
@@ -88,7 +90,7 @@ export default function NotificationToast({ message, type, visible, onHide }: No
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     position: 'absolute',
     top: 60,
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   message: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',

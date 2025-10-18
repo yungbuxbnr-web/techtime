@@ -11,7 +11,7 @@ import {
   Dimensions
 } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SimpleBottomSheetProps {
   children?: React.ReactNode;
@@ -33,6 +33,7 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
   isVisible = false,
   onClose
 }) => {
+  const { colors } = useTheme();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const gestureTranslateY = useRef(new Animated.Value(0)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -151,6 +152,8 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
     }
   }, [isVisible, translateY, backdropOpacity, gestureTranslateY]);
 
+  const styles = createStyles(colors);
+
   return (
     <Modal
       visible={isVisible}
@@ -208,7 +211,7 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
 
 SimpleBottomSheet.displayName = 'SimpleBottomSheet';
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -219,7 +222,7 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     height: SNAP_POINTS.FULL,
-    backgroundColor: colors.background || '#ffffff',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: '#000',
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.grey || '#cccccc',
+    backgroundColor: colors.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,

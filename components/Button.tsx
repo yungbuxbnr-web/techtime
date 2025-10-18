@@ -1,5 +1,6 @@
+
 import { Text, TouchableOpacity, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ButtonProps {
   text: string;
@@ -9,6 +10,9 @@ interface ButtonProps {
 }
 
 export default function Button({ text, onPress, style, textStyle }: ButtonProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+
   return (
     <TouchableOpacity style={[styles.button, style]} onPress={onPress} activeOpacity={0.7}>
       <Text style={[styles.buttonText, textStyle]}>{text}</Text>
@@ -16,7 +20,7 @@ export default function Button({ text, onPress, style, textStyle }: ButtonProps)
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   button: {
     backgroundColor: colors.primary,
     padding: 14,

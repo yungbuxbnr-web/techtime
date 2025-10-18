@@ -17,6 +17,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('light');
   const [colors, setColors] = useState(lightColors);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load theme from storage on mount
   useEffect(() => {
@@ -35,6 +36,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       // Default to light theme
       setThemeState('light');
       setColors(lightColors);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,6 +58,11 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     await setTheme(newTheme);
   };
+
+  // Don't render children until theme is loaded
+  if (isLoading) {
+    return null;
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, colors, toggleTheme, setTheme }}>

@@ -37,43 +37,8 @@ export const darkColors = {
   overlay: 'rgba(0, 0, 0, 0.7)',
 };
 
-// Default to light colors (will be updated by theme context)
-export let colors = lightColors;
-
-export const setTheme = (theme: 'light' | 'dark') => {
-  colors = theme === 'dark' ? darkColors : lightColors;
-};
-
-export const buttonStyles = StyleSheet.create({
-  primary: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondary: {
-    backgroundColor: colors.backgroundAlt,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  danger: {
-    backgroundColor: colors.error,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
-export const commonStyles = StyleSheet.create({
+// Helper function to create common styles with theme colors
+export const createCommonStyles = (colors: typeof lightColors) => StyleSheet.create({
   wrapper: {
     backgroundColor: colors.background,
     width: '100%',
@@ -147,7 +112,7 @@ export const commonStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -163,5 +128,35 @@ export const commonStyles = StyleSheet.create({
   shadow: {
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 2,
+  },
+});
+
+// Export button styles helper
+export const createButtonStyles = (colors: typeof lightColors) => StyleSheet.create({
+  primary: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondary: {
+    backgroundColor: colors.backgroundAlt,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  danger: {
+    backgroundColor: colors.error,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

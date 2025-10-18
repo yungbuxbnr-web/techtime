@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import NotificationToast from '../components/NotificationToast';
 import Keypad from '../components/Keypad';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function AuthScreen() {
+  const { colors } = useTheme();
   const [pin, setPin] = useState('');
   const [correctPin, setCorrectPin] = useState('3101');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
@@ -89,6 +90,8 @@ export default function AuthScreen() {
     setNotification({ ...notification, visible: false });
   };
 
+  const styles = createStyles(colors);
+
   return (
     <ImageBackground
       source={require('../assets/images/daebef9d-f2fa-4b34-88c6-4226954942a0.png')}
@@ -96,7 +99,7 @@ export default function AuthScreen() {
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        <SafeAreaView style={commonStyles.container}>
+        <SafeAreaView style={styles.container}>
           <NotificationToast
             message={notification.message}
             type={notification.type}
@@ -126,7 +129,11 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
   backgroundImage: {
     flex: 1,
     width: '100%',

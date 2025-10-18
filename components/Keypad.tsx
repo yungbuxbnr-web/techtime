@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface KeypadProps {
   onNumberPress: (number: string) => void;
@@ -12,6 +12,9 @@ interface KeypadProps {
 }
 
 export default function Keypad({ onNumberPress, onDeletePress, onSubmitPress, pin, maxLength = 4 }: KeypadProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+
   const numbers = [
     ['1', '2', '3'],
     ['4', '5', '6'],
@@ -103,7 +106,7 @@ export default function Keypad({ onNumberPress, onDeletePress, onSubmitPress, pi
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     alignItems: 'center',
     width: '100%',
@@ -169,7 +172,7 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 20,
     fontWeight: '600',
-    color: colors.background,
+    color: '#ffffff',
   },
   emptyButton: {
     width: 72,
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButtonTextActive: {
-    color: colors.background,
+    color: '#ffffff',
   },
   submitButtonTextInactive: {
     color: colors.textSecondary,
