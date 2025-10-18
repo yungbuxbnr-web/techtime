@@ -1,11 +1,10 @@
 
 import { Stack, useGlobalSearchParams } from 'expo-router';
-import { SafeAreaProvider, useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
-import { Platform, AppState } from 'react-native';
-import { useEffect, useState, useRef } from 'react';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
+import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StorageService } from '../utils/storage';
 
 const STORAGE_KEY = 'emulated_device';
 
@@ -13,7 +12,6 @@ export default function RootLayout() {
   const actualInsets = useSafeAreaInsets();
   const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
-  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     // Set up global error logging
@@ -32,31 +30,6 @@ export default function RootLayout() {
         }
       }
     }
-
-    // Handle app state changes to require PIN when app comes back from background
-    const handleAppStateChange = async (nextAppState: string) => {
-      console.log('App state changed from', appState.current, 'to', nextAppState);
-      
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        // App has come to the foreground from background/inactive state
-        console.log('App came to foreground - requiring PIN authentication for fresh start');
-        try {
-          const settings = await StorageService.getSettings();
-          await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-          console.log('Authentication reset due to app state change - ensuring fresh start');
-        } catch (error) {
-          console.log('Error resetting auth on app state change:', error);
-        }
-      }
-      
-      appState.current = nextAppState;
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-    return () => {
-      subscription?.remove();
-    };
   }, [emulate]);
 
   let insetsToUse = actualInsets;
