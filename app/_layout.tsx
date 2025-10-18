@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StorageService } from '../utils/storage';
 
 const STORAGE_KEY = 'emulated_device';
 
@@ -16,6 +17,9 @@ export default function RootLayout() {
   useEffect(() => {
     // Set up global error logging
     setupErrorLogging();
+
+    // Reset authentication on app launch to require PIN entry
+    resetAuthentication();
 
     if (Platform.OS === 'web') {
       // If there's a new emulate parameter, store it
@@ -31,6 +35,16 @@ export default function RootLayout() {
       }
     }
   }, [emulate]);
+
+  const resetAuthentication = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      await StorageService.saveSettings({ ...settings, isAuthenticated: false });
+      console.log('Authentication reset - PIN required on app launch');
+    } catch (error) {
+      console.log('Error resetting authentication:', error);
+    }
+  };
 
   let insetsToUse = actualInsets;
 
