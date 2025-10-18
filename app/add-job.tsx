@@ -183,7 +183,7 @@ export default function AddJobScreen() {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={commonStyles.title}>
+          <Text style={styles.title}>
             {isEditing ? 'Edit Job' : 'Add New Job'}
           </Text>
         </View>
@@ -298,6 +298,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -309,6 +310,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: colors.primary,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
   },
   content: {
     flex: 1,
@@ -371,7 +378,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     elevation: 2,
   },
   saveButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },

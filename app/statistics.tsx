@@ -158,7 +158,7 @@ export default function StatisticsScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={commonStyles.title}>Statistics & Calculator</Text>
+        <Text style={styles.title}>Statistics & Calculator</Text>
       </View>
 
       {/* Selection Controls */}
@@ -198,7 +198,7 @@ export default function StatisticsScreen() {
         {jobs.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No jobs available</Text>
-            <Text style={commonStyles.textSecondary}>
+            <Text style={styles.emptyStateSubtext}>
               Add some jobs to view statistics
             </Text>
           </View>
@@ -364,7 +364,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
   },
   controlsSection: {
     backgroundColor: colors.card,
@@ -403,7 +409,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.primary,
   },
   calculateButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -421,6 +427,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   tableHeader: {
@@ -507,13 +518,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.primary,
   },
   checkmark: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -606,7 +617,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },

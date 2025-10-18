@@ -185,7 +185,7 @@ export default function JobsScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={commonStyles.title}>Jobs</Text>
+        <Text style={styles.title}>Jobs</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={navigateToAddJob}
@@ -247,8 +247,8 @@ export default function JobsScreen() {
             <Text style={styles.emptyStateText}>
               No jobs recorded for {getMonthName(selectedMonth)} {selectedYear}
             </Text>
-            <Text style={commonStyles.textSecondary}>
-              Tap "Add Job" to record your first job
+            <Text style={styles.emptyStateSubtext}>
+              Tap &quot;Add Job&quot; to record your first job
             </Text>
           </View>
         ) : (
@@ -340,6 +340,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
   },
   addButton: {
     backgroundColor: colors.primary,
@@ -348,7 +355,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: 6,
   },
   addButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -432,6 +439,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   jobsList: {
     paddingVertical: 16,
   },
@@ -482,7 +494,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
   },
   deleteButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
     lineHeight: 20,

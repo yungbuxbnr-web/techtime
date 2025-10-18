@@ -156,7 +156,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.whiteBackground, { backgroundColor: colors.background }]}>
+      <View style={[styles.wholeView, { backgroundColor: colors.background }]}>
         <NotificationToast
           message={notification.message}
           type={notification.type}
@@ -336,7 +336,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  whiteBackground: {
+  wholeView: {
     flex: 1,
     backgroundColor: colors.background,
   },
@@ -346,7 +346,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   welcomeText: {
     fontSize: 16,
@@ -402,7 +404,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   progressSection: {
     alignItems: 'center',
@@ -502,7 +504,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     elevation: 3,
   },
   primaryActionText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },

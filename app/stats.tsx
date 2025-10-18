@@ -127,10 +127,10 @@ export default function StatsScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>{statsData.title}</Text>
+        <Text style={styles.title}>{statsData.title}</Text>
       </View>
 
-      <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.mainStat}>
           <Text style={styles.mainValue}>{statsData.mainValue}</Text>
           <Text style={styles.mainLabel}>{statsData.mainLabel}</Text>
@@ -220,6 +220,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -231,6 +232,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: colors.primary,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
   mainStat: {
     alignItems: 'center',

@@ -841,10 +841,10 @@ export default function ExportScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>Export Data</Text>
+        <Text style={styles.title}>Export Data</Text>
       </View>
 
-      <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
           Export your job records as stylish PDF reports with professional formatting, detailed tables, and comprehensive performance metrics calculated based on your data.
         </Text>
@@ -1009,6 +1009,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -1021,11 +1022,22 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '500',
     color: colors.primary,
   },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
   description: {
     fontSize: 16,
     color: colors.textSecondary,
     lineHeight: 24,
     marginBottom: 32,
+    marginTop: 20,
     textAlign: 'center',
   },
   permissionSection: {
@@ -1060,7 +1072,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: 8,
   },
   permissionButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -1139,7 +1151,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   exportButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
