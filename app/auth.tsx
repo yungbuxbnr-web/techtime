@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
@@ -93,57 +93,48 @@ export default function AuthScreen() {
   const styles = createStyles(colors);
 
   return (
-    <ImageBackground
-      source={require('../assets/images/daebef9d-f2fa-4b34-88c6-4226954942a0.png')}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay}>
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-          <NotificationToast
-            message={notification.message}
-            type={notification.type}
-            visible={notification.visible}
-            onHide={hideNotification}
-          />
-          
-          <View style={styles.content}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Technician Records</Text>
-              <Text style={styles.subtitle}>Buckston Rugge</Text>
-              <Text style={styles.label}>Enter PIN</Text>
-            </View>
-            
-            <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
-              <Keypad
-                pin={pin}
-                onNumberPress={handleNumberPress}
-                onDeletePress={handleDeletePress}
-                onSubmitPress={() => handlePinSubmit()}
-                maxLength={4}
-                hideSubmitButton={true}
-              />
-            </View>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <NotificationToast
+          message={notification.message}
+          type={notification.type}
+          visible={notification.visible}
+          onHide={hideNotification}
+        />
+        
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Technician Records</Text>
+            <Text style={styles.subtitle}>Buckston Rugge</Text>
+            <Text style={styles.label}>Enter PIN</Text>
           </View>
-        </SafeAreaView>
-      </View>
-    </ImageBackground>
+          
+          <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
+            <Keypad
+              pin={pin}
+              onNumberPress={handleNumberPress}
+              onDeletePress={handleDeletePress}
+              onSubmitPress={() => handlePinSubmit()}
+              maxLength={4}
+              hideSubmitButton={true}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
-  },
-  backgroundImage: {
-    flex: 1,
+    backgroundColor: colors.background,
     width: '100%',
     height: '100%',
   },
-  overlay: {
+  safeArea: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
@@ -158,31 +149,22 @@ const createStyles = (colors: any) => StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 20,
     fontWeight: '500',
-    color: '#ffffff',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 30,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   label: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.text,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   keypadContainer: {
     flex: 1,
