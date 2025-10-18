@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Picker } from '@react-native-picker/picker';
 import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { BackupService, BackupData } from '../utils/backupService';
@@ -24,6 +25,10 @@ export default function SettingsScreen() {
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
+
+  // Deduction dropdown states
+  const [deductionCount, setDeductionCount] = useState<number>(1);
+  const [deductionType, setDeductionType] = useState<'half' | 'full'>('half');
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -118,17 +123,24 @@ export default function SettingsScreen() {
     }
   }, [targetHours, settings, showNotification]);
 
-  const handleDeductFullDay = useCallback(async () => {
+  const handleSaveDeduction = useCallback(async () => {
     const currentTarget = settings.targetHours || 180;
-    const newTarget = Math.max(0, currentTarget - 8.5);
+    const deductionHours = deductionType === 'half' ? 4.25 : 8.5;
+    const totalDeduction = deductionCount * deductionHours;
+    const newTarget = Math.max(0, currentTarget - totalDeduction);
+    
+    const deductionTypeText = deductionType === 'half' ? 'Half Day' : 'Full Day';
+    const deductionLabel = deductionCount === 1 
+      ? `${deductionCount} ${deductionTypeText}` 
+      : `${deductionCount} ${deductionTypeText}s`;
     
     Alert.alert(
-      'Deduct Full Day',
-      `This will deduct 8.5 hours from your target.\n\nCurrent: ${currentTarget} hours\nNew: ${newTarget} hours\n\nContinue?`,
+      'Confirm Deduction',
+      `This will deduct ${totalDeduction} hours (${deductionLabel}) from your monthly target.\n\nCurrent Target: ${currentTarget} hours\nDeduction: -${totalDeduction} hours\nNew Target: ${newTarget} hours\n\nContinue?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Deduct',
+          text: 'Save',
           style: 'default',
           onPress: async () => {
             try {
@@ -136,47 +148,17 @@ export default function SettingsScreen() {
               await StorageService.saveSettings(updatedSettings);
               setSettings(updatedSettings);
               setTargetHours(String(newTarget));
-              showNotification(`Full day deducted. New target: ${newTarget} hours`, 'success');
-              console.log('Full day deducted successfully:', newTarget);
+              showNotification(`Deducted ${totalDeduction} hours. New target: ${newTarget} hours`, 'success');
+              console.log('Deduction saved successfully:', newTarget);
             } catch (error) {
-              console.log('Error deducting full day:', error);
+              console.log('Error saving deduction:', error);
               showNotification('Error updating target hours', 'error');
             }
           }
         }
       ]
     );
-  }, [settings, showNotification]);
-
-  const handleDeductHalfDay = useCallback(async () => {
-    const currentTarget = settings.targetHours || 180;
-    const newTarget = Math.max(0, currentTarget - 4.25);
-    
-    Alert.alert(
-      'Deduct Half Day',
-      `This will deduct 4.25 hours from your target.\n\nCurrent: ${currentTarget} hours\nNew: ${newTarget} hours\n\nContinue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Deduct',
-          style: 'default',
-          onPress: async () => {
-            try {
-              const updatedSettings = { ...settings, targetHours: newTarget };
-              await StorageService.saveSettings(updatedSettings);
-              setSettings(updatedSettings);
-              setTargetHours(String(newTarget));
-              showNotification(`Half day deducted. New target: ${newTarget} hours`, 'success');
-              console.log('Half day deducted successfully:', newTarget);
-            } catch (error) {
-              console.log('Error deducting half day:', error);
-              showNotification('Error updating target hours', 'error');
-            }
-          }
-        }
-      ]
-    );
-  }, [settings, showNotification]);
+  }, [settings, deductionCount, deductionType, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -417,40 +399,82 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>🔄 Update Target Hours</Text>
           </TouchableOpacity>
 
-          {/* Quick Deduction Buttons */}
+          {/* Deduction Section with Dropdowns */}
           <View style={styles.deductionSection}>
-            <Text style={styles.deductionTitle}>⚡ Quick Deductions</Text>
+            <Text style={styles.deductionTitle}>⚡ Deduct Time Off</Text>
             <Text style={styles.deductionDescription}>
-              Quickly adjust your target hours by deducting time off
+              Select the number of days and type to deduct from your monthly target
             </Text>
             
-            <View style={styles.deductionButtons}>
-              <TouchableOpacity 
-                style={[styles.button, styles.deductButton, styles.halfDayButton]} 
-                onPress={handleDeductHalfDay}
-              >
-                <Text style={styles.buttonText}>➖ Half Day</Text>
-                <Text style={styles.deductButtonSubtext}>4.25 hours</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.button, styles.deductButton, styles.fullDayButton]} 
-                onPress={handleDeductFullDay}
-              >
-                <Text style={styles.buttonText}>➖ Full Day</Text>
-                <Text style={styles.deductButtonSubtext}>8.5 hours</Text>
-              </TouchableOpacity>
+            {/* Number of Deductions Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownLabel}>Number of Deductions</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={deductionCount}
+                  onValueChange={(itemValue) => setDeductionCount(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="1" value={1} />
+                  <Picker.Item label="2" value={2} />
+                  <Picker.Item label="3" value={3} />
+                  <Picker.Item label="4" value={4} />
+                  <Picker.Item label="5" value={5} />
+                  <Picker.Item label="6" value={6} />
+                  <Picker.Item label="7" value={7} />
+                  <Picker.Item label="8" value={8} />
+                  <Picker.Item label="9" value={9} />
+                  <Picker.Item label="10" value={10} />
+                </Picker>
+              </View>
             </View>
+
+            {/* Deduction Type Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownLabel}>Deduction Type</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={deductionType}
+                  onValueChange={(itemValue) => setDeductionType(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Half Day (4.25 hours)" value="half" />
+                  <Picker.Item label="Full Day (8.5 hours)" value="full" />
+                </Picker>
+              </View>
+            </View>
+
+            {/* Deduction Preview */}
+            <View style={styles.deductionPreview}>
+              <Text style={styles.previewLabel}>Deduction Preview:</Text>
+              <Text style={styles.previewText}>
+                {deductionCount} × {deductionType === 'half' ? '4.25' : '8.5'} hours = {(deductionCount * (deductionType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
+              </Text>
+              <Text style={styles.previewText}>
+                New Target: {Math.max(0, (settings.targetHours || 180) - (deductionCount * (deductionType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
+              </Text>
+            </View>
+
+            {/* Save Deduction Button */}
+            <TouchableOpacity 
+              style={[styles.button, styles.saveDeductionButton]} 
+              onPress={handleSaveDeduction}
+            >
+              <Text style={styles.buttonText}>💾 Save Deduction</Text>
+            </TouchableOpacity>
 
             <View style={styles.deductionInfo}>
               <Text style={styles.infoText}>
-                ℹ️ Use these buttons to quickly deduct time off from your monthly target
+                ℹ️ Use the dropdowns above to select how many days to deduct and whether they are half or full days
               </Text>
               <Text style={styles.infoText}>
                 • Half Day = 4.25 hours
               </Text>
               <Text style={styles.infoText}>
                 • Full Day = 8.5 hours
+              </Text>
+              <Text style={styles.infoText}>
+                • All calculations are based on the monthly target
               </Text>
             </View>
           </View>
@@ -720,26 +744,48 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  deductionButtons: {
-    flexDirection: 'row',
-    gap: 12,
+  dropdownContainer: {
     marginBottom: 16,
   },
-  deductButton: {
-    flex: 1,
-    paddingVertical: 16,
+  dropdownLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
-  halfDayButton: {
-    backgroundColor: '#ff9800',
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
   },
-  fullDayButton: {
-    backgroundColor: '#f44336',
+  picker: {
+    height: 50,
+    width: '100%',
   },
-  deductButtonSubtext: {
-    color: colors.background,
-    fontSize: 12,
-    fontWeight: '400',
-    marginTop: 4,
+  deductionPreview: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  previewLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  previewText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  saveDeductionButton: {
+    backgroundColor: '#2196f3',
+    marginBottom: 16,
   },
   deductionInfo: {
     backgroundColor: colors.backgroundAlt,
