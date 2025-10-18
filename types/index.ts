@@ -12,6 +12,7 @@ export interface Job {
 export interface AppSettings {
   pin: string;
   isAuthenticated: boolean;
+  targetHours?: number; // Monthly target hours (default 180)
 }
 
 export interface MonthlyStats {

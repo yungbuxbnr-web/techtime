@@ -118,8 +118,6 @@ export default function AuthScreen() {
                 onSubmitPress={() => handlePinSubmit()}
                 maxLength={4}
               />
-              
-              {/* Removed sign-in button as requested */}
             </View>
           </View>
         </SafeAreaView>

@@ -25,7 +25,7 @@ export const CalculationService = {
   },
 
   // Calculate performance metrics for different time periods
-  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly'): {
+  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly', targetHours?: number): {
     totalAWs: number;
     totalMinutes: number;
     totalHours: number;
@@ -38,20 +38,21 @@ export const CalculationService = {
     const totalMinutes = totalAWs * 5;
     const totalHours = this.minutesToHours(totalMinutes);
     
-    let targetHours = 0;
+    let defaultTargetHours = 0;
     switch (type) {
       case 'daily':
-        targetHours = 8.5; // 8.5 hours per day
+        defaultTargetHours = 8.5; // 8.5 hours per day
         break;
       case 'weekly':
-        targetHours = 45; // 45 hours per week
+        defaultTargetHours = 45; // 45 hours per week
         break;
       case 'monthly':
-        targetHours = 180; // 180 hours per month
+        defaultTargetHours = targetHours || 180; // Use provided target or default to 180 hours per month
         break;
     }
     
-    const utilizationPercentage = targetHours > 0 ? Math.min((totalHours / targetHours) * 100, 100) : 0;
+    const finalTargetHours = targetHours || defaultTargetHours;
+    const utilizationPercentage = finalTargetHours > 0 ? Math.min((totalHours / finalTargetHours) * 100, 100) : 0;
     const targetAWsPerHour = 12; // Assuming 12 AWs per hour as target
     const avgAWsPerHour = totalHours > 0 ? totalAWs / totalHours : 0;
     const efficiency = targetAWsPerHour > 0 ? Math.min((avgAWsPerHour / targetAWsPerHour) * 100, 100) : 0;
@@ -60,7 +61,7 @@ export const CalculationService = {
       totalAWs,
       totalMinutes,
       totalHours,
-      targetHours,
+      targetHours: finalTargetHours,
       utilizationPercentage,
       efficiency,
       avgAWsPerHour
@@ -68,7 +69,7 @@ export const CalculationService = {
   },
 
   // Calculate monthly stats
-  calculateMonthlyStats(jobs: Job[]): MonthlyStats {
+  calculateMonthlyStats(jobs: Job[], targetHours: number = 180): MonthlyStats {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
@@ -80,8 +81,7 @@ export const CalculationService = {
     const totalAWs = monthlyJobs.reduce((sum, job) => sum + job.awValue, 0);
     const totalTime = totalAWs * 5; // minutes
     const totalJobs = monthlyJobs.length;
-    const targetHours = 180;
-    const targetMinutes = targetHours * 60; // 10800 minutes
+    const targetMinutes = targetHours * 60;
     const utilizationPercentage = (totalTime / targetMinutes) * 100;
 
     return {

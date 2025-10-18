@@ -14,10 +14,11 @@ import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
 
 export default function SettingsScreen() {
-  const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false });
+  const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180 });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [targetHours, setTargetHours] = useState('180');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
   const [isImportInProgress, setIsImportInProgress] = useState(false);
@@ -42,6 +43,7 @@ export default function SettingsScreen() {
       setJobs(jobsData);
       setNewPin(settingsData.pin);
       setConfirmPin(settingsData.pin);
+      setTargetHours(String(settingsData.targetHours || 180));
       console.log('Settings and jobs loaded successfully');
     } catch (error) {
       console.log('Error loading data:', error);
@@ -90,6 +92,31 @@ export default function SettingsScreen() {
       showNotification('Error updating PIN', 'error');
     }
   }, [newPin, confirmPin, settings, showNotification]);
+
+  const handleUpdateTargetHours = useCallback(async () => {
+    const hours = parseInt(targetHours, 10);
+    
+    if (isNaN(hours) || hours <= 0) {
+      showNotification('Please enter a valid number of hours', 'error');
+      return;
+    }
+
+    if (hours > 744) { // Max hours in a month (31 days * 24 hours)
+      showNotification('Target hours cannot exceed 744 hours per month', 'error');
+      return;
+    }
+
+    try {
+      const updatedSettings = { ...settings, targetHours: hours };
+      await StorageService.saveSettings(updatedSettings);
+      setSettings(updatedSettings);
+      showNotification(`Monthly target updated to ${hours} hours`, 'success');
+      console.log('Target hours updated successfully:', hours);
+    } catch (error) {
+      console.log('Error updating target hours:', error);
+      showNotification('Error updating target hours', 'error');
+    }
+  }, [targetHours, settings, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -295,6 +322,40 @@ export default function SettingsScreen() {
               <Text style={styles.statLabel}>Total Time</Text>
             </View>
           </View>
+        </View>
+
+        {/* Monthly Target Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎯 Monthly Target</Text>
+          <Text style={styles.sectionDescription}>
+            Set your monthly work hours target. This is used to calculate your progress and utilization percentage.
+          </Text>
+          
+          <Text style={styles.label}>Target Hours per Month</Text>
+          <TextInput
+            style={styles.input}
+            value={targetHours}
+            onChangeText={setTargetHours}
+            placeholder="Enter target hours (e.g., 180)"
+            keyboardType="numeric"
+            maxLength={3}
+          />
+          
+          <View style={styles.targetInfo}>
+            <Text style={styles.infoText}>
+              💡 Current target: {settings.targetHours || 180} hours/month
+            </Text>
+            <Text style={styles.infoText}>
+              📅 This equals {Math.round((settings.targetHours || 180) / 4.33)} hours/week
+            </Text>
+            <Text style={styles.infoText}>
+              ⏰ Or about {Math.round((settings.targetHours || 180) / 22)} hours/day (22 working days)
+            </Text>
+          </View>
+          
+          <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdateTargetHours}>
+            <Text style={styles.buttonText}>🔄 Update Target Hours</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Backup & Import Section */}
@@ -534,6 +595,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: colors.background,
     marginBottom: 16,
+  },
+  targetInfo: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   button: {
     paddingVertical: 14,

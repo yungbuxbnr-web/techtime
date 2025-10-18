@@ -63,11 +63,14 @@ export default function DashboardScreen() {
 
   const loadJobs = useCallback(async () => {
     try {
-      const jobsData = await StorageService.getJobs();
+      const [jobsData, settings] = await Promise.all([
+        StorageService.getJobs(),
+        StorageService.getSettings()
+      ]);
       setJobs(jobsData);
-      const stats = CalculationService.calculateMonthlyStats(jobsData);
+      const stats = CalculationService.calculateMonthlyStats(jobsData, settings.targetHours || 180);
       setMonthlyStats(stats);
-      console.log('Dashboard loaded:', jobsData.length, 'jobs');
+      console.log('Dashboard loaded:', jobsData.length, 'jobs, target:', settings.targetHours || 180, 'hours');
     } catch (error) {
       console.log('Error loading jobs:', error);
       showNotification('Error loading data', 'error');
