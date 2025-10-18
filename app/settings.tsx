@@ -26,9 +26,9 @@ export default function SettingsScreen() {
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
 
-  // Deduction dropdown states
-  const [deductionCount, setDeductionCount] = useState<number>(1);
-  const [deductionType, setDeductionType] = useState<'half' | 'full'>('half');
+  // Monthly target edit dropdown states
+  const [numberOfDays, setNumberOfDays] = useState<number>(22);
+  const [dayType, setDayType] = useState<'half' | 'full'>('full');
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -123,42 +123,40 @@ export default function SettingsScreen() {
     }
   }, [targetHours, settings, showNotification]);
 
-  const handleSaveDeduction = useCallback(async () => {
-    const currentTarget = settings.targetHours || 180;
-    const deductionHours = deductionType === 'half' ? 4.25 : 8.5;
-    const totalDeduction = deductionCount * deductionHours;
-    const newTarget = Math.max(0, currentTarget - totalDeduction);
+  const handleUpdateMonthlyTarget = useCallback(async () => {
+    const hoursPerDay = dayType === 'half' ? 4.25 : 8.5;
+    const newTargetHours = numberOfDays * hoursPerDay;
     
-    const deductionTypeText = deductionType === 'half' ? 'Half Day' : 'Full Day';
-    const deductionLabel = deductionCount === 1 
-      ? `${deductionCount} ${deductionTypeText}` 
-      : `${deductionCount} ${deductionTypeText}s`;
+    const dayTypeText = dayType === 'half' ? 'Half Day' : 'Full Day';
+    const dayLabel = numberOfDays === 1 
+      ? `${numberOfDays} ${dayTypeText}` 
+      : `${numberOfDays} ${dayTypeText}s`;
     
     Alert.alert(
-      'Confirm Deduction',
-      `This will deduct ${totalDeduction} hours (${deductionLabel}) from your monthly target.\n\nCurrent Target: ${currentTarget} hours\nDeduction: -${totalDeduction} hours\nNew Target: ${newTarget} hours\n\nContinue?`,
+      'Update Monthly Target',
+      `This will set your monthly target to ${newTargetHours} hours based on:\n\n${dayLabel} × ${hoursPerDay} hours = ${newTargetHours} hours\n\nCurrent Target: ${settings.targetHours || 180} hours\nNew Target: ${newTargetHours} hours\n\nContinue?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Save',
+          text: 'Update',
           style: 'default',
           onPress: async () => {
             try {
-              const updatedSettings = { ...settings, targetHours: newTarget };
+              const updatedSettings = { ...settings, targetHours: newTargetHours };
               await StorageService.saveSettings(updatedSettings);
               setSettings(updatedSettings);
-              setTargetHours(String(newTarget));
-              showNotification(`Deducted ${totalDeduction} hours. New target: ${newTarget} hours`, 'success');
-              console.log('Deduction saved successfully:', newTarget);
+              setTargetHours(String(newTargetHours));
+              showNotification(`Monthly target updated to ${newTargetHours} hours`, 'success');
+              console.log('Monthly target updated successfully:', newTargetHours);
             } catch (error) {
-              console.log('Error saving deduction:', error);
+              console.log('Error updating monthly target:', error);
               showNotification('Error updating target hours', 'error');
             }
           }
         }
       ]
     );
-  }, [settings, deductionCount, deductionType, showNotification]);
+  }, [settings, numberOfDays, dayType, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -399,43 +397,36 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>🔄 Update Target Hours</Text>
           </TouchableOpacity>
 
-          {/* Deduction Section with Dropdowns */}
-          <View style={styles.deductionSection}>
-            <Text style={styles.deductionTitle}>⚡ Deduct Time Off</Text>
-            <Text style={styles.deductionDescription}>
-              Select the number of days and type to deduct from your monthly target
+          {/* Monthly Target Edit Section with Dropdowns */}
+          <View style={styles.targetEditSection}>
+            <Text style={styles.targetEditTitle}>⚡ Quick Monthly Target Calculator</Text>
+            <Text style={styles.targetEditDescription}>
+              Calculate your monthly target based on the number of working days
             </Text>
             
-            {/* Number of Deductions Dropdown */}
+            {/* Number of Days Dropdown */}
             <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Number of Deductions</Text>
+              <Text style={styles.dropdownLabel}>Number of Working Days</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  selectedValue={deductionCount}
-                  onValueChange={(itemValue) => setDeductionCount(itemValue)}
+                  selectedValue={numberOfDays}
+                  onValueChange={(itemValue) => setNumberOfDays(itemValue)}
                   style={styles.picker}
                 >
-                  <Picker.Item label="1" value={1} />
-                  <Picker.Item label="2" value={2} />
-                  <Picker.Item label="3" value={3} />
-                  <Picker.Item label="4" value={4} />
-                  <Picker.Item label="5" value={5} />
-                  <Picker.Item label="6" value={6} />
-                  <Picker.Item label="7" value={7} />
-                  <Picker.Item label="8" value={8} />
-                  <Picker.Item label="9" value={9} />
-                  <Picker.Item label="10" value={10} />
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                    <Picker.Item key={day} label={`${day} ${day === 1 ? 'day' : 'days'}`} value={day} />
+                  ))}
                 </Picker>
               </View>
             </View>
 
-            {/* Deduction Type Dropdown */}
+            {/* Day Type Dropdown */}
             <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Deduction Type</Text>
+              <Text style={styles.dropdownLabel}>Day Type</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  selectedValue={deductionType}
-                  onValueChange={(itemValue) => setDeductionType(itemValue)}
+                  selectedValue={dayType}
+                  onValueChange={(itemValue) => setDayType(itemValue)}
                   style={styles.picker}
                 >
                   <Picker.Item label="Half Day (4.25 hours)" value="half" />
@@ -444,28 +435,28 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {/* Deduction Preview */}
-            <View style={styles.deductionPreview}>
-              <Text style={styles.previewLabel}>Deduction Preview:</Text>
+            {/* Target Preview */}
+            <View style={styles.targetPreview}>
+              <Text style={styles.previewLabel}>Monthly Target Preview:</Text>
               <Text style={styles.previewText}>
-                {deductionCount} × {deductionType === 'half' ? '4.25' : '8.5'} hours = {(deductionCount * (deductionType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
+                {numberOfDays} {numberOfDays === 1 ? 'day' : 'days'} × {dayType === 'half' ? '4.25' : '8.5'} hours = {(numberOfDays * (dayType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
               </Text>
-              <Text style={styles.previewText}>
-                New Target: {Math.max(0, (settings.targetHours || 180) - (deductionCount * (deductionType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
+              <Text style={styles.previewHighlight}>
+                New Monthly Target: {(numberOfDays * (dayType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
               </Text>
             </View>
 
-            {/* Save Deduction Button */}
+            {/* Update Monthly Target Button */}
             <TouchableOpacity 
-              style={[styles.button, styles.saveDeductionButton]} 
-              onPress={handleSaveDeduction}
+              style={[styles.button, styles.updateTargetButton]} 
+              onPress={handleUpdateMonthlyTarget}
             >
-              <Text style={styles.buttonText}>💾 Save Deduction</Text>
+              <Text style={styles.buttonText}>💾 Update Monthly Target</Text>
             </TouchableOpacity>
 
-            <View style={styles.deductionInfo}>
+            <View style={styles.targetEditInfo}>
               <Text style={styles.infoText}>
-                ℹ️ Use the dropdowns above to select how many days to deduct and whether they are half or full days
+                ℹ️ Use this calculator to quickly set your monthly target based on working days
               </Text>
               <Text style={styles.infoText}>
                 • Half Day = 4.25 hours
@@ -474,7 +465,10 @@ export default function SettingsScreen() {
                 • Full Day = 8.5 hours
               </Text>
               <Text style={styles.infoText}>
-                • All calculations are based on the monthly target
+                • All calculations throughout the app are based on the monthly target
+              </Text>
+              <Text style={styles.infoText}>
+                • Example: 22 full days = 187 hours/month
               </Text>
             </View>
           </View>
@@ -726,19 +720,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  deductionSection: {
+  targetEditSection: {
     marginTop: 24,
     paddingTop: 24,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  deductionTitle: {
+  targetEditTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
   },
-  deductionDescription: {
+  targetEditDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 16,
@@ -764,7 +758,7 @@ const styles = StyleSheet.create({
     height: 50,
     width: '100%',
   },
-  deductionPreview: {
+  targetPreview: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
@@ -783,11 +777,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  saveDeductionButton: {
+  previewHighlight: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 8,
+  },
+  updateTargetButton: {
     backgroundColor: '#2196f3',
     marginBottom: 16,
   },
-  deductionInfo: {
+  targetEditInfo: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
