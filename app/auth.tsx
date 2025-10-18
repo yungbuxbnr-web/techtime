@@ -108,11 +108,13 @@ export default function AuthScreen() {
           />
           
           <View style={styles.content}>
-            <View style={[styles.authCard, isShaking && styles.shakeAnimation]}>
+            <View style={styles.header}>
               <Text style={styles.title}>Technician Records</Text>
               <Text style={styles.subtitle}>Buckston Rugge</Text>
-              
-              <Text style={styles.label}>Enter PIN to continue</Text>
+            </View>
+            
+            <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
+              <Text style={styles.label}>Enter PIN</Text>
               
               <Keypad
                 pin={pin}
@@ -120,6 +122,7 @@ export default function AuthScreen() {
                 onDeletePress={handleDeletePress}
                 onSubmitPress={() => handlePinSubmit()}
                 maxLength={4}
+                hideSubmitButton={true}
               />
             </View>
           </View>
@@ -141,46 +144,54 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   content: {
     flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  header: {
+    alignItems: 'center',
+    paddingTop: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: '#ffffff',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  keypadContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  authCard: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 32,
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
+    paddingBottom: 40,
   },
   shakeAnimation: {
     transform: [{ translateX: 5 }],
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 24,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 40,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
 });

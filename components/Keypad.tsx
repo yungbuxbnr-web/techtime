@@ -9,9 +9,17 @@ interface KeypadProps {
   onSubmitPress: () => void;
   pin: string;
   maxLength?: number;
+  hideSubmitButton?: boolean;
 }
 
-export default function Keypad({ onNumberPress, onDeletePress, onSubmitPress, pin, maxLength = 4 }: KeypadProps) {
+export default function Keypad({ 
+  onNumberPress, 
+  onDeletePress, 
+  onSubmitPress, 
+  pin, 
+  maxLength = 4,
+  hideSubmitButton = false 
+}: KeypadProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
@@ -85,23 +93,25 @@ export default function Keypad({ onNumberPress, onDeletePress, onSubmitPress, pi
         ))}
       </View>
 
-      {/* Submit Button */}
-      <TouchableOpacity
-        style={[
-          styles.submitButton,
-          pin.length === maxLength ? styles.submitButtonActive : styles.submitButtonInactive
-        ]}
-        onPress={onSubmitPress}
-        disabled={pin.length !== maxLength}
-        activeOpacity={0.8}
-      >
-        <Text style={[
-          styles.submitButtonText,
-          pin.length === maxLength ? styles.submitButtonTextActive : styles.submitButtonTextInactive
-        ]}>
-          Sign In
-        </Text>
-      </TouchableOpacity>
+      {/* Submit Button - Only show if hideSubmitButton is false */}
+      {!hideSubmitButton && (
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            pin.length === maxLength ? styles.submitButtonActive : styles.submitButtonInactive
+          ]}
+          onPress={onSubmitPress}
+          disabled={pin.length !== maxLength}
+          activeOpacity={0.8}
+        >
+          <Text style={[
+            styles.submitButtonText,
+            pin.length === maxLength ? styles.submitButtonTextActive : styles.submitButtonTextInactive
+          ]}>
+            Sign In
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -115,68 +125,68 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
-    gap: 16,
+    marginBottom: 60,
+    gap: 20,
   },
   pinDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
   },
   pinDotEmpty: {
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     backgroundColor: 'transparent',
   },
   pinDotFilled: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
+    borderColor: '#ffffff',
+    backgroundColor: '#ffffff',
   },
   keypadGrid: {
-    gap: 16,
+    gap: 20,
     marginBottom: 32,
   },
   keypadRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 20,
     justifyContent: 'center',
   },
   button: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.3)',
+    elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: colors.border,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   buttonText: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '600',
-    color: colors.text,
+    color: '#ffffff',
   },
   buttonTextDisabled: {
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.3)',
   },
   deleteButton: {
-    backgroundColor: colors.error,
-    borderColor: colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+    borderColor: 'rgba(239, 68, 68, 1)',
   },
   deleteButtonText: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: '600',
     color: '#ffffff',
   },
   emptyButton: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
   },
   submitButton: {
     paddingHorizontal: 32,
