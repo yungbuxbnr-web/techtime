@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
-import { commonStyles, colors } from '../styles/commonStyles';
+import { lightColors, darkColors, setTheme } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { BackupService, BackupData } from '../utils/backupService';
 import { CalculationService } from '../utils/calculations';
@@ -15,7 +15,7 @@ import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
 
 export default function SettingsScreen() {
-  const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180 });
+  const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180, theme: 'light' });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -25,10 +25,14 @@ export default function SettingsScreen() {
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Monthly target edit dropdown states
-  const [numberOfDays, setNumberOfDays] = useState<number>(22);
-  const [dayType, setDayType] = useState<'half' | 'full'>('full');
+  // Absence logger dropdown states
+  const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
+  const [absenceType, setAbsenceType] = useState<'half' | 'full'>('full');
+
+  // Get current theme colors
+  const colors = isDarkMode ? darkColors : lightColors;
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -49,6 +53,8 @@ export default function SettingsScreen() {
       setNewPin(settingsData.pin);
       setConfirmPin(settingsData.pin);
       setTargetHours(String(settingsData.targetHours || 180));
+      setIsDarkMode(settingsData.theme === 'dark');
+      setTheme(settingsData.theme || 'light');
       console.log('Settings and jobs loaded successfully');
     } catch (error) {
       console.log('Error loading data:', error);
@@ -74,6 +80,23 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkAuthAndLoadData();
   }, [checkAuthAndLoadData]);
+
+  const handleToggleTheme = useCallback(async () => {
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    setIsDarkMode(!isDarkMode);
+    setTheme(newTheme);
+    
+    try {
+      const updatedSettings = { ...settings, theme: newTheme };
+      await StorageService.saveSettings(updatedSettings);
+      setSettings(updatedSettings);
+      showNotification(`Switched to ${newTheme} mode`, 'success');
+      console.log('Theme updated to:', newTheme);
+    } catch (error) {
+      console.log('Error updating theme:', error);
+      showNotification('Error updating theme', 'error');
+    }
+  }, [isDarkMode, settings, showNotification]);
 
   const handleUpdatePin = useCallback(async () => {
     if (!newPin || newPin.length < 4) {
@@ -106,7 +129,7 @@ export default function SettingsScreen() {
       return;
     }
 
-    if (hours > 744) { // Max hours in a month (31 days * 24 hours)
+    if (hours > 744) {
       showNotification('Target hours cannot exceed 744 hours per month', 'error');
       return;
     }
@@ -123,22 +146,24 @@ export default function SettingsScreen() {
     }
   }, [targetHours, settings, showNotification]);
 
-  const handleUpdateMonthlyTarget = useCallback(async () => {
-    const hoursPerDay = dayType === 'half' ? 4.25 : 8.5;
-    const newTargetHours = numberOfDays * hoursPerDay;
+  const handleLogAbsence = useCallback(async () => {
+    const hoursPerDay = absenceType === 'half' ? 4.25 : 8.5;
+    const absenceHours = numberOfAbsentDays * hoursPerDay;
+    const currentTarget = settings.targetHours || 180;
+    const newTargetHours = Math.max(0, currentTarget - absenceHours);
     
-    const dayTypeText = dayType === 'half' ? 'Half Day' : 'Full Day';
-    const dayLabel = numberOfDays === 1 
-      ? `${numberOfDays} ${dayTypeText}` 
-      : `${numberOfDays} ${dayTypeText}s`;
+    const absenceTypeText = absenceType === 'half' ? 'Half Day' : 'Full Day';
+    const dayLabel = numberOfAbsentDays === 1 
+      ? `${numberOfAbsentDays} ${absenceTypeText}` 
+      : `${numberOfAbsentDays} ${absenceTypeText}s`;
     
     Alert.alert(
-      'Update Monthly Target',
-      `This will set your monthly target to ${newTargetHours} hours based on:\n\n${dayLabel} × ${hoursPerDay} hours = ${newTargetHours} hours\n\nCurrent Target: ${settings.targetHours || 180} hours\nNew Target: ${newTargetHours} hours\n\nContinue?`,
+      'Log Absence',
+      `This will deduct ${absenceHours} hours from your monthly target:\n\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours} hours\n\nCurrent Target: ${currentTarget} hours\nAbsence Hours: -${absenceHours} hours\nNew Target: ${newTargetHours} hours\n\nAll calculations will be based on the new target. Continue?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Update',
+          text: 'Log Absence',
           style: 'default',
           onPress: async () => {
             try {
@@ -146,17 +171,17 @@ export default function SettingsScreen() {
               await StorageService.saveSettings(updatedSettings);
               setSettings(updatedSettings);
               setTargetHours(String(newTargetHours));
-              showNotification(`Monthly target updated to ${newTargetHours} hours`, 'success');
-              console.log('Monthly target updated successfully:', newTargetHours);
+              showNotification(`Absence logged. New target: ${newTargetHours} hours`, 'success');
+              console.log('Absence logged successfully. New target:', newTargetHours);
             } catch (error) {
-              console.log('Error updating monthly target:', error);
-              showNotification('Error updating target hours', 'error');
+              console.log('Error logging absence:', error);
+              showNotification('Error logging absence', 'error');
             }
           }
         }
       ]
     );
-  }, [settings, numberOfDays, dayType, showNotification]);
+  }, [settings, numberOfAbsentDays, absenceType, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -256,7 +281,6 @@ export default function SettingsScreen() {
             showNotification('Importing backup...', 'info');
 
             try {
-              // First, try to load the backup file
               const importResult = await BackupService.importBackup();
               
               if (!importResult.success || !importResult.data) {
@@ -266,7 +290,6 @@ export default function SettingsScreen() {
                 return;
               }
 
-              // Show confirmation with backup details
               Alert.alert(
                 'Confirm Import',
                 `${importResult.message}\n\nThis will replace all current data. Continue?`,
@@ -283,7 +306,6 @@ export default function SettingsScreen() {
                           showNotification(restoreResult.message, 'success');
                           console.log('Data restored successfully');
                           
-                          // Redirect to auth after successful import
                           setTimeout(() => {
                             router.replace('/auth');
                           }, 2000);
@@ -324,14 +346,15 @@ export default function SettingsScreen() {
     router.push('/jobs');
   }, []);
 
-  // Calculate stats for display
   const totalJobs = jobs.length;
   const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
   const totalMinutes = totalAWs * 5;
   const totalTime = CalculationService.formatTime(totalMinutes);
 
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={[commonStyles.container, { backgroundColor: colors.background }]}>
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -340,11 +363,40 @@ export default function SettingsScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={commonStyles.title}>Settings</Text>
+        <Text style={[commonStyles.title, { color: colors.text }]}>Settings</Text>
       </View>
 
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         
+        {/* Theme Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎨 Appearance</Text>
+          <Text style={styles.sectionDescription}>
+            Choose between light and dark theme
+          </Text>
+          
+          <View style={styles.themeToggleContainer}>
+            <View style={styles.themeToggleLeft}>
+              <Text style={styles.themeToggleLabel}>☀️ Light Mode</Text>
+              <Text style={styles.themeToggleSubtext}>
+                {isDarkMode ? 'Switch to light theme' : 'Currently active'}
+              </Text>
+            </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={handleToggleTheme}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={isDarkMode ? colors.background : colors.background}
+            />
+            <View style={styles.themeToggleRight}>
+              <Text style={styles.themeToggleLabel}>🌙 Dark Mode</Text>
+              <Text style={styles.themeToggleSubtext}>
+                {isDarkMode ? 'Currently active' : 'Switch to dark theme'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Data Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 Data Summary</Text>
@@ -377,6 +429,7 @@ export default function SettingsScreen() {
             value={targetHours}
             onChangeText={setTargetHours}
             placeholder="Enter target hours (e.g., 180)"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
             maxLength={5}
           />
@@ -397,20 +450,20 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>🔄 Update Target Hours</Text>
           </TouchableOpacity>
 
-          {/* Monthly Target Edit Section with Dropdowns */}
-          <View style={styles.targetEditSection}>
-            <Text style={styles.targetEditTitle}>⚡ Quick Monthly Target Calculator</Text>
-            <Text style={styles.targetEditDescription}>
-              Calculate your monthly target based on the number of working days
+          {/* Absence Logger Section */}
+          <View style={styles.absenceLoggerSection}>
+            <Text style={styles.absenceLoggerTitle}>🏖️ Absence Logger</Text>
+            <Text style={styles.absenceLoggerDescription}>
+              Log absences to automatically deduct hours from your monthly target. All calculations will be based on the adjusted target.
             </Text>
             
-            {/* Number of Days Dropdown */}
+            {/* Number of Absent Days Dropdown */}
             <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Number of Working Days</Text>
+              <Text style={styles.dropdownLabel}>Number of Absent Days</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  selectedValue={numberOfDays}
-                  onValueChange={(itemValue) => setNumberOfDays(itemValue)}
+                  selectedValue={numberOfAbsentDays}
+                  onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
                   style={styles.picker}
                 >
                   {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
@@ -420,13 +473,13 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {/* Day Type Dropdown */}
+            {/* Absence Type Dropdown */}
             <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Day Type</Text>
+              <Text style={styles.dropdownLabel}>Absence Type</Text>
               <View style={styles.pickerWrapper}>
                 <Picker
-                  selectedValue={dayType}
-                  onValueChange={(itemValue) => setDayType(itemValue)}
+                  selectedValue={absenceType}
+                  onValueChange={(itemValue) => setAbsenceType(itemValue)}
                   style={styles.picker}
                 >
                   <Picker.Item label="Half Day (4.25 hours)" value="half" />
@@ -435,40 +488,40 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {/* Target Preview */}
-            <View style={styles.targetPreview}>
-              <Text style={styles.previewLabel}>Monthly Target Preview:</Text>
+            {/* Absence Preview */}
+            <View style={styles.absencePreview}>
+              <Text style={styles.previewLabel}>Absence Calculation:</Text>
               <Text style={styles.previewText}>
-                {numberOfDays} {numberOfDays === 1 ? 'day' : 'days'} × {dayType === 'half' ? '4.25' : '8.5'} hours = {(numberOfDays * (dayType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
+                {numberOfAbsentDays} {numberOfAbsentDays === 1 ? 'day' : 'days'} × {absenceType === 'half' ? '4.25' : '8.5'} hours = {(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
               </Text>
               <Text style={styles.previewHighlight}>
-                New Monthly Target: {(numberOfDays * (dayType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
+                New Target: {Math.max(0, (settings.targetHours || 180) - (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
               </Text>
             </View>
 
-            {/* Update Monthly Target Button */}
+            {/* Log Absence Button */}
             <TouchableOpacity 
-              style={[styles.button, styles.updateTargetButton]} 
-              onPress={handleUpdateMonthlyTarget}
+              style={[styles.button, styles.logAbsenceButton]} 
+              onPress={handleLogAbsence}
             >
-              <Text style={styles.buttonText}>💾 Update Monthly Target</Text>
+              <Text style={styles.buttonText}>📝 Update Monthly Target Hours</Text>
             </TouchableOpacity>
 
-            <View style={styles.targetEditInfo}>
+            <View style={styles.absenceLoggerInfo}>
               <Text style={styles.infoText}>
-                ℹ️ Use this calculator to quickly set your monthly target based on working days
+                ℹ️ Use this to log absences and adjust your monthly target
               </Text>
               <Text style={styles.infoText}>
-                • Half Day = 4.25 hours
+                - Half Day = 4.25 hours deducted
               </Text>
               <Text style={styles.infoText}>
-                • Full Day = 8.5 hours
+                - Full Day = 8.5 hours deducted
               </Text>
               <Text style={styles.infoText}>
-                • All calculations throughout the app are based on the monthly target
+                - All dashboard calculations update automatically
               </Text>
               <Text style={styles.infoText}>
-                • Example: 22 full days = 187 hours/month
+                - Example: 2 full days absent = 17 hours deducted
               </Text>
             </View>
           </View>
@@ -481,7 +534,6 @@ export default function SettingsScreen() {
             Create backups for device migration and restore data from previous backups.
           </Text>
           
-          {/* Google Drive Backup */}
           <TouchableOpacity
             style={[styles.button, styles.googleDriveButton]}
             onPress={() => setShowGoogleDriveBackup(true)}
@@ -489,7 +541,6 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>☁️ Google Drive Backup</Text>
           </TouchableOpacity>
 
-          {/* Import & Tally from Google Drive */}
           <TouchableOpacity
             style={[styles.button, styles.tallyButton]}
             onPress={() => setShowImportTally(true)}
@@ -497,7 +548,6 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>📊 Import & Tally from Google Drive</Text>
           </TouchableOpacity>
           
-          {/* Backup Folder Setup */}
           <TouchableOpacity
             style={[styles.button, styles.setupButton]}
             onPress={handleEnsureBackupFolder}
@@ -505,7 +555,6 @@ export default function SettingsScreen() {
             <Text style={styles.buttonText}>📁 Setup Backup Folder</Text>
           </TouchableOpacity>
           
-          {/* Local Backup */}
           <TouchableOpacity
             style={[styles.button, styles.backupButton, isBackupInProgress && styles.buttonDisabled]}
             onPress={handleCreateBackup}
@@ -529,16 +578,16 @@ export default function SettingsScreen() {
           <View style={styles.backupInfo}>
             <Text style={styles.infoTitle}>📁 Backup & Import Information</Text>
             <Text style={styles.infoText}>
-              • Local backups: Documents/techtrace/
+              - Local backups: Documents/techtrace/
             </Text>
             <Text style={styles.infoText}>
-              • Google Drive: Cloud backup & restore
+              - Google Drive: Cloud backup & restore
             </Text>
             <Text style={styles.infoText}>
-              • Import & Tally: Analyze backup data with detailed statistics
+              - Import & Tally: Analyze backup data with detailed statistics
             </Text>
             <Text style={styles.infoText}>
-              • Use "Setup Backup Folder" to ensure proper permissions
+              - Use &quot;Setup Backup Folder&quot; to ensure proper permissions
             </Text>
           </View>
         </View>
@@ -552,6 +601,7 @@ export default function SettingsScreen() {
             value={newPin}
             onChangeText={setNewPin}
             placeholder="Enter new PIN"
+            placeholderTextColor={colors.textSecondary}
             secureTextEntry
             keyboardType="numeric"
             maxLength={6}
@@ -563,6 +613,7 @@ export default function SettingsScreen() {
             value={confirmPin}
             onChangeText={setConfirmPin}
             placeholder="Confirm new PIN"
+            placeholderTextColor={colors.textSecondary}
             secureTextEntry
             keyboardType="numeric"
             maxLength={6}
@@ -647,12 +698,28 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const commonStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+});
+
+const createStyles = (colors: any) => StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   section: {
     marginBottom: 24,
@@ -675,6 +742,33 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
+  },
+  themeToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  themeToggleLeft: {
+    flex: 1,
+  },
+  themeToggleRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  themeToggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  themeToggleSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -710,6 +804,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: colors.background,
+    color: colors.text,
     marginBottom: 16,
   },
   targetInfo: {
@@ -720,19 +815,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  targetEditSection: {
+  absenceLoggerSection: {
     marginTop: 24,
     paddingTop: 24,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  targetEditTitle: {
+  absenceLoggerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
   },
-  targetEditDescription: {
+  absenceLoggerDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 16,
@@ -757,8 +852,9 @@ const styles = StyleSheet.create({
   picker: {
     height: 50,
     width: '100%',
+    color: colors.text,
   },
-  targetPreview: {
+  absencePreview: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
@@ -783,11 +879,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: 8,
   },
-  updateTargetButton: {
-    backgroundColor: '#2196f3',
+  logAbsenceButton: {
+    backgroundColor: '#e74c3c',
     marginBottom: 16,
   },
-  targetEditInfo: {
+  absenceLoggerInfo: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
@@ -833,7 +929,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.error,
   },
   buttonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -894,7 +990,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   activeNavButtonText: {
-    color: colors.background,
+    color: '#ffffff',
     fontWeight: '600',
   },
 });

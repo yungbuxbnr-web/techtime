@@ -13,6 +13,7 @@ export interface AppSettings {
   pin: string;
   isAuthenticated: boolean;
   targetHours?: number; // Monthly target hours (default 180)
+  theme?: 'light' | 'dark'; // Theme preference
 }
 
 export interface MonthlyStats {

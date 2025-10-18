@@ -11,6 +11,7 @@ const defaultSettings: AppSettings = {
   pin: '3101',
   isAuthenticated: false,
   targetHours: 180,
+  theme: 'light',
 };
 
 // Helper function to get document directory with proper type handling
