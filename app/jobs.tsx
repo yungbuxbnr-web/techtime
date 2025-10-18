@@ -4,13 +4,14 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function JobsScreen() {
+  const { colors } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
@@ -172,8 +173,10 @@ export default function JobsScreen() {
     { jobs: 0, aws: 0, time: 0 }
   );
 
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -324,7 +327,11 @@ export default function JobsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

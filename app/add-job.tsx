@@ -4,13 +4,14 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function AddJobScreen() {
+  const { colors } = useTheme();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const [wipNumber, setWipNumber] = useState('');
   const [vehicleRegistration, setVehicleRegistration] = useState('');
@@ -162,8 +163,10 @@ export default function AddJobScreen() {
     router.back();
   };
 
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -282,7 +285,11 @@ export default function AddJobScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   keyboardView: {
     flex: 1,
   },

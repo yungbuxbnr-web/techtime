@@ -10,9 +10,9 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { colors } from '../styles/commonStyles';
 import { GoogleDriveService, GoogleDriveFile, GoogleDriveFolder } from '../utils/googleDriveService';
 import NotificationToast from './NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface GoogleDriveFolderSelectorProps {
   accessToken: string;
@@ -25,6 +25,7 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
   onFolderSelected,
   onClose,
 }) => {
+  const { colors } = useTheme();
   const [folders, setFolders] = useState<GoogleDriveFile[]>([]);
   const [currentPath, setCurrentPath] = useState<string>('Root');
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined);
@@ -148,6 +149,8 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
     );
   };
 
+  const styles = createStyles(colors);
+
   return (
     <View style={styles.container}>
       <NotificationToast
@@ -248,7 +251,7 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

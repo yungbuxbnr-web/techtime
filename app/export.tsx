@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
@@ -14,8 +13,10 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as DocumentPicker from 'expo-document-picker';
 import { BackupService } from '../utils/backupService';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function ExportScreen() {
+  const { colors } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -825,8 +826,10 @@ export default function ExportScreen() {
     setSelectedYear(currentYear);
   };
 
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -996,7 +999,11 @@ export default function ExportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,

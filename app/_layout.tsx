@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StorageService } from '../utils/storage';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 const STORAGE_KEY = 'emulated_device';
 
@@ -61,24 +62,26 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: 'slide_from_right',
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="auth" />
-          <Stack.Screen name="dashboard" />
-          <Stack.Screen name="jobs" />
-          <Stack.Screen name="add-job" />
-          <Stack.Screen name="statistics" />
-          <Stack.Screen name="settings" />
-          <Stack.Screen name="export" />
-          <Stack.Screen name="stats" />
-        </Stack>
-      </GestureHandlerRootView>
+      <ThemeProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="dashboard" />
+            <Stack.Screen name="jobs" />
+            <Stack.Screen name="add-job" />
+            <Stack.Screen name="statistics" />
+            <Stack.Screen name="settings" />
+            <Stack.Screen name="export" />
+            <Stack.Screen name="stats" />
+          </Stack>
+        </GestureHandlerRootView>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

@@ -4,7 +4,6 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
-import { lightColors, darkColors, setTheme } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { BackupService, BackupData } from '../utils/backupService';
 import { CalculationService } from '../utils/calculations';
@@ -13,8 +12,10 @@ import NotificationToast from '../components/NotificationToast';
 import GoogleDriveBackup from '../components/GoogleDriveBackup';
 import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function SettingsScreen() {
+  const { theme, colors, toggleTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180, theme: 'light' });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [newPin, setNewPin] = useState('');
@@ -25,14 +26,12 @@ export default function SettingsScreen() {
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Absence logger dropdown states
   const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
   const [absenceType, setAbsenceType] = useState<'half' | 'full'>('full');
 
-  // Get current theme colors
-  const colors = isDarkMode ? darkColors : lightColors;
+  const isDarkMode = theme === 'dark';
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -53,8 +52,6 @@ export default function SettingsScreen() {
       setNewPin(settingsData.pin);
       setConfirmPin(settingsData.pin);
       setTargetHours(String(settingsData.targetHours || 180));
-      setIsDarkMode(settingsData.theme === 'dark');
-      setTheme(settingsData.theme || 'light');
       console.log('Settings and jobs loaded successfully');
     } catch (error) {
       console.log('Error loading data:', error);
@@ -82,21 +79,16 @@ export default function SettingsScreen() {
   }, [checkAuthAndLoadData]);
 
   const handleToggleTheme = useCallback(async () => {
-    const newTheme = isDarkMode ? 'light' : 'dark';
-    setIsDarkMode(!isDarkMode);
-    setTheme(newTheme);
-    
     try {
-      const updatedSettings = { ...settings, theme: newTheme };
-      await StorageService.saveSettings(updatedSettings);
-      setSettings(updatedSettings);
+      await toggleTheme();
+      const newTheme = theme === 'light' ? 'dark' : 'light';
       showNotification(`Switched to ${newTheme} mode`, 'success');
       console.log('Theme updated to:', newTheme);
     } catch (error) {
       console.log('Error updating theme:', error);
       showNotification('Error updating theme', 'error');
     }
-  }, [isDarkMode, settings, showNotification]);
+  }, [theme, toggleTheme, showNotification]);
 
   const handleUpdatePin = useCallback(async () => {
     if (!newPin || newPin.length < 4) {

@@ -10,15 +10,16 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { colors } from '../styles/commonStyles';
 import { GoogleDriveService, GoogleDriveConfig } from '../utils/googleDriveService';
 import NotificationToast from './NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface GoogleDriveSetupProps {
   onClose?: () => void;
 }
 
 const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
+  const { colors } = useTheme();
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +92,8 @@ const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
   React.useEffect(() => {
     loadExistingConfig();
   }, [loadExistingConfig]);
+
+  const styles = createStyles(colors);
 
   return (
     <View style={styles.container}>
@@ -254,7 +257,7 @@ const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

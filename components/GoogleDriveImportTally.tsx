@@ -9,16 +9,17 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { colors } from '../styles/commonStyles';
 import { GoogleDriveService, GoogleDriveFile } from '../utils/googleDriveService';
 import { ImportTallyService, ImportTallyData } from '../utils/importTallyService';
 import NotificationToast from './NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface GoogleDriveImportTallyProps {
   onClose?: () => void;
 }
 
 const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose }) => {
+  const { colors } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -164,6 +165,8 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
     const date = new Date(parseInt(year), parseInt(month) - 1);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   };
+
+  const styles = createStyles(colors);
 
   if (!isAuthenticated) {
     return (
@@ -376,7 +379,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

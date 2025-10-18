@@ -9,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { colors } from '../styles/commonStyles';
 import { GoogleDriveService, GoogleDriveFile, GoogleDriveFolder } from '../utils/googleDriveService';
 import { BackupService, BackupData } from '../utils/backupService';
 import { StorageService } from '../utils/storage';
@@ -17,12 +16,14 @@ import NotificationToast from './NotificationToast';
 import GoogleDriveSetup from './GoogleDriveSetup';
 import GoogleDriveInstructions from './GoogleDriveInstructions';
 import GoogleDriveFolderSelector from './GoogleDriveFolderSelector';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface GoogleDriveBackupProps {
   onClose?: () => void;
 }
 
 const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
+  const { colors } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -330,6 +331,8 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     });
   };
 
+  const styles = createStyles(colors);
+
   if (showSetupGuide) {
     return <GoogleDriveSetup onClose={() => setShowSetupGuide(false)} />;
   }
@@ -485,7 +488,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

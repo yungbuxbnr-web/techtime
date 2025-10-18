@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface GoogleDriveInstructionsProps {
   onSetupGuide?: () => void;
 }
 
 const GoogleDriveInstructions: React.FC<GoogleDriveInstructionsProps> = ({ onSetupGuide }) => {
+  const { colors } = useTheme();
   const showQuickInstructions = () => {
     Alert.alert(
       'Google Drive Setup Required',
@@ -31,6 +32,8 @@ This is a one-time setup process that requires developer access.`,
       ]
     );
   };
+
+  const styles = createStyles(colors);
 
   return (
     <View style={styles.container}>
@@ -89,7 +92,7 @@ This is a one-time setup process that requires developer access.`,
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     padding: 20,
     alignItems: 'center',

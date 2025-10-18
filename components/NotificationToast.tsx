@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface NotificationToastProps {
   message: string;
@@ -11,6 +11,7 @@ interface NotificationToastProps {
 }
 
 export default function NotificationToast({ message, type, visible, onHide }: NotificationToastProps) {
+  const { colors } = useTheme();
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 

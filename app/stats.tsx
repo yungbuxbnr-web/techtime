@@ -3,13 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function StatsScreen() {
+  const { colors } = useTheme();
   const { type } = useLocalSearchParams<{ type: string }>();
   const [jobs, setJobs] = useState<Job[]>([]);
 
@@ -118,9 +119,10 @@ export default function StatsScreen() {
 
   const statsData = getStatsData();
   const monthlyStats = CalculationService.calculateMonthlyStats(jobs);
+  const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
@@ -208,7 +210,11 @@ export default function StatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,

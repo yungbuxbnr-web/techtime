@@ -3,13 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function StatisticsScreen() {
+  const { colors } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
@@ -145,8 +146,10 @@ export default function StatisticsScreen() {
     });
   };
 
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -351,7 +354,11 @@ export default function StatisticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,

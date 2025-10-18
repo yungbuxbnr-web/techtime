@@ -4,14 +4,15 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler, Aler
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job, MonthlyStats } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function DashboardScreen() {
+  const { colors } = useTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({
     totalJobs: 0,
@@ -151,9 +152,11 @@ export default function DashboardScreen() {
   const dailyJobs = CalculationService.getDailyJobs(jobs, today);
   const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
 
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.whiteBackground}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.whiteBackground, { backgroundColor: colors.background }]}>
         <NotificationToast
           message={notification.message}
           type={notification.type}
@@ -328,14 +331,14 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   whiteBackground: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

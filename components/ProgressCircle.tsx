@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ProgressCircleProps {
   percentage: number;
@@ -17,8 +17,10 @@ export default function ProgressCircle({
   size,
   strokeWidth,
   color,
-  backgroundColor = '#e5e7eb'
+  backgroundColor
 }: ProgressCircleProps) {
+  const { colors } = useTheme();
+  const bgColor = backgroundColor || (colors.border || '#e5e7eb');
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDasharray = circumference;
@@ -32,7 +34,7 @@ export default function ProgressCircle({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={backgroundColor}
+          stroke={bgColor}
           strokeWidth={strokeWidth}
           fill="transparent"
         />
