@@ -14,35 +14,7 @@ export default function StatisticsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
-  const [showCalculationModal, setShowCalculationModal] = useState(false);
-  const [calculationResult, setCalculationResult] = useState({
-    totalJobs: 0,
-    totalAWs: 0,
-    totalTime: 0,
-    totalHours: '',
-    calculation: ''
-  });
-
-  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
-  }, []);
-
-  const hideNotification = () => {
-    setNotification({ ...notification, visible: false });
-  };
-
-  const loadJobs = useCallback(async () => {
-    try {
-      const jobsData = await StorageService.getJobs();
-      // Sort jobs by date (newest first)
-      const sortedJobs = jobsData.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
-      setJobs(sortedJobs);
-      console.log('Statistics loaded:', sortedJobs.length, 'jobs');
-    } catch (error) {
-      console.log('Error loading jobs:', error);
-      showNotification('Error loading jobs', 'error');
-    }
-  }, [showNotification]);
+  const [showSelectionModal, setShowSelectionModal] = useState(false);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -52,16 +24,22 @@ export default function StatisticsScreen() {
         router.replace('/auth');
         return;
       }
-      await loadJobs();
+      const jobsData = await StorageService.getJobs();
+      setJobs(jobsData);
+      console.log('Statistics loaded:', jobsData.length, 'jobs');
     } catch (error) {
-      console.log('Error checking auth:', error);
+      console.log('Error loading jobs:', error);
       router.replace('/auth');
     }
-  }, [loadJobs]);
+  }, []);
 
   useEffect(() => {
     checkAuthAndLoadJobs();
   }, [checkAuthAndLoadJobs]);
+
+  const hideNotification = () => {
+    setNotification({ ...notification, visible: false });
+  };
 
   const toggleJobSelection = (jobId: string) => {
     const newSelection = new Set(selectedJobs);
@@ -71,50 +49,23 @@ export default function StatisticsScreen() {
       newSelection.add(jobId);
     }
     setSelectedJobs(newSelection);
-    console.log('Job selection toggled:', jobId, 'Total selected:', newSelection.size);
   };
 
   const selectAllJobs = () => {
     const allJobIds = new Set(jobs.map(job => job.id));
     setSelectedJobs(allJobIds);
-    showNotification(`Selected all ${jobs.length} jobs`, 'success');
+    setShowSelectionModal(false);
   };
 
   const clearSelection = () => {
     setSelectedJobs(new Set());
-    showNotification('Selection cleared', 'info');
+    setShowSelectionModal(false);
   };
 
   const calculateSelectedHours = () => {
-    const selectedJobsData = jobs.filter(job => selectedJobs.has(job.id));
-    
-    if (selectedJobsData.length === 0) {
-      showNotification('Please select jobs to calculate', 'info');
-      return;
-    }
-
-    const totalAWs = selectedJobsData.reduce((sum, job) => sum + job.awValue, 0);
-    const totalTime = selectedJobsData.reduce((sum, job) => sum + job.timeInMinutes, 0);
-    const totalJobs = selectedJobsData.length;
-    const totalHours = CalculationService.formatTime(totalTime);
-
-    // Create calculation breakdown
-    const calculationBreakdown = selectedJobsData.map(job => 
-      `WIP ${job.wipNumber}: ${job.awValue} AWs × 5 min = ${job.timeInMinutes} min`
-    ).join('\n');
-
-    const calculation = `${calculationBreakdown}\n\nTotal: ${totalAWs} AWs × 5 min = ${totalTime} min = ${totalHours}`;
-
-    setCalculationResult({
-      totalJobs,
-      totalAWs,
-      totalTime,
-      totalHours,
-      calculation
-    });
-
-    setShowCalculationModal(true);
-    console.log('Calculation completed for', totalJobs, 'jobs:', totalHours);
+    const selected = jobs.filter(job => selectedJobs.has(job.id));
+    const totalMinutes = selected.reduce((sum, job) => sum + job.timeInMinutes, 0);
+    return CalculationService.minutesToHours(totalMinutes);
   };
 
   const navigateToDashboard = () => {
@@ -131,495 +82,541 @@ export default function StatisticsScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const styles = createStyles(colors);
+  // Calculate current month statistics
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyJobs = CalculationService.getJobsByMonth(jobs, currentMonth, currentYear);
+  const totalAWs = monthlyJobs.reduce((sum, job) => sum + job.awValue, 0);
+  const totalSoldHours = CalculationService.calculateSoldHours(totalAWs);
+  const totalAvailableHours = CalculationService.calculateAvailableHoursToDate(currentMonth, currentYear);
+  const efficiency = CalculationService.calculateEfficiency(totalAWs, currentMonth, currentYear);
+  const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
+  const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
+
+  // Calculate daily and weekly stats
+  const today = new Date();
+  const dailyJobs = CalculationService.getDailyJobs(jobs, today);
+  const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
+
+  const dailyAWs = dailyJobs.reduce((sum, job) => sum + job.awValue, 0);
+  const weeklyAWs = weeklyJobs.reduce((sum, job) => sum + job.awValue, 0);
+
+  const styles = createStyles(colors, efficiencyColor);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <NotificationToast
-        message={notification.message}
-        type={notification.type}
-        visible={notification.visible}
-        onHide={hideNotification}
-      />
-      
-      <View style={styles.header}>
-        <Text style={styles.title}>Statistics & Calculator</Text>
-      </View>
+      <View style={[styles.wholeView, { backgroundColor: colors.background }]}>
+        <NotificationToast
+          message={notification.message}
+          type={notification.type}
+          visible={notification.visible}
+          onHide={hideNotification}
+        />
 
-      {/* Selection Controls */}
-      <View style={styles.controlsSection}>
-        <View style={styles.selectionInfo}>
-          <Text style={styles.selectionText}>
-            {selectedJobs.size} of {jobs.length} jobs selected
-          </Text>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Statistics</Text>
         </View>
-        
-        <View style={styles.controlButtons}>
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={selectAllJobs}
-          >
-            <Text style={styles.controlButtonText}>Select All</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={clearSelection}
-          >
-            <Text style={styles.controlButtonText}>Clear</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.controlButton, styles.calculateButton]}
-            onPress={calculateSelectedHours}
-          >
-            <Text style={styles.calculateButtonText}>Calculate Hours</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* Jobs Table */}
-      <ScrollView style={styles.tableContainer} showsVerticalScrollIndicator={false}>
-        {jobs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No jobs available</Text>
-            <Text style={styles.emptyStateSubtext}>
-              Add some jobs to view statistics
-            </Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Efficiency Overview */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Monthly Efficiency</Text>
+            <View style={styles.efficiencyCard}>
+              <View style={styles.efficiencyHeader}>
+                <Text style={styles.efficiencyPercentage}>{efficiency}%</Text>
+                <Text style={[styles.efficiencyStatus, { color: efficiencyColor }]}>
+                  {efficiencyStatus}
+                </Text>
+              </View>
+              <View style={styles.efficiencyDetails}>
+                <View style={styles.efficiencyRow}>
+                  <Text style={styles.efficiencyLabel}>Total AW:</Text>
+                  <Text style={styles.efficiencyValue}>{totalAWs}</Text>
+                </View>
+                <View style={styles.efficiencyRow}>
+                  <Text style={styles.efficiencyLabel}>Sold Hours:</Text>
+                  <Text style={styles.efficiencyValue}>{totalSoldHours.toFixed(2)}h</Text>
+                </View>
+                <View style={styles.efficiencyRow}>
+                  <Text style={styles.efficiencyLabel}>Available Hours:</Text>
+                  <Text style={styles.efficiencyValue}>{totalAvailableHours.toFixed(2)}h</Text>
+                </View>
+                <View style={styles.efficiencyRow}>
+                  <Text style={styles.efficiencyLabel}>Remaining Hours:</Text>
+                  <Text style={styles.efficiencyValue}>
+                    {Math.max(0, totalAvailableHours - totalSoldHours).toFixed(2)}h
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
-        ) : (
-          <>
-            {/* Table Header */}
-            <View style={styles.tableHeader}>
-              <View style={styles.checkboxColumn}>
-                <Text style={styles.headerText}>✓</Text>
-              </View>
-              <View style={styles.wipColumn}>
-                <Text style={styles.headerText}>WIP</Text>
-              </View>
-              <View style={styles.regColumn}>
-                <Text style={styles.headerText}>Registration</Text>
-              </View>
-              <View style={styles.awColumn}>
-                <Text style={styles.headerText}>AWs</Text>
-              </View>
-              <View style={styles.timeColumn}>
-                <Text style={styles.headerText}>Time</Text>
-              </View>
-              <View style={styles.dateColumn}>
-                <Text style={styles.headerText}>Date</Text>
+
+          {/* Period Statistics */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Period Statistics</Text>
+            
+            <View style={styles.periodCard}>
+              <Text style={styles.periodTitle}>Today</Text>
+              <View style={styles.periodStats}>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>Jobs</Text>
+                  <Text style={styles.periodStatValue}>{dailyJobs.length}</Text>
+                </View>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>AWs</Text>
+                  <Text style={styles.periodStatValue}>{dailyAWs}</Text>
+                </View>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>Hours</Text>
+                  <Text style={styles.periodStatValue}>
+                    {CalculationService.calculateSoldHours(dailyAWs).toFixed(2)}h
+                  </Text>
+                </View>
               </View>
             </View>
 
-            {/* Table Rows */}
-            {jobs.map((job, index) => (
+            <View style={styles.periodCard}>
+              <Text style={styles.periodTitle}>This Week</Text>
+              <View style={styles.periodStats}>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>Jobs</Text>
+                  <Text style={styles.periodStatValue}>{weeklyJobs.length}</Text>
+                </View>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>AWs</Text>
+                  <Text style={styles.periodStatValue}>{weeklyAWs}</Text>
+                </View>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>Hours</Text>
+                  <Text style={styles.periodStatValue}>
+                    {CalculationService.calculateSoldHours(weeklyAWs).toFixed(2)}h
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.periodCard}>
+              <Text style={styles.periodTitle}>This Month</Text>
+              <View style={styles.periodStats}>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>Jobs</Text>
+                  <Text style={styles.periodStatValue}>{monthlyJobs.length}</Text>
+                </View>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>AWs</Text>
+                  <Text style={styles.periodStatValue}>{totalAWs}</Text>
+                </View>
+                <View style={styles.periodStat}>
+                  <Text style={styles.periodStatLabel}>Hours</Text>
+                  <Text style={styles.periodStatValue}>{totalSoldHours.toFixed(2)}h</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* All Time Statistics */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>All Time</Text>
+            <View style={styles.allTimeCard}>
+              <View style={styles.allTimeStat}>
+                <Text style={styles.allTimeValue}>{jobs.length}</Text>
+                <Text style={styles.allTimeLabel}>Total Jobs</Text>
+              </View>
+              <View style={styles.allTimeStat}>
+                <Text style={styles.allTimeValue}>
+                  {jobs.reduce((sum, job) => sum + job.awValue, 0)}
+                </Text>
+                <Text style={styles.allTimeLabel}>Total AWs</Text>
+              </View>
+              <View style={styles.allTimeStat}>
+                <Text style={styles.allTimeValue}>
+                  {CalculationService.calculateSoldHours(
+                    jobs.reduce((sum, job) => sum + job.awValue, 0)
+                  ).toFixed(1)}h
+                </Text>
+                <Text style={styles.allTimeLabel}>Total Hours</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Job Selection */}
+          {selectedJobs.size > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Selected Jobs</Text>
+              <View style={styles.selectionCard}>
+                <Text style={styles.selectionText}>
+                  {selectedJobs.size} jobs selected
+                </Text>
+                <Text style={styles.selectionHours}>
+                  {calculateSelectedHours().toFixed(2)} hours
+                </Text>
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={clearSelection}
+                >
+                  <Text style={styles.clearButtonText}>Clear Selection</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Recent Jobs */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Jobs</Text>
+              <TouchableOpacity onPress={() => setShowSelectionModal(true)}>
+                <Text style={styles.selectLink}>Select Jobs</Text>
+              </TouchableOpacity>
+            </View>
+            {jobs.slice(0, 10).map(job => (
               <TouchableOpacity
                 key={job.id}
                 style={[
-                  styles.tableRow,
-                  selectedJobs.has(job.id) && styles.selectedRow,
-                  index % 2 === 0 && styles.evenRow
+                  styles.jobCard,
+                  selectedJobs.has(job.id) && styles.jobCardSelected
                 ]}
                 onPress={() => toggleJobSelection(job.id)}
               >
-                <View style={styles.checkboxColumn}>
-                  <View style={[
-                    styles.checkbox,
-                    selectedJobs.has(job.id) && styles.checkedBox
-                  ]}>
-                    {selectedJobs.has(job.id) && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </View>
+                <View style={styles.jobHeader}>
+                  <Text style={styles.jobWip}>WIP: {job.wipNumber}</Text>
+                  <Text style={styles.jobAw}>{job.awValue} AWs</Text>
                 </View>
-                
-                <View style={styles.wipColumn}>
-                  <Text style={styles.cellText}>{job.wipNumber}</Text>
-                </View>
-                
-                <View style={styles.regColumn}>
-                  <Text style={styles.cellText} numberOfLines={1}>
-                    {job.vehicleRegistration}
+                <Text style={styles.jobReg}>{job.vehicleRegistration}</Text>
+                <View style={styles.jobFooter}>
+                  <Text style={styles.jobDate}>
+                    {formatDate(job.dateCreated)} • {formatTime(job.dateCreated)}
                   </Text>
-                </View>
-                
-                <View style={styles.awColumn}>
-                  <Text style={styles.cellText}>{job.awValue}</Text>
-                </View>
-                
-                <View style={styles.timeColumn}>
-                  <Text style={styles.cellText}>
+                  <Text style={styles.jobTime}>
                     {CalculationService.formatTime(job.timeInMinutes)}
-                  </Text>
-                </View>
-                
-                <View style={styles.dateColumn}>
-                  <Text style={styles.cellTextSmall}>
-                    {formatDate(job.dateCreated)}
-                  </Text>
-                  <Text style={styles.cellTextSmall}>
-                    {formatTime(job.dateCreated)}
                   </Text>
                 </View>
               </TouchableOpacity>
             ))}
-          </>
-        )}
-      </ScrollView>
+          </View>
+        </ScrollView>
 
-      {/* Calculation Modal */}
-      <Modal
-        visible={showCalculationModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowCalculationModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Calculation Results</Text>
+        {/* Selection Modal */}
+        <Modal
+          visible={showSelectionModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowSelectionModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Job Selection</Text>
               <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowCalculationModal(false)}
+                style={styles.modalButton}
+                onPress={selectAllJobs}
               >
-                <Text style={styles.closeButtonText}>×</Text>
+                <Text style={styles.modalButtonText}>Select All Jobs</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={clearSelection}
+              >
+                <Text style={styles.modalButtonText}>Clear Selection</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowSelectionModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-            
-            <ScrollView style={styles.modalBody}>
-              <View style={styles.resultSummary}>
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>Selected Jobs:</Text>
-                  <Text style={styles.resultValue}>{calculationResult.totalJobs}</Text>
-                </View>
-                
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>Total AWs:</Text>
-                  <Text style={styles.resultValue}>{calculationResult.totalAWs}</Text>
-                </View>
-                
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>Total Time:</Text>
-                  <Text style={styles.resultValue}>{calculationResult.totalHours}</Text>
-                </View>
-              </View>
-              
-              <View style={styles.calculationDetails}>
-                <Text style={styles.calculationTitle}>Calculation Breakdown:</Text>
-                <Text style={styles.calculationText}>{calculationResult.calculation}</Text>
-              </View>
-            </ScrollView>
-            
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowCalculationModal(false)}
-            >
-              <Text style={styles.modalButtonText}>Close</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={navigateToDashboard}>
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
-          <Text style={styles.navText}>Jobs</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => {}}>
-          <Text style={[styles.navText, styles.navTextActive]}>Statistics</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem} onPress={navigateToDashboard}>
+            <Text style={styles.navText}>Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
+            <Text style={styles.navText}>Jobs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => {}}>
+            <Text style={[styles.navText, styles.navTextActive]}>Statistics</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
+            <Text style={styles.navText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  wholeView: {
     flex: 1,
     backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: colors.background,
   },
-  title: {
+  headerTitle: {
     fontSize: 28,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
   },
-  controlsSection: {
-    backgroundColor: colors.card,
+  content: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
-  selectionInfo: {
+  section: {
+    marginTop: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  selectionText: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  selectLink: {
     fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    color: colors.primary,
+    fontWeight: '600',
   },
-  controlButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  controlButton: {
-    backgroundColor: colors.backgroundAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+  efficiencyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 20,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  controlButtonText: {
-    fontSize: 12,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  calculateButton: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  calculateButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  tableContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  emptyState: {
+  efficiencyHeader: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundAlt,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    marginBottom: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    backgroundColor: colors.background,
   },
-  evenRow: {
-    backgroundColor: colors.backgroundAlt,
-  },
-  selectedRow: {
-    backgroundColor: colors.primaryLight || '#e3f2fd',
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  checkboxColumn: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wipColumn: {
-    width: 60,
-    justifyContent: 'center',
-  },
-  regColumn: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  awColumn: {
-    width: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timeColumn: {
-    width: 70,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateColumn: {
-    width: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerText: {
-    fontSize: 12,
+  efficiencyPercentage: {
+    fontSize: 48,
     fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
+    color: efficiencyColor,
   },
-  cellText: {
-    fontSize: 12,
-    color: colors.text,
-    fontWeight: '500',
+  efficiencyStatus: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
   },
-  cellTextSmall: {
-    fontSize: 10,
+  efficiencyDetails: {
+    gap: 8,
+  },
+  efficiencyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  efficiencyLabel: {
+    fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
+  efficiencyValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  periodCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
   },
-  checkedBox: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkmark: {
-    color: '#ffffff',
-    fontSize: 12,
+  periodTitle: {
+    fontSize: 16,
     fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  periodStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  periodStat: {
+    alignItems: 'center',
+  },
+  periodStatLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  periodStatValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  allTimeCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  allTimeStat: {
+    alignItems: 'center',
+  },
+  allTimeValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  allTimeLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  selectionCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  selectionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  selectionHours: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 12,
+  },
+  clearButton: {
+    backgroundColor: colors.error,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  clearButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  jobCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  jobCardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+  },
+  jobHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  jobWip: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  jobAw: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  jobReg: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  jobFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  jobDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  jobTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: colors.overlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
   modalContent: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    width: '100%',
+    padding: 24,
+    width: '80%',
     maxWidth: 400,
-    maxHeight: '80%',
-    boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.15)',
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeButton: {
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 15,
-    backgroundColor: colors.backgroundAlt,
-  },
-  closeButtonText: {
     fontSize: 20,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  modalBody: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    maxHeight: 300,
-  },
-  resultSummary: {
-    marginBottom: 20,
-  },
-  resultItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  resultLabel: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  resultValue: {
-    fontSize: 16,
-    color: colors.primary,
     fontWeight: '700',
-  },
-  calculationDetails: {
-    backgroundColor: colors.backgroundAlt,
-    padding: 16,
-    borderRadius: 8,
-  },
-  calculationTitle: {
-    fontSize: 14,
-    fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
-  },
-  calculationText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontFamily: 'monospace',
-    lineHeight: 16,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   modalButton: {
     backgroundColor: colors.primary,
-    marginHorizontal: 20,
-    marginVertical: 16,
     paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.textSecondary,
   },
   modalButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   bottomNav: {
     flexDirection: 'row',

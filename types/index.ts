@@ -20,8 +20,11 @@ export interface MonthlyStats {
   totalAWs: number;
   totalTime: number; // in minutes
   totalJobs: number;
+  totalSoldHours?: number; // in hours (converted from AWs)
+  totalAvailableHours?: number; // in hours (weekdays only)
   targetHours: number; // 180 hours = 10800 minutes
   utilizationPercentage: number;
+  efficiency?: number; // efficiency percentage
 }
 
 export interface ExportOptions {

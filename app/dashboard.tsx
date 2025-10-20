@@ -18,8 +18,11 @@ export default function DashboardScreen() {
     totalJobs: 0,
     totalAWs: 0,
     totalTime: 0,
+    totalSoldHours: 0,
+    totalAvailableHours: 0,
     targetHours: 180,
     utilizationPercentage: 0,
+    efficiency: 0,
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -71,7 +74,13 @@ export default function DashboardScreen() {
       setJobs(jobsData);
       const stats = CalculationService.calculateMonthlyStats(jobsData, settings.targetHours || 180);
       setMonthlyStats(stats);
-      console.log('Dashboard loaded:', jobsData.length, 'jobs, target:', settings.targetHours || 180, 'hours');
+      console.log('Dashboard loaded:', jobsData.length, 'jobs');
+      console.log('Stats:', {
+        totalAWs: stats.totalAWs,
+        soldHours: stats.totalSoldHours?.toFixed(2),
+        availableHours: stats.totalAvailableHours?.toFixed(2),
+        efficiency: stats.efficiency
+      });
     } catch (error) {
       console.log('Error loading jobs:', error);
       showNotification('Error loading data', 'error');
@@ -156,7 +165,12 @@ export default function DashboardScreen() {
   const dailyJobs = CalculationService.getDailyJobs(jobs, today);
   const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
 
-  const styles = createStyles(colors);
+  // Get efficiency color
+  const efficiency = monthlyStats.efficiency || 0;
+  const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
+  const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
+
+  const styles = createStyles(colors, efficiencyColor);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -214,25 +228,54 @@ export default function DashboardScreen() {
         )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Monthly Progress Circle */}
+          {/* Monthly Progress Circle with Efficiency */}
           <View style={styles.progressSection}>
-            <TouchableOpacity onPress={() => navigateToStats('remaining')}>
+            <TouchableOpacity onPress={() => navigateToStats('efficiency')}>
               <ProgressCircle
-                percentage={monthlyStats.utilizationPercentage}
+                percentage={efficiency}
                 size={160}
                 strokeWidth={12}
-                color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
+                color={efficiencyColor}
               />
               <View style={styles.progressLabelsContainer}>
                 <Text style={styles.progressLabel}>Monthly Efficiency</Text>
-                <Text style={styles.progressSubtext}>
-                  {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours.toFixed(1)}h
+                <Text style={[styles.efficiencyStatus, { color: efficiencyColor }]}>
+                  {efficiencyStatus}
                 </Text>
                 <Text style={styles.progressPercentage}>
-                  {monthlyStats.utilizationPercentage.toFixed(1)}%
+                  {efficiency}%
                 </Text>
               </View>
             </TouchableOpacity>
+          </View>
+
+          {/* Efficiency Details Card */}
+          <View style={styles.efficiencyCard}>
+            <Text style={styles.efficiencyCardTitle}>Efficiency Breakdown</Text>
+            <View style={styles.efficiencyRow}>
+              <Text style={styles.efficiencyLabel}>Total AW:</Text>
+              <Text style={styles.efficiencyValue}>{monthlyStats.totalAWs}</Text>
+            </View>
+            <View style={styles.efficiencyRow}>
+              <Text style={styles.efficiencyLabel}>Total Sold Hours:</Text>
+              <Text style={styles.efficiencyValue}>
+                {(monthlyStats.totalSoldHours || 0).toFixed(2)}h
+              </Text>
+            </View>
+            <View style={styles.efficiencyRow}>
+              <Text style={styles.efficiencyLabel}>Total Available Hours:</Text>
+              <Text style={styles.efficiencyValue}>
+                {(monthlyStats.totalAvailableHours || 0).toFixed(2)}h
+              </Text>
+            </View>
+            <View style={[styles.efficiencyRow, styles.efficiencyRowHighlight]}>
+              <Text style={[styles.efficiencyLabel, styles.efficiencyLabelBold]}>
+                Efficiency:
+              </Text>
+              <Text style={[styles.efficiencyValue, styles.efficiencyValueBold, { color: efficiencyColor }]}>
+                {efficiency}%
+              </Text>
+            </View>
           </View>
 
           {/* Stats Grid */}
@@ -271,9 +314,9 @@ export default function DashboardScreen() {
               onPress={() => navigateToStats('remaining')}
             >
               <Text style={styles.statValue}>
-                {CalculationService.formatTime(Math.max(0, (monthlyStats.targetHours * 60) - monthlyStats.totalTime))}
+                {Math.max(0, (monthlyStats.totalAvailableHours || 0) - (monthlyStats.totalSoldHours || 0)).toFixed(1)}h
               </Text>
-              <Text style={styles.statLabel}>Remaining</Text>
+              <Text style={styles.statLabel}>Hours Remaining</Text>
               <Text style={styles.statSubtext}>This Month</Text>
             </TouchableOpacity>
           </View>
@@ -347,7 +390,7 @@ export default function DashboardScreen() {
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -436,18 +479,67 @@ const createStyles = (colors: any) => StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
-  progressSubtext: {
+  efficiencyStatus: {
     fontSize: 14,
-    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
+    fontWeight: '600',
   },
   progressPercentage: {
-    fontSize: 12,
-    color: colors.primary,
+    fontSize: 28,
+    color: efficiencyColor,
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: 4,
+    fontWeight: '700',
+  },
+  efficiencyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  efficiencyCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  efficiencyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  efficiencyRowHighlight: {
+    backgroundColor: colors.background,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderBottomWidth: 0,
+  },
+  efficiencyLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  efficiencyLabelBold: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  efficiencyValue: {
+    fontSize: 14,
     fontWeight: '600',
+    color: colors.text,
+  },
+  efficiencyValueBold: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   statsGrid: {
     flexDirection: 'row',
