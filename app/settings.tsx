@@ -16,7 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
-  const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180, theme: 'light' });
+  const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180, absenceHours: 0, theme: 'light' });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -139,10 +139,23 @@ export default function SettingsScreen() {
   }, [targetHours, settings, showNotification]);
 
   const handleLogAbsence = useCallback(async () => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
     const hoursPerDay = absenceType === 'half' ? 4.25 : 8.5;
     const absenceHours = numberOfAbsentDays * hoursPerDay;
     const currentTarget = settings.targetHours || 180;
     const newTargetHours = Math.max(0, currentTarget - absenceHours);
+    
+    // Check if we need to reset absence hours for a new month
+    let currentAbsenceHours = settings.absenceHours || 0;
+    if (settings.absenceMonth !== currentMonth || settings.absenceYear !== currentYear) {
+      // New month, reset absence hours
+      currentAbsenceHours = 0;
+      console.log('New month detected, resetting absence hours');
+    }
+    
+    const newAbsenceHours = currentAbsenceHours + absenceHours;
     
     const absenceTypeText = absenceType === 'half' ? 'Half Day' : 'Full Day';
     const dayLabel = numberOfAbsentDays === 1 
@@ -150,8 +163,8 @@ export default function SettingsScreen() {
       : `${numberOfAbsentDays} ${absenceTypeText}s`;
     
     Alert.alert(
-      'Log Absence & Update Target',
-      `This will deduct ${absenceHours.toFixed(2)} hours from your monthly target:\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n📈 Target Update:\nCurrent Target: ${currentTarget} hours\nAbsence Deduction: -${absenceHours.toFixed(2)} hours\nNew Monthly Target: ${newTargetHours.toFixed(2)} hours\n\n✅ All dashboard calculations will automatically use the new target.\n\nContinue?`,
+      'Log Absence & Update Hours',
+      `This will deduct ${absenceHours.toFixed(2)} hours from both your monthly target AND total available hours:\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n📈 Monthly Target Update:\nCurrent Target: ${currentTarget} hours\nAbsence Deduction: -${absenceHours.toFixed(2)} hours\nNew Monthly Target: ${newTargetHours.toFixed(2)} hours\n\n⏰ Available Hours Update:\nTotal Absence This Month: ${newAbsenceHours.toFixed(2)} hours\n(This will be deducted from your available working hours)\n\n✅ Both progress circles and efficiency calculations will update automatically.\n\nContinue?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -159,12 +172,18 @@ export default function SettingsScreen() {
           style: 'default',
           onPress: async () => {
             try {
-              const updatedSettings = { ...settings, targetHours: newTargetHours };
+              const updatedSettings = { 
+                ...settings, 
+                targetHours: newTargetHours,
+                absenceHours: newAbsenceHours,
+                absenceMonth: currentMonth,
+                absenceYear: currentYear
+              };
               await StorageService.saveSettings(updatedSettings);
               setSettings(updatedSettings);
               setTargetHours(String(newTargetHours));
-              showNotification(`Absence logged! New monthly target: ${newTargetHours.toFixed(2)} hours`, 'success');
-              console.log('Absence logged successfully. New target:', newTargetHours);
+              showNotification(`Absence logged! New monthly target: ${newTargetHours.toFixed(2)}h | Total absence: ${newAbsenceHours.toFixed(2)}h`, 'success');
+              console.log('Absence logged successfully. New target:', newTargetHours, 'Total absence hours:', newAbsenceHours);
             } catch (error) {
               console.log('Error logging absence:', error);
               showNotification('Error logging absence', 'error');
@@ -343,6 +362,13 @@ export default function SettingsScreen() {
   const totalMinutes = totalAWs * 5;
   const totalTime = CalculationService.formatTime(totalMinutes);
 
+  // Get current month's absence hours
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const currentMonthAbsenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
+    ? (settings.absenceHours || 0) 
+    : 0;
+
   const styles = createStyles(colors);
 
   return (
@@ -436,6 +462,11 @@ export default function SettingsScreen() {
             <Text style={styles.infoText}>
               ⏰ Or about {Math.round((settings.targetHours || 180) / 22)} hours/day (22 working days)
             </Text>
+            {currentMonthAbsenceHours > 0 && (
+              <Text style={[styles.infoText, { color: colors.error, fontWeight: '600' }]}>
+                🏖️ Total absence this month: {currentMonthAbsenceHours.toFixed(2)} hours
+              </Text>
+            )}
           </View>
           
           <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdateTargetHours}>
@@ -446,7 +477,9 @@ export default function SettingsScreen() {
           <View style={styles.absenceLoggerSection}>
             <Text style={styles.absenceLoggerTitle}>🏖️ Absence Logger</Text>
             <Text style={styles.absenceLoggerDescription}>
-              Log absences to automatically reduce your monthly target hours. The absence hours will be deducted from your current target, and all dashboard calculations will update automatically.
+              Log absences to automatically reduce your monthly target hours AND total available hours. 
+              The absence hours will be deducted from both your current target and your available working hours, 
+              ensuring all dashboard calculations (progress circles and efficiency) update accurately.
             </Text>
             
             {/* Number of Absent Days Dropdown */}
@@ -497,6 +530,9 @@ export default function SettingsScreen() {
                 <Text style={styles.previewHighlight}>
                   New Monthly Target: {Math.max(0, (settings.targetHours || 180) - (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
                 </Text>
+                <Text style={styles.previewHighlight}>
+                  Total Absence This Month: {(currentMonthAbsenceHours + (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
+                </Text>
               </View>
             </View>
 
@@ -505,25 +541,31 @@ export default function SettingsScreen() {
               style={[styles.button, styles.logAbsenceButton]} 
               onPress={handleLogAbsence}
             >
-              <Text style={styles.buttonText}>✅ Log Absence & Update Monthly Target</Text>
+              <Text style={styles.buttonText}>✅ Log Absence & Update Hours</Text>
             </TouchableOpacity>
 
             <View style={styles.absenceLoggerInfo}>
               <Text style={styles.infoTitle}>ℹ️ How Absence Logging Works:</Text>
               <Text style={styles.infoText}>
-                • Half Day = 4.25 hours deducted from monthly target
+                • Half Day = 4.25 hours deducted from both target and available hours
               </Text>
               <Text style={styles.infoText}>
-                • Full Day = 8.5 hours deducted from monthly target
+                • Full Day = 8.5 hours deducted from both target and available hours
               </Text>
               <Text style={styles.infoText}>
-                • The new target is saved and used for all calculations
+                • Monthly target hours are reduced permanently
               </Text>
               <Text style={styles.infoText}>
-                • Dashboard progress updates automatically
+                • Available hours are reduced for efficiency calculations
               </Text>
               <Text style={styles.infoText}>
-                • Example: 2 full days absent = 17 hours deducted (180h → 163h)
+                • Both progress circles update automatically
+              </Text>
+              <Text style={styles.infoText}>
+                • Absence hours reset automatically each new month
+              </Text>
+              <Text style={styles.infoText}>
+                • Example: 2 full days absent = 17h deducted (Target: 180h → 163h, Available: reduced by 17h)
               </Text>
             </View>
           </View>

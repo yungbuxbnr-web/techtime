@@ -72,7 +72,15 @@ export default function DashboardScreen() {
         StorageService.getSettings()
       ]);
       setJobs(jobsData);
-      const stats = CalculationService.calculateMonthlyStats(jobsData, settings.targetHours || 180);
+      
+      // Get current month's absence hours
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const absenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
+        ? (settings.absenceHours || 0) 
+        : 0;
+      
+      const stats = CalculationService.calculateMonthlyStats(jobsData, settings.targetHours || 180, absenceHours);
       setMonthlyStats(stats);
       console.log('Dashboard loaded:', jobsData.length, 'jobs');
       console.log('Stats:', {
@@ -80,6 +88,7 @@ export default function DashboardScreen() {
         soldHours: stats.totalSoldHours?.toFixed(2),
         availableHours: stats.totalAvailableHours?.toFixed(2),
         targetHours: stats.targetHours,
+        absenceHours: absenceHours,
         efficiency: stats.efficiency
       });
     } catch (error) {

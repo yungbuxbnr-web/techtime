@@ -13,6 +13,9 @@ export interface AppSettings {
   pin: string;
   isAuthenticated: boolean;
   targetHours?: number; // Monthly target hours (default 180)
+  absenceHours?: number; // Total absence hours for the current month
+  absenceMonth?: number; // Month for which absence hours are tracked
+  absenceYear?: number; // Year for which absence hours are tracked
   theme?: 'light' | 'dark'; // Theme preference
 }
 
@@ -21,7 +24,7 @@ export interface MonthlyStats {
   totalTime: number; // in minutes
   totalJobs: number;
   totalSoldHours?: number; // in hours (converted from AWs)
-  totalAvailableHours?: number; // in hours (weekdays only)
+  totalAvailableHours?: number; // in hours (weekdays only, minus absences)
   targetHours: number; // 180 hours = 10800 minutes
   utilizationPercentage: number;
   efficiency?: number; // efficiency percentage
