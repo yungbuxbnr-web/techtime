@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
@@ -15,6 +16,10 @@ export default function StatisticsScreen() {
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [showSelectionModal, setShowSelectionModal] = useState(false);
+
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ visible: true, message, type });
+  }, []);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -33,9 +38,12 @@ export default function StatisticsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    checkAuthAndLoadJobs();
-  }, [checkAuthAndLoadJobs]);
+  // Use useFocusEffect instead of useEffect to reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      checkAuthAndLoadJobs();
+    }, [checkAuthAndLoadJobs])
+  );
 
   const hideNotification = () => {
     setNotification({ ...notification, visible: false });
