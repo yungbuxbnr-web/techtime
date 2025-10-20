@@ -30,6 +30,7 @@ export default function SettingsScreen() {
   // Absence logger dropdown states
   const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
   const [absenceType, setAbsenceType] = useState<'half' | 'full'>('full');
+  const [deductionType, setDeductionType] = useState<'monthly' | 'available'>('monthly');
 
   const isDarkMode = theme === 'dark';
 
@@ -144,8 +145,11 @@ export default function SettingsScreen() {
     
     const hoursPerDay = absenceType === 'half' ? 4.25 : 8.5;
     const absenceHours = numberOfAbsentDays * hoursPerDay;
-    const currentTarget = settings.targetHours || 180;
-    const newTargetHours = Math.max(0, currentTarget - absenceHours);
+    
+    const absenceTypeText = absenceType === 'half' ? 'Half Day' : 'Full Day';
+    const dayLabel = numberOfAbsentDays === 1 
+      ? `${numberOfAbsentDays} ${absenceTypeText}` 
+      : `${numberOfAbsentDays} ${absenceTypeText}s`;
     
     // Check if we need to reset absence hours for a new month
     let currentAbsenceHours = settings.absenceHours || 0;
@@ -155,44 +159,74 @@ export default function SettingsScreen() {
       console.log('New month detected, resetting absence hours');
     }
     
-    const newAbsenceHours = currentAbsenceHours + absenceHours;
-    
-    const absenceTypeText = absenceType === 'half' ? 'Half Day' : 'Full Day';
-    const dayLabel = numberOfAbsentDays === 1 
-      ? `${numberOfAbsentDays} ${absenceTypeText}` 
-      : `${numberOfAbsentDays} ${absenceTypeText}s`;
-    
-    Alert.alert(
-      'Log Absence & Update Hours',
-      `This will deduct ${absenceHours.toFixed(2)} hours from both your monthly target AND total available hours:\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n📈 Monthly Target Update:\nCurrent Target: ${currentTarget} hours\nAbsence Deduction: -${absenceHours.toFixed(2)} hours\nNew Monthly Target: ${newTargetHours.toFixed(2)} hours\n\n⏰ Available Hours Update:\nTotal Absence This Month: ${newAbsenceHours.toFixed(2)} hours\n(This will be deducted from your available working hours)\n\n✅ Both progress circles and efficiency calculations will update automatically.\n\nContinue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Absence',
-          style: 'default',
-          onPress: async () => {
-            try {
-              const updatedSettings = { 
-                ...settings, 
-                targetHours: newTargetHours,
-                absenceHours: newAbsenceHours,
-                absenceMonth: currentMonth,
-                absenceYear: currentYear
-              };
-              await StorageService.saveSettings(updatedSettings);
-              setSettings(updatedSettings);
-              setTargetHours(String(newTargetHours));
-              showNotification(`Absence logged! New monthly target: ${newTargetHours.toFixed(2)}h | Total absence: ${newAbsenceHours.toFixed(2)}h`, 'success');
-              console.log('Absence logged successfully. New target:', newTargetHours, 'Total absence hours:', newAbsenceHours);
-            } catch (error) {
-              console.log('Error logging absence:', error);
-              showNotification('Error logging absence', 'error');
+    if (deductionType === 'monthly') {
+      // Deduct from monthly target hours
+      const currentTarget = settings.targetHours || 180;
+      const newTargetHours = Math.max(0, currentTarget - absenceHours);
+      
+      Alert.alert(
+        'Log Absence - Monthly Target',
+        `This will deduct ${absenceHours.toFixed(2)} hours from your monthly target hours:\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n📈 Monthly Target Update:\nCurrent Target: ${currentTarget} hours\nAbsence Deduction: -${absenceHours.toFixed(2)} hours\nNew Monthly Target: ${newTargetHours.toFixed(2)} hours\n\n✅ The monthly target progress circle will update automatically.\n\nContinue?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Log Absence',
+            style: 'default',
+            onPress: async () => {
+              try {
+                const updatedSettings = { 
+                  ...settings, 
+                  targetHours: newTargetHours,
+                  absenceMonth: currentMonth,
+                  absenceYear: currentYear
+                };
+                await StorageService.saveSettings(updatedSettings);
+                setSettings(updatedSettings);
+                setTargetHours(String(newTargetHours));
+                showNotification(`Absence logged! New monthly target: ${newTargetHours.toFixed(2)}h`, 'success');
+                console.log('Absence logged successfully. New target:', newTargetHours);
+              } catch (error) {
+                console.log('Error logging absence:', error);
+                showNotification('Error logging absence', 'error');
+              }
             }
           }
-        }
-      ]
-    );
-  }, [settings, numberOfAbsentDays, absenceType, showNotification]);
+        ]
+      );
+    } else {
+      // Deduct from total available hours (for efficiency calculations)
+      const newAbsenceHours = currentAbsenceHours + absenceHours;
+      
+      Alert.alert(
+        'Log Absence - Available Hours',
+        `This will deduct ${absenceHours.toFixed(2)} hours from your total available hours (used in efficiency calculations):\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n⏰ Available Hours Update:\nCurrent Absence This Month: ${currentAbsenceHours.toFixed(2)} hours\nNew Absence Deduction: +${absenceHours.toFixed(2)} hours\nTotal Absence This Month: ${newAbsenceHours.toFixed(2)} hours\n\n✅ The efficiency circle will update automatically.\n(This will NOT affect your monthly target hours)\n\nContinue?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Log Absence',
+            style: 'default',
+            onPress: async () => {
+              try {
+                const updatedSettings = { 
+                  ...settings, 
+                  absenceHours: newAbsenceHours,
+                  absenceMonth: currentMonth,
+                  absenceYear: currentYear
+                };
+                await StorageService.saveSettings(updatedSettings);
+                setSettings(updatedSettings);
+                showNotification(`Absence logged! Total absence: ${newAbsenceHours.toFixed(2)}h`, 'success');
+                console.log('Absence logged successfully. Total absence hours:', newAbsenceHours);
+              } catch (error) {
+                console.log('Error logging absence:', error);
+                showNotification('Error logging absence', 'error');
+              }
+            }
+          }
+        ]
+      );
+    }
+  }, [settings, numberOfAbsentDays, absenceType, deductionType, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -477,9 +511,7 @@ export default function SettingsScreen() {
           <View style={styles.absenceLoggerSection}>
             <Text style={styles.absenceLoggerTitle}>🏖️ Absence Logger</Text>
             <Text style={styles.absenceLoggerDescription}>
-              Log absences to automatically reduce your monthly target hours AND total available hours. 
-              The absence hours will be deducted from both your current target and your available working hours, 
-              ensuring all dashboard calculations (progress circles and efficiency) update accurately.
+              Log absences to automatically adjust your hours. Choose whether to deduct from monthly target hours or total available hours for efficiency calculations.
             </Text>
             
             {/* Number of Absent Days Dropdown */}
@@ -513,6 +545,26 @@ export default function SettingsScreen() {
               </View>
             </View>
 
+            {/* Deduction Type Dropdown - NEW */}
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownLabel}>Deduction Type</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={deductionType}
+                  onValueChange={(itemValue) => setDeductionType(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Monthly Target Hours" value="monthly" />
+                  <Picker.Item label="Total Available Hours" value="available" />
+                </Picker>
+              </View>
+              <Text style={styles.dropdownHint}>
+                {deductionType === 'monthly' 
+                  ? '📊 Will reduce your monthly target hours (affects progress circle)' 
+                  : '⏰ Will reduce available hours for efficiency calculations (affects efficiency circle)'}
+              </Text>
+            </View>
+
             {/* Absence Preview */}
             <View style={styles.absencePreview}>
               <Text style={styles.previewLabel}>📋 Absence Calculation Preview:</Text>
@@ -520,19 +572,39 @@ export default function SettingsScreen() {
                 {numberOfAbsentDays} {numberOfAbsentDays === 1 ? 'day' : 'days'} × {absenceType === 'half' ? '4.25' : '8.5'} hours = {(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours deducted
               </Text>
               <View style={styles.previewCalculation}>
-                <Text style={styles.previewCalcText}>
-                  Current Target: {(settings.targetHours || 180).toFixed(2)} hours
-                </Text>
-                <Text style={styles.previewCalcText}>
-                  Absence Deduction: -{(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
-                </Text>
-                <View style={styles.previewDivider} />
-                <Text style={styles.previewHighlight}>
-                  New Monthly Target: {Math.max(0, (settings.targetHours || 180) - (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
-                </Text>
-                <Text style={styles.previewHighlight}>
-                  Total Absence This Month: {(currentMonthAbsenceHours + (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
-                </Text>
+                {deductionType === 'monthly' ? (
+                  <>
+                    <Text style={styles.previewCalcText}>
+                      Current Target: {(settings.targetHours || 180).toFixed(2)} hours
+                    </Text>
+                    <Text style={styles.previewCalcText}>
+                      Absence Deduction: -{(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
+                    </Text>
+                    <View style={styles.previewDivider} />
+                    <Text style={styles.previewHighlight}>
+                      New Monthly Target: {Math.max(0, (settings.targetHours || 180) - (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
+                    </Text>
+                    <Text style={[styles.previewNote, { color: colors.textSecondary }]}>
+                      ℹ️ This will affect your monthly target progress circle
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.previewCalcText}>
+                      Current Absence This Month: {currentMonthAbsenceHours.toFixed(2)} hours
+                    </Text>
+                    <Text style={styles.previewCalcText}>
+                      New Absence Deduction: +{(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
+                    </Text>
+                    <View style={styles.previewDivider} />
+                    <Text style={styles.previewHighlight}>
+                      Total Absence This Month: {(currentMonthAbsenceHours + (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
+                    </Text>
+                    <Text style={[styles.previewNote, { color: colors.textSecondary }]}>
+                      ℹ️ This will affect your efficiency calculations only
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
 
@@ -547,25 +619,25 @@ export default function SettingsScreen() {
             <View style={styles.absenceLoggerInfo}>
               <Text style={styles.infoTitle}>ℹ️ How Absence Logging Works:</Text>
               <Text style={styles.infoText}>
-                • Half Day = 4.25 hours deducted from both target and available hours
+                • Half Day = 4.25 hours deducted
               </Text>
               <Text style={styles.infoText}>
-                • Full Day = 8.5 hours deducted from both target and available hours
+                • Full Day = 8.5 hours deducted
               </Text>
               <Text style={styles.infoText}>
-                • Monthly target hours are reduced permanently
+                • Monthly Target Hours: Reduces your monthly target permanently
               </Text>
               <Text style={styles.infoText}>
-                • Available hours are reduced for efficiency calculations
+                • Total Available Hours: Reduces hours for efficiency calculations
               </Text>
               <Text style={styles.infoText}>
-                • Both progress circles update automatically
+                • Progress circles update automatically based on deduction type
               </Text>
               <Text style={styles.infoText}>
                 • Absence hours reset automatically each new month
               </Text>
               <Text style={styles.infoText}>
-                • Example: 2 full days absent = 17h deducted (Target: 180h → 163h, Available: reduced by 17h)
+                • Example: 2 full days absent = 17h deducted from selected type
               </Text>
             </View>
           </View>
@@ -898,6 +970,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     width: '100%',
     color: colors.text,
   },
+  dropdownHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   absencePreview: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
@@ -938,6 +1016,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
     marginTop: 4,
+  },
+  previewNote: {
+    fontSize: 13,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   logAbsenceButton: {
     backgroundColor: '#e74c3c',
