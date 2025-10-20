@@ -24,12 +24,98 @@ export const CalculationService = {
     return `${hours}h ${mins}m`;
   },
 
+  // Calculate available working hours for a given month
+  // Monday to Friday, 8 AM to 5 PM (9 hours), minus 30 minutes lunch = 8.5 hours per day
+  calculateAvailableHours(month: number, year: number): number {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    let workingDays = 0;
+    
+    // Iterate through all days in the month
+    for (let day = firstDay.getDate(); day <= lastDay.getDate(); day++) {
+      const currentDate = new Date(year, month, day);
+      const dayOfWeek = currentDate.getDay();
+      
+      // Count Monday (1) to Friday (5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        workingDays++;
+      }
+    }
+    
+    // 8.5 hours per working day (8 AM to 5 PM minus 30 min lunch)
+    const hoursPerDay = 8.5;
+    const totalAvailableHours = workingDays * hoursPerDay;
+    
+    console.log(`Available hours for ${month + 1}/${year}: ${totalAvailableHours} (${workingDays} working days)`);
+    return totalAvailableHours;
+  },
+
+  // Calculate available hours from start of month to current date
+  calculateAvailableHoursToDate(month: number, year: number): number {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // If the month is in the future, return 0
+    if (year > currentYear || (year === currentYear && month > currentMonth)) {
+      return 0;
+    }
+    
+    const firstDay = new Date(year, month, 1);
+    let lastDay: Date;
+    
+    // If it's the current month, calculate up to today
+    if (year === currentYear && month === currentMonth) {
+      lastDay = today;
+    } else {
+      // If it's a past month, calculate for the entire month
+      lastDay = new Date(year, month + 1, 0);
+    }
+    
+    let workingDays = 0;
+    
+    // Iterate through days from first day to last day
+    for (let day = firstDay.getDate(); day <= lastDay.getDate(); day++) {
+      const currentDate = new Date(year, month, day);
+      const dayOfWeek = currentDate.getDay();
+      
+      // Count Monday (1) to Friday (5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        workingDays++;
+      }
+    }
+    
+    // 8.5 hours per working day
+    const hoursPerDay = 8.5;
+    const totalAvailableHours = workingDays * hoursPerDay;
+    
+    console.log(`Available hours to date for ${month + 1}/${year}: ${totalAvailableHours} (${workingDays} working days)`);
+    return totalAvailableHours;
+  },
+
+  // Calculate efficiency: (Total AW Hours / Total Available Hours) * 100
+  calculateEfficiency(totalAwMinutes: number, month: number, year: number): number {
+    const totalAwHours = this.minutesToHours(totalAwMinutes);
+    const availableHours = this.calculateAvailableHoursToDate(month, year);
+    
+    if (availableHours === 0) {
+      return 0;
+    }
+    
+    const efficiency = (totalAwHours / availableHours) * 100;
+    console.log(`Efficiency: ${efficiency.toFixed(2)}% (${totalAwHours.toFixed(2)}h / ${availableHours.toFixed(2)}h)`);
+    
+    return Math.min(efficiency, 100); // Cap at 100%
+  },
+
   // Calculate performance metrics for different time periods
-  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly', targetHours?: number): {
+  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly', targetHours?: number, month?: number, year?: number): {
     totalAWs: number;
     totalMinutes: number;
     totalHours: number;
     targetHours: number;
+    availableHours: number;
     utilizationPercentage: number;
     efficiency: number;
     avgAWsPerHour: number;
@@ -39,36 +125,48 @@ export const CalculationService = {
     const totalHours = this.minutesToHours(totalMinutes);
     
     let defaultTargetHours = 0;
+    let availableHours = 0;
+    
+    const currentMonth = month !== undefined ? month : new Date().getMonth();
+    const currentYear = year !== undefined ? year : new Date().getFullYear();
+    
     switch (type) {
       case 'daily':
         defaultTargetHours = 8.5; // 8.5 hours per day
+        availableHours = 8.5;
         break;
       case 'weekly':
-        defaultTargetHours = 45; // 45 hours per week
+        defaultTargetHours = 42.5; // 8.5 hours * 5 days
+        availableHours = 42.5;
         break;
       case 'monthly':
-        defaultTargetHours = targetHours || 180; // Use provided target or default to 180 hours per month
+        availableHours = this.calculateAvailableHoursToDate(currentMonth, currentYear);
+        defaultTargetHours = targetHours || availableHours;
         break;
     }
     
     const finalTargetHours = targetHours || defaultTargetHours;
     const utilizationPercentage = finalTargetHours > 0 ? Math.min((totalHours / finalTargetHours) * 100, 100) : 0;
+    
+    // Calculate efficiency based on available hours
+    const efficiency = availableHours > 0 ? Math.min((totalHours / availableHours) * 100, 100) : 0;
+    
     const targetAWsPerHour = 12; // Assuming 12 AWs per hour as target
     const avgAWsPerHour = totalHours > 0 ? totalAWs / totalHours : 0;
-    const efficiency = targetAWsPerHour > 0 ? Math.min((avgAWsPerHour / targetAWsPerHour) * 100, 100) : 0;
     
     return {
       totalAWs,
       totalMinutes,
       totalHours,
       targetHours: finalTargetHours,
+      availableHours,
       utilizationPercentage,
       efficiency,
       avgAWsPerHour
     };
   },
 
-  // Calculate monthly stats
+  // Calculate monthly stats with corrected efficiency
   calculateMonthlyStats(jobs: Job[], targetHours: number = 180): MonthlyStats {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -81,15 +179,23 @@ export const CalculationService = {
     const totalAWs = monthlyJobs.reduce((sum, job) => sum + job.awValue, 0);
     const totalTime = totalAWs * 5; // minutes
     const totalJobs = monthlyJobs.length;
-    const targetMinutes = targetHours * 60;
-    const utilizationPercentage = (totalTime / targetMinutes) * 100;
+    
+    // Calculate available hours for the current month up to today
+    const availableHours = this.calculateAvailableHoursToDate(currentMonth, currentYear);
+    const targetMinutes = availableHours * 60;
+    
+    // Efficiency based on available hours
+    const efficiency = this.calculateEfficiency(totalTime, currentMonth, currentYear);
+    
+    // Utilization based on target hours (for backward compatibility)
+    const utilizationPercentage = targetMinutes > 0 ? Math.min((totalTime / targetMinutes) * 100, 100) : 0;
 
     return {
       totalAWs,
       totalTime,
       totalJobs,
-      targetHours,
-      utilizationPercentage: Math.min(utilizationPercentage, 100)
+      targetHours: availableHours, // Use available hours as the realistic target
+      utilizationPercentage: efficiency // Use efficiency as the utilization percentage
     };
   },
 

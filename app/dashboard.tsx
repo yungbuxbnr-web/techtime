@@ -140,6 +140,10 @@ export default function DashboardScreen() {
     router.push('/settings');
   };
 
+  const navigateToJobRecords = () => {
+    router.push('/job-records');
+  };
+
   const navigateToStats = (type: string) => {
     router.push(`/stats?type=${type}`);
   };
@@ -183,6 +187,15 @@ export default function DashboardScreen() {
               style={styles.optionItem}
               onPress={() => {
                 setShowOptionsMenu(false);
+                navigateToJobRecords();
+              }}
+            >
+              <Text style={styles.optionText}>Job Records</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                setShowOptionsMenu(false);
                 router.push('/export');
               }}
             >
@@ -211,9 +224,12 @@ export default function DashboardScreen() {
                 color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
               />
               <View style={styles.progressLabelsContainer}>
-                <Text style={styles.progressLabel}>Monthly Progress</Text>
+                <Text style={styles.progressLabel}>Monthly Efficiency</Text>
                 <Text style={styles.progressSubtext}>
-                  {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours}h
+                  {CalculationService.formatTime(monthlyStats.totalTime)} / {monthlyStats.targetHours.toFixed(1)}h
+                </Text>
+                <Text style={styles.progressPercentage}>
+                  {monthlyStats.utilizationPercentage.toFixed(1)}%
                 </Text>
               </View>
             </TouchableOpacity>
@@ -297,9 +313,9 @@ export default function DashboardScreen() {
             <View style={styles.secondaryActions}>
               <TouchableOpacity
                 style={styles.secondaryAction}
-                onPress={navigateToJobs}
+                onPress={navigateToJobRecords}
               >
-                <Text style={styles.secondaryActionText}>View All Jobs</Text>
+                <Text style={styles.secondaryActionText}>Job Records</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -425,6 +441,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
+  },
+  progressPercentage: {
+    fontSize: 12,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: 2,
+    fontWeight: '600',
   },
   statsGrid: {
     flexDirection: 'row',
