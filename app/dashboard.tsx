@@ -79,6 +79,7 @@ export default function DashboardScreen() {
         totalAWs: stats.totalAWs,
         soldHours: stats.totalSoldHours?.toFixed(2),
         availableHours: stats.totalAvailableHours?.toFixed(2),
+        targetHours: stats.targetHours,
         efficiency: stats.efficiency
       });
     } catch (error) {
@@ -170,9 +171,9 @@ export default function DashboardScreen() {
   const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
   const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
 
-  // Calculate target hours progress percentage
-  const targetHoursPercentage = monthlyStats.totalAvailableHours > 0 
-    ? Math.min((monthlyStats.totalSoldHours / monthlyStats.totalAvailableHours) * 100, 100)
+  // Calculate target hours progress percentage - FIXED: sold hours out of target hours
+  const targetHoursPercentage = monthlyStats.targetHours > 0 
+    ? Math.min((monthlyStats.totalSoldHours / monthlyStats.targetHours) * 100, 100)
     : 0;
 
   const styles = createStyles(colors, efficiencyColor);
@@ -235,7 +236,7 @@ export default function DashboardScreen() {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Two Progress Circles Side by Side */}
           <View style={styles.progressSection}>
-            {/* Monthly Target Hours Circle */}
+            {/* Monthly Target Hours Circle - FIXED: Shows sold hours out of target hours */}
             <TouchableOpacity 
               style={styles.progressCircleContainer}
               onPress={() => navigateToStats('hours')}
@@ -249,7 +250,7 @@ export default function DashboardScreen() {
               <View style={styles.progressLabelsContainer}>
                 <Text style={styles.progressLabel}>Monthly Target</Text>
                 <Text style={styles.progressValue}>
-                  {monthlyStats.totalSoldHours.toFixed(1)}h / {monthlyStats.totalAvailableHours.toFixed(1)}h
+                  {monthlyStats.totalSoldHours.toFixed(1)}h / {monthlyStats.targetHours}h
                 </Text>
                 <Text style={styles.progressSubtext}>
                   {targetHoursPercentage.toFixed(0)}% Complete
@@ -276,6 +277,9 @@ export default function DashboardScreen() {
                 <Text style={[styles.progressValue, { color: efficiencyColor }]}>
                   {efficiency}%
                 </Text>
+                <Text style={styles.progressSubtext}>
+                  {monthlyStats.totalAvailableHours.toFixed(1)}h available
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -291,6 +295,12 @@ export default function DashboardScreen() {
               <Text style={styles.efficiencyLabel}>Total Sold Hours:</Text>
               <Text style={styles.efficiencyValue}>
                 {(monthlyStats.totalSoldHours || 0).toFixed(2)}h
+              </Text>
+            </View>
+            <View style={styles.efficiencyRow}>
+              <Text style={styles.efficiencyLabel}>Monthly Target Hours:</Text>
+              <Text style={styles.efficiencyValue}>
+                {monthlyStats.targetHours}h
               </Text>
             </View>
             <View style={styles.efficiencyRow}>
@@ -345,10 +355,10 @@ export default function DashboardScreen() {
               onPress={() => navigateToStats('remaining')}
             >
               <Text style={styles.statValue}>
-                {Math.max(0, (monthlyStats.totalAvailableHours || 0) - (monthlyStats.totalSoldHours || 0)).toFixed(1)}h
+                {Math.max(0, monthlyStats.targetHours - monthlyStats.totalSoldHours).toFixed(1)}h
               </Text>
               <Text style={styles.statLabel}>Hours Remaining</Text>
-              <Text style={styles.statSubtext}>This Month</Text>
+              <Text style={styles.statSubtext}>To Target</Text>
             </TouchableOpacity>
           </View>
 
