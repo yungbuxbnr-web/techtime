@@ -170,6 +170,11 @@ export default function DashboardScreen() {
   const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
   const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
 
+  // Calculate target hours progress percentage
+  const targetHoursPercentage = monthlyStats.totalAvailableHours > 0 
+    ? Math.min((monthlyStats.totalSoldHours / monthlyStats.totalAvailableHours) * 100, 100)
+    : 0;
+
   const styles = createStyles(colors, efficiencyColor);
 
   return (
@@ -228,21 +233,47 @@ export default function DashboardScreen() {
         )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Monthly Progress Circle with Efficiency */}
+          {/* Two Progress Circles Side by Side */}
           <View style={styles.progressSection}>
-            <TouchableOpacity onPress={() => navigateToStats('efficiency')}>
+            {/* Monthly Target Hours Circle */}
+            <TouchableOpacity 
+              style={styles.progressCircleContainer}
+              onPress={() => navigateToStats('hours')}
+            >
+              <ProgressCircle
+                percentage={targetHoursPercentage}
+                size={140}
+                strokeWidth={12}
+                color={colors.primary}
+              />
+              <View style={styles.progressLabelsContainer}>
+                <Text style={styles.progressLabel}>Monthly Target</Text>
+                <Text style={styles.progressValue}>
+                  {monthlyStats.totalSoldHours.toFixed(1)}h / {monthlyStats.totalAvailableHours.toFixed(1)}h
+                </Text>
+                <Text style={styles.progressSubtext}>
+                  {targetHoursPercentage.toFixed(0)}% Complete
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Efficiency Circle */}
+            <TouchableOpacity 
+              style={styles.progressCircleContainer}
+              onPress={() => navigateToStats('efficiency')}
+            >
               <ProgressCircle
                 percentage={efficiency}
-                size={160}
+                size={140}
                 strokeWidth={12}
                 color={efficiencyColor}
               />
               <View style={styles.progressLabelsContainer}>
-                <Text style={styles.progressLabel}>Monthly Efficiency</Text>
+                <Text style={styles.progressLabel}>Efficiency</Text>
                 <Text style={[styles.efficiencyStatus, { color: efficiencyColor }]}>
                   {efficiencyStatus}
                 </Text>
-                <Text style={styles.progressPercentage}>
+                <Text style={[styles.progressValue, { color: efficiencyColor }]}>
                   {efficiency}%
                 </Text>
               </View>
@@ -251,7 +282,7 @@ export default function DashboardScreen() {
 
           {/* Efficiency Details Card */}
           <View style={styles.efficiencyCard}>
-            <Text style={styles.efficiencyCardTitle}>Efficiency Breakdown</Text>
+            <Text style={styles.efficiencyCardTitle}>Monthly Breakdown</Text>
             <View style={styles.efficiencyRow}>
               <Text style={styles.efficiencyLabel}>Total AW:</Text>
               <Text style={styles.efficiencyValue}>{monthlyStats.totalAWs}</Text>
@@ -466,31 +497,44 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     backgroundColor: colors.background,
   },
   progressSection: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
     paddingVertical: 32,
+    gap: 16,
+  },
+  progressCircleContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   progressLabelsContainer: {
     alignItems: 'center',
     marginTop: 16,
   },
   progressLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
     textAlign: 'center',
     fontWeight: '600',
   },
-  efficiencyStatus: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  progressPercentage: {
-    fontSize: 28,
-    color: efficiencyColor,
+  progressValue: {
+    fontSize: 16,
+    color: colors.text,
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '700',
+  },
+  progressSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  efficiencyStatus: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    fontWeight: '600',
   },
   efficiencyCard: {
     backgroundColor: colors.card,

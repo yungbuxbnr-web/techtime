@@ -93,6 +93,46 @@ export default function ExportScreen() {
     return months[month];
   }, []);
 
+  const generateEfficiencyGraphSVG = useCallback((efficiency: number, soldHours: number, availableHours: number) => {
+    const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
+    const percentage = Math.min(efficiency, 100);
+    const barWidth = (percentage / 100) * 300;
+    
+    return `
+      <svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background -->
+        <rect x="0" y="0" width="400" height="200" fill="#f8f9fa" rx="8"/>
+        
+        <!-- Title -->
+        <text x="200" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1a73e8">
+          Efficiency Graph
+        </text>
+        
+        <!-- Bar Background -->
+        <rect x="50" y="60" width="300" height="40" fill="#e8eaed" rx="20"/>
+        
+        <!-- Bar Fill -->
+        <rect x="50" y="60" width="${barWidth}" height="40" fill="${efficiencyColor}" rx="20"/>
+        
+        <!-- Percentage Text -->
+        <text x="200" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffffff">
+          ${efficiency}%
+        </text>
+        
+        <!-- Legend -->
+        <text x="50" y="130" font-family="Arial, sans-serif" font-size="14" fill="#5f6368">
+          Sold Hours: <tspan font-weight="bold" fill="#1a73e8">${soldHours.toFixed(2)}h</tspan>
+        </text>
+        <text x="50" y="155" font-family="Arial, sans-serif" font-size="14" fill="#5f6368">
+          Available Hours: <tspan font-weight="bold" fill="#1a73e8">${availableHours.toFixed(2)}h</tspan>
+        </text>
+        <text x="50" y="180" font-family="Arial, sans-serif" font-size="14" fill="#5f6368">
+          Efficiency: <tspan font-weight="bold" fill="${efficiencyColor}">${efficiency}%</tspan>
+        </text>
+      </svg>
+    `;
+  }, []);
+
   const generateStylishPDFHTML = useCallback((exportJobs: Job[], title: string, reportType: string, exportType: 'daily' | 'weekly' | 'monthly' | 'all') => {
     // Calculate performance metrics based on export type
     let performanceType: 'daily' | 'weekly' | 'monthly' = 'monthly';
@@ -151,6 +191,13 @@ export default function ExportScreen() {
     const formattedTotalTime = CalculationService.formatTime(metrics.totalMinutes);
     const remainingHours = Math.max(0, metrics.targetHours - metrics.totalHours);
     const formattedRemainingTime = CalculationService.formatTime(remainingHours * 60);
+
+    // Generate efficiency graph SVG
+    const efficiencyGraphSVG = generateEfficiencyGraphSVG(
+      metrics.efficiency,
+      metrics.totalSoldHours,
+      metrics.availableHours
+    );
 
     return `
       <!DOCTYPE html>
@@ -272,6 +319,26 @@ export default function ExportScreen() {
               text-transform: uppercase;
               letter-spacing: 1px;
               font-weight: 600;
+            }
+            .efficiency-graph-section {
+              background: linear-gradient(135deg, #e8f0fe 0%, #f1f8e9 100%);
+              padding: 32px;
+              border-radius: 12px;
+              margin-top: 24px;
+              border: 1px solid #dadce0;
+              text-align: center;
+            }
+            .efficiency-graph-title {
+              font-size: 24px;
+              font-weight: 700;
+              color: #1a73e8;
+              margin: 0 0 24px 0;
+            }
+            .efficiency-graph-container {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              margin-bottom: 16px;
             }
             .performance-section {
               background: linear-gradient(135deg, #e8f0fe 0%, #f1f8e9 100%);
@@ -478,8 +545,16 @@ export default function ExportScreen() {
                 </div>
               </div>
               
+              <!-- Efficiency Graph -->
+              <div class="efficiency-graph-section">
+                <div class="efficiency-graph-title">⚡ Efficiency Analysis</div>
+                <div class="efficiency-graph-container">
+                  ${efficiencyGraphSVG}
+                </div>
+              </div>
+              
               <div class="performance-section">
-                <div class="performance-title">⚡ Performance Metrics</div>
+                <div class="performance-title">📈 Performance Metrics</div>
                 <div class="performance-grid">
                   <div class="performance-item">
                     <div class="performance-number">${metrics.utilizationPercentage.toFixed(1)}%</div>
@@ -560,7 +635,7 @@ export default function ExportScreen() {
         </body>
       </html>
     `;
-  }, []);
+  }, [generateEfficiencyGraphSVG]);
 
   const saveToBackupFolder = useCallback(async (pdfUri: string, fileName: string) => {
     try {
@@ -662,7 +737,7 @@ export default function ExportScreen() {
         return;
       }
 
-      showNotification('Generating PDF with performance metrics...', 'info');
+      showNotification('Generating PDF with efficiency graph...', 'info');
 
       const htmlContent = generateStylishPDFHTML(exportJobs, title, reportType, type);
       
@@ -689,7 +764,7 @@ export default function ExportScreen() {
       // Show options for what to do with the PDF
       Alert.alert(
         'PDF Generated Successfully! 📄',
-        `${reportType} report with performance metrics is ready. What would you like to do?`,
+        `${reportType} report with efficiency graph is ready. What would you like to do?`,
         [
           {
             text: 'Share to Apps',
@@ -846,7 +921,7 @@ export default function ExportScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
-          Export your job records as stylish PDF reports with professional formatting, detailed tables, and comprehensive performance metrics calculated based on your data.
+          Export your job records as stylish PDF reports with professional formatting, detailed tables, efficiency graphs, and comprehensive performance metrics calculated based on your data.
         </Text>
 
         {/* Permission Status */}
@@ -961,13 +1036,16 @@ export default function ExportScreen() {
             • 📊 Comprehensive summary statistics with visual formatting
           </Text>
           <Text style={styles.infoText}>
+            • 📈 Visual efficiency graph showing sold vs available hours
+          </Text>
+          <Text style={styles.infoText}>
             • ⚡ Performance metrics calculated based on actual data and time periods
           </Text>
           <Text style={styles.infoText}>
-            • 📈 Utilization percentages: Daily (8.5h), Weekly (45h), Monthly (180h)
+            • 🎯 Utilization percentages: Daily (8.5h), Weekly (45h), Monthly (180h)
           </Text>
           <Text style={styles.infoText}>
-            • 🎯 Efficiency calculations based on 12 AWs/hour target
+            • 🔢 Efficiency calculations based on 12 AWs/hour target
           </Text>
           <Text style={styles.infoText}>
             • 📋 Detailed job table with all information organized clearly
