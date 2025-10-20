@@ -764,6 +764,17 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Help Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>❓ Help & Support</Text>
+          <Text style={styles.sectionDescription}>
+            Access the complete user guide with detailed instructions on how to use every feature of the app. Export the guide as PDF for offline reference or sharing.
+          </Text>
+          <TouchableOpacity style={[styles.button, styles.helpButton]} onPress={() => router.push('/help')}>
+            <Text style={styles.buttonText}>📖 Open User Guide</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* About Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ℹ️ About</Text>
@@ -1064,6 +1075,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   exportButton: {
     backgroundColor: colors.primary,
+  },
+  helpButton: {
+    backgroundColor: '#9c27b0',
   },
   signOutButton: {
     backgroundColor: '#ff9800',
