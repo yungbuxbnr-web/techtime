@@ -13,11 +13,25 @@ export default function StatsScreen() {
   const { colors } = useTheme();
   const { type } = useLocalSearchParams<{ type: string }>();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [targetHours, setTargetHours] = useState(180);
+  const [absenceHours, setAbsenceHours] = useState(0);
 
   const loadJobs = useCallback(async () => {
     try {
-      const jobsData = await StorageService.getJobs();
+      const [jobsData, settings] = await Promise.all([
+        StorageService.getJobs(),
+        StorageService.getSettings()
+      ]);
       setJobs(jobsData);
+      setTargetHours(settings.targetHours || 180);
+      
+      // Get current month's absence hours
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const currentAbsenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
+        ? (settings.absenceHours || 0) 
+        : 0;
+      setAbsenceHours(currentAbsenceHours);
     } catch (error) {
       console.log('Error loading jobs:', error);
     }
@@ -47,13 +61,78 @@ export default function StatsScreen() {
   };
 
   const getStatsData = () => {
-    const monthlyStats = CalculationService.calculateMonthlyStats(jobs);
+    const monthlyStats = CalculationService.calculateMonthlyStats(jobs, targetHours, absenceHours);
     const today = new Date();
     const dailyJobs = CalculationService.getDailyJobs(jobs, today);
     const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
     const monthlyJobs = CalculationService.getMonthlyJobs(jobs, today);
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
 
     switch (type) {
+      case 'hours':
+        // Monthly Target Hours Statistics
+        const hoursRemaining = Math.max(0, monthlyStats.targetHours - monthlyStats.totalSoldHours);
+        const targetProgress = monthlyStats.targetHours > 0 
+          ? Math.min((monthlyStats.totalSoldHours / monthlyStats.targetHours) * 100, 100)
+          : 0;
+        
+        return {
+          title: 'Monthly Target Hours',
+          mainValue: `${monthlyStats.totalSoldHours.toFixed(1)}h`,
+          mainLabel: `of ${monthlyStats.targetHours}h Target`,
+          showProgress: true,
+          progressPercentage: targetProgress,
+          progressColor: targetProgress >= 100 ? colors.success : colors.primary,
+          details: [
+            { label: 'Monthly Target', value: `${monthlyStats.targetHours}h` },
+            { label: 'Currently Sold Hours', value: `${monthlyStats.totalSoldHours.toFixed(2)}h` },
+            { label: 'Hours Remaining', value: `${hoursRemaining.toFixed(2)}h` },
+            { label: 'Progress', value: `${targetProgress.toFixed(1)}%` },
+            { label: 'Total AWs This Month', value: `${monthlyStats.totalAWs} AWs` },
+            { label: 'Total Jobs This Month', value: `${monthlyStats.totalJobs} jobs` },
+          ],
+          additionalInfo: {
+            title: 'Breakdown',
+            items: [
+              { label: 'Today', value: `${dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs • ${CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}` },
+              { label: 'This Week', value: `${weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs • ${CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}` },
+              { label: 'This Month', value: `${monthlyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs • ${CalculationService.formatTime(monthlyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}` },
+            ]
+          }
+        };
+
+      case 'efficiency':
+        // Efficiency Statistics
+        const efficiency = monthlyStats.efficiency || 0;
+        const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
+        const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
+        
+        return {
+          title: 'Efficiency Statistics',
+          mainValue: `${efficiency}%`,
+          mainLabel: efficiencyStatus,
+          showProgress: true,
+          progressPercentage: efficiency,
+          progressColor: efficiencyColor,
+          details: [
+            { label: 'Efficiency', value: `${efficiency}%`, highlight: true, color: efficiencyColor },
+            { label: 'Total Sold Hours', value: `${monthlyStats.totalSoldHours.toFixed(2)}h` },
+            { label: 'Total Available Hours', value: `${monthlyStats.totalAvailableHours.toFixed(2)}h` },
+            { label: 'Absence Hours Deducted', value: `${absenceHours}h` },
+            { label: 'Total AWs', value: `${monthlyStats.totalAWs} AWs` },
+            { label: 'Calculation', value: `(${monthlyStats.totalSoldHours.toFixed(2)}h ÷ ${monthlyStats.totalAvailableHours.toFixed(2)}h) × 100` },
+          ],
+          additionalInfo: {
+            title: 'Efficiency Ranges',
+            items: [
+              { label: 'Excellent (Green)', value: '65% - 100%', color: '#4CAF50' },
+              { label: 'Average (Yellow)', value: '31% - 64%', color: '#FFC107' },
+              { label: 'Needs Improvement (Red)', value: '0% - 30%', color: '#F44336' },
+            ]
+          }
+        };
+      
       case 'aws':
         return {
           title: 'Total AWs Breakdown',
@@ -118,7 +197,7 @@ export default function StatsScreen() {
   };
 
   const statsData = getStatsData();
-  const monthlyStats = CalculationService.calculateMonthlyStats(jobs);
+  const monthlyStats = CalculationService.calculateMonthlyStats(jobs, targetHours, absenceHours);
   const styles = createStyles(colors);
 
   return (
@@ -132,9 +211,31 @@ export default function StatsScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.mainStat}>
-          <Text style={styles.mainValue}>{statsData.mainValue}</Text>
+          <Text style={[
+            styles.mainValue,
+            statsData.progressColor && { color: statsData.progressColor }
+          ]}>
+            {statsData.mainValue}
+          </Text>
           <Text style={styles.mainLabel}>{statsData.mainLabel}</Text>
         </View>
+
+        {statsData.showProgress && (
+          <View style={styles.progressSection}>
+            <ProgressCircle
+              percentage={statsData.progressPercentage || 0}
+              size={150}
+              strokeWidth={12}
+              color={statsData.progressColor || colors.primary}
+            />
+            <Text style={[
+              styles.progressText,
+              statsData.progressColor && { color: statsData.progressColor }
+            ]}>
+              {statsData.progressPercentage?.toFixed(1)}%
+            </Text>
+          </View>
+        )}
 
         {type === 'remaining' && (
           <View style={styles.progressSection}>
@@ -153,12 +254,48 @@ export default function StatsScreen() {
         <View style={styles.detailsSection}>
           <Text style={styles.detailsTitle}>Detailed Breakdown</Text>
           {statsData.details.map((detail, index) => (
-            <View key={index} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{detail.label}</Text>
-              <Text style={styles.detailValue}>{detail.value}</Text>
+            <View key={index} style={[
+              styles.detailRow,
+              detail.highlight && styles.detailRowHighlight
+            ]}>
+              <Text style={[
+                styles.detailLabel,
+                detail.highlight && styles.detailLabelBold
+              ]}>
+                {detail.label}
+              </Text>
+              <Text style={[
+                styles.detailValue,
+                detail.highlight && styles.detailValueBold,
+                detail.color && { color: detail.color }
+              ]}>
+                {detail.value}
+              </Text>
             </View>
           ))}
         </View>
+
+        {statsData.additionalInfo && (
+          <View style={styles.additionalInfoSection}>
+            <Text style={styles.sectionTitle}>{statsData.additionalInfo.title}</Text>
+            {statsData.additionalInfo.items.map((item, index) => (
+              <View key={index} style={styles.additionalInfoRow}>
+                <Text style={[
+                  styles.additionalInfoLabel,
+                  item.color && { color: item.color }
+                ]}>
+                  {item.label}
+                </Text>
+                <Text style={[
+                  styles.additionalInfoValue,
+                  item.color && { color: item.color }
+                ]}>
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {type === 'jobs' && jobs.length > 0 && (
           <View style={styles.recentJobsSection}>
@@ -293,14 +430,62 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  detailRowHighlight: {
+    backgroundColor: colors.background,
+    marginHorizontal: -8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderBottomWidth: 0,
+    marginTop: 8,
+  },
   detailLabel: {
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  detailLabelBold: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
   },
   detailValue: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+  },
+  detailValueBold: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  additionalInfoSection: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  additionalInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  additionalInfoLabel: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  additionalInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'right',
+    flex: 1,
   },
   recentJobsSection: {
     marginBottom: 24,
