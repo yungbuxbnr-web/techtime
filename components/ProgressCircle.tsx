@@ -10,6 +10,8 @@ interface ProgressCircleProps {
   strokeWidth: number;
   color: string;
   backgroundColor?: string;
+  centerText?: string;
+  centerSubtext?: string;
 }
 
 export default function ProgressCircle({
@@ -17,7 +19,9 @@ export default function ProgressCircle({
   size,
   strokeWidth,
   color,
-  backgroundColor
+  backgroundColor,
+  centerText,
+  centerSubtext
 }: ProgressCircleProps) {
   const { colors } = useTheme();
   const bgColor = backgroundColor || (colors.border || '#e5e7eb');
@@ -52,11 +56,24 @@ export default function ProgressCircle({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
-      {/* Percentage text in the center */}
+      {/* Text in the center */}
       <View style={styles.textContainer}>
-        <Text style={[styles.percentageText, { color: colors.text }]}>
-          {percentage.toFixed(1)}%
-        </Text>
+        {centerText ? (
+          <>
+            <Text style={[styles.centerText, { color: colors.text }]}>
+              {centerText}
+            </Text>
+            {centerSubtext && (
+              <Text style={[styles.centerSubtext, { color: colors.textSecondary }]}>
+                {centerSubtext}
+              </Text>
+            )}
+          </>
+        ) : (
+          <Text style={[styles.percentageText, { color: colors.text }]}>
+            {percentage.toFixed(1)}%
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -82,5 +99,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  centerText: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  centerSubtext: {
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 2,
   },
 });

@@ -103,22 +103,25 @@ export const CalculationService = {
     return roundedEfficiency;
   },
 
-  // Get efficiency color based on percentage
+  // Get efficiency color based on percentage with new color ranges
+  // Green: 65% to 100%
+  // Red: 0% to 30%
+  // Yellow/Orange: 31% to 64%
   getEfficiencyColor(efficiency: number): string {
-    if (efficiency >= 90) {
-      return '#4CAF50'; // Green - excellent
-    } else if (efficiency >= 75) {
-      return '#FFC107'; // Yellow - average
+    if (efficiency >= 65) {
+      return '#4CAF50'; // Green - excellent (65% to 100%)
+    } else if (efficiency >= 31) {
+      return '#FFC107'; // Yellow/Orange - average (31% to 64%)
     } else {
-      return '#F44336'; // Red - needs improvement
+      return '#F44336'; // Red - needs improvement (0% to 30%)
     }
   },
 
   // Get efficiency status text
   getEfficiencyStatus(efficiency: number): string {
-    if (efficiency >= 90) {
+    if (efficiency >= 65) {
       return 'Excellent';
-    } else if (efficiency >= 75) {
+    } else if (efficiency >= 31) {
       return 'Average';
     } else {
       return 'Needs Improvement';
@@ -184,12 +187,12 @@ export const CalculationService = {
         break;
       case 'monthly':
         availableHours = this.calculateAvailableHoursToDate(currentMonth, currentYear);
-        defaultTargetHours = targetHours || availableHours;
+        defaultTargetHours = targetHours || 180;
         break;
     }
     
     const finalTargetHours = targetHours || defaultTargetHours;
-    const utilizationPercentage = finalTargetHours > 0 ? Math.min((totalHours / finalTargetHours) * 100, 100) : 0;
+    const utilizationPercentage = finalTargetHours > 0 ? Math.min((totalSoldHours / finalTargetHours) * 100, 100) : 0;
     
     // Calculate efficiency based on available hours
     const efficiency = availableHours > 0 ? Math.round((totalSoldHours / availableHours) * 100) : 0;
@@ -231,14 +234,17 @@ export const CalculationService = {
     // Calculate efficiency
     const efficiency = this.calculateEfficiency(totalAWs, currentMonth, currentYear);
 
+    // Calculate target hours progress percentage (sold hours vs target hours)
+    const targetHoursPercentage = targetHours > 0 ? Math.min((totalSoldHours / targetHours) * 100, 100) : 0;
+
     return {
       totalAWs,
       totalTime,
       totalJobs,
       totalSoldHours,
       totalAvailableHours,
-      targetHours: totalAvailableHours, // Use available hours as the realistic target
-      utilizationPercentage: efficiency, // Use efficiency as the utilization percentage
+      targetHours: targetHours, // Use the editable target hours from settings
+      utilizationPercentage: targetHoursPercentage, // Progress towards target hours
       efficiency
     };
   },
