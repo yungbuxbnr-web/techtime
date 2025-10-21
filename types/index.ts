@@ -9,6 +9,14 @@ export interface Job {
   timeInMinutes: number; // Calculated from AWs (1 AW = 5 minutes)
 }
 
+export interface FormulaSettings {
+  awToMinutes?: number; // 1 AW = X minutes (default 5)
+  hoursPerDay?: number; // Working hours per day (default 8.5)
+  targetAWsPerHour?: number; // Target AWs per hour (default 12)
+  efficiencyGreenThreshold?: number; // Green efficiency threshold (default 65)
+  efficiencyYellowThreshold?: number; // Yellow efficiency threshold (default 31)
+}
+
 export interface AppSettings {
   pin: string;
   isAuthenticated: boolean;
@@ -17,6 +25,8 @@ export interface AppSettings {
   absenceMonth?: number; // Month for which absence hours are tracked
   absenceYear?: number; // Year for which absence hours are tracked
   theme?: 'light' | 'dark'; // Theme preference
+  biometricEnabled?: boolean; // Biometric login enabled
+  formulas?: FormulaSettings; // Custom formula settings
 }
 
 export interface MonthlyStats {

@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
+import { BiometricService } from '../utils/biometricService';
 import NotificationToast from '../components/NotificationToast';
 import Keypad from '../components/Keypad';
 import { useTheme } from '../contexts/ThemeContext';
@@ -14,19 +15,69 @@ export default function AuthScreen() {
   const [correctPin, setCorrectPin] = useState('3101');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isShaking, setIsShaking] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
 
   useEffect(() => {
     loadSettings();
-    console.log('Auth screen loaded - PIN required on app start');
+    checkBiometricAvailability();
+    console.log('Auth screen loaded - Authentication required on app start');
   }, []);
 
   const loadSettings = async () => {
     try {
       const settings = await StorageService.getSettings();
       setCorrectPin(settings.pin);
-      console.log('Settings loaded, PIN required');
+      setBiometricEnabled(settings.biometricEnabled || false);
+      console.log('Settings loaded, authentication required');
     } catch (error) {
       console.log('Error loading settings:', error);
+    }
+  };
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const isAvailable = await BiometricService.isAvailable();
+      setBiometricAvailable(isAvailable);
+      
+      if (isAvailable) {
+        const types = await BiometricService.getSupportedTypes();
+        setBiometricTypes(types);
+        console.log('Biometric authentication available:', types);
+        
+        // Auto-trigger biometric if enabled
+        const settings = await StorageService.getSettings();
+        if (settings.biometricEnabled) {
+          setTimeout(() => {
+            handleBiometricAuth();
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.log('Error checking biometric availability:', error);
+    }
+  };
+
+  const handleBiometricAuth = async () => {
+    try {
+      const result = await BiometricService.authenticate('Authenticate to access Technician Records');
+      
+      if (result.success) {
+        const settings = await StorageService.getSettings();
+        await StorageService.saveSettings({ ...settings, isAuthenticated: true });
+        showNotification('Biometric Authentication Successful', 'success');
+        console.log('Biometric authentication successful');
+        setTimeout(() => {
+          router.replace('/dashboard');
+        }, 1000);
+      } else {
+        showNotification(result.error || 'Biometric authentication failed. Please use PIN.', 'error');
+        console.log('Biometric authentication failed:', result.error);
+      }
+    } catch (error) {
+      console.log('Error during biometric authentication:', error);
+      showNotification('Biometric authentication error. Please use PIN.', 'error');
     }
   };
 
@@ -90,6 +141,20 @@ export default function AuthScreen() {
     setNotification({ ...notification, visible: false });
   };
 
+  const getBiometricIcon = () => {
+    if (biometricTypes.includes('Face ID')) return '👤';
+    if (biometricTypes.includes('Fingerprint')) return '👆';
+    if (biometricTypes.includes('Iris')) return '👁️';
+    return '🔐';
+  };
+
+  const getBiometricLabel = () => {
+    if (biometricTypes.length > 0) {
+      return `Use ${biometricTypes.join(' or ')}`;
+    }
+    return 'Use Biometric';
+  };
+
   const styles = createStyles(colors);
 
   return (
@@ -107,6 +172,16 @@ export default function AuthScreen() {
             <Text style={styles.title}>Technician Records</Text>
             <Text style={styles.subtitle}>Buckston Rugge</Text>
             <Text style={styles.label}>Enter PIN</Text>
+            
+            {biometricAvailable && biometricEnabled && (
+              <TouchableOpacity 
+                style={styles.biometricButton}
+                onPress={handleBiometricAuth}
+              >
+                <Text style={styles.biometricIcon}>{getBiometricIcon()}</Text>
+                <Text style={styles.biometricText}>{getBiometricLabel()}</Text>
+              </TouchableOpacity>
+            )}
           </View>
           
           <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
@@ -165,6 +240,27 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
+  },
+  biometricButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: colors.primary,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 4,
+  },
+  biometricIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  biometricText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   keypadContainer: {
     flex: 1,

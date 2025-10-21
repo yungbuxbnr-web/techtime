@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { StorageService } from '../utils/storage';
 import { BackupService, BackupData } from '../utils/backupService';
+import { BiometricService } from '../utils/biometricService';
+import { PDFImportService } from '../utils/pdfImportService';
 import { CalculationService } from '../utils/calculations';
 import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
@@ -13,6 +15,7 @@ import GoogleDriveBackup from '../components/GoogleDriveBackup';
 import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
+import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
@@ -26,6 +29,8 @@ export default function SettingsScreen() {
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
 
   // Absence logger dropdown states
   const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
@@ -77,7 +82,23 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     checkAuthAndLoadData();
+    checkBiometricAvailability();
   }, [checkAuthAndLoadData]);
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const isAvailable = await BiometricService.isAvailable();
+      setBiometricAvailable(isAvailable);
+      
+      if (isAvailable) {
+        const types = await BiometricService.getSupportedTypes();
+        setBiometricTypes(types);
+        console.log('Biometric authentication available:', types);
+      }
+    } catch (error) {
+      console.log('Error checking biometric availability:', error);
+    }
+  };
 
   const handleToggleTheme = useCallback(async () => {
     try {
@@ -378,6 +399,126 @@ export default function SettingsScreen() {
       ]
     );
   }, [isImportInProgress, showNotification]);
+
+  const handleImportFromFile = useCallback(async () => {
+    if (isImportInProgress) return;
+
+    setIsImportInProgress(true);
+    showNotification('Opening file picker...', 'info');
+
+    try {
+      const importResult = await PDFImportService.importFile();
+      
+      if (!importResult.success || !importResult.data) {
+        showNotification(importResult.message || 'Failed to import file', 'error');
+        console.log('Import failed:', importResult.message);
+        setIsImportInProgress(false);
+        return;
+      }
+
+      Alert.alert(
+        'Confirm Import',
+        `${importResult.message}\n\nThis will replace all current data. Continue?`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => setIsImportInProgress(false) },
+          {
+            text: 'Import',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const restoreResult = await BackupService.restoreFromBackup(importResult.data as BackupData);
+                
+                if (restoreResult.success) {
+                  showNotification(restoreResult.message, 'success');
+                  console.log('Data restored successfully');
+                  
+                  setTimeout(() => {
+                    router.replace('/auth');
+                  }, 2000);
+                } else {
+                  showNotification(restoreResult.message, 'error');
+                  console.log('Restore failed:', restoreResult.message);
+                }
+              } catch (error) {
+                console.log('Error restoring backup:', error);
+                showNotification('Unexpected error restoring backup', 'error');
+              } finally {
+                setIsImportInProgress(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.log('Error importing file:', error);
+      showNotification('Unexpected error importing file', 'error');
+      setIsImportInProgress(false);
+    }
+  }, [isImportInProgress, showNotification]);
+
+  const handleShareBackup = useCallback(async () => {
+    try {
+      showNotification('Creating shareable backup...', 'info');
+      
+      const result = await BackupService.createBackup();
+      
+      if (!result.success || !result.filePath) {
+        showNotification(result.message, 'error');
+        return;
+      }
+
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (!isAvailable) {
+        showNotification('Sharing is not available on this device', 'error');
+        return;
+      }
+
+      // Share the backup file
+      await Sharing.shareAsync(result.filePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Share Backup File',
+      });
+
+      showNotification('Backup file ready to share!', 'success');
+      console.log('Backup file shared successfully');
+    } catch (error) {
+      console.log('Error sharing backup:', error);
+      showNotification('Error sharing backup file', 'error');
+    }
+  }, [showNotification]);
+
+  const handleToggleBiometric = useCallback(async () => {
+    try {
+      if (settings.biometricEnabled) {
+        // Disable biometric
+        const result = await BiometricService.disableBiometricLogin();
+        if (result.success) {
+          const updatedSettings = { ...settings, biometricEnabled: false };
+          await StorageService.saveSettings(updatedSettings);
+          setSettings(updatedSettings);
+          showNotification(result.message, 'success');
+        } else {
+          showNotification(result.message, 'error');
+        }
+      } else {
+        // Enable biometric
+        const result = await BiometricService.enableBiometricLogin();
+        if (result.success) {
+          const updatedSettings = { ...settings, biometricEnabled: true };
+          await StorageService.saveSettings(updatedSettings);
+          setSettings(updatedSettings);
+          showNotification(result.message, 'success');
+        } else {
+          showNotification(result.message, 'error');
+        }
+      }
+    } catch (error) {
+      console.log('Error toggling biometric:', error);
+      showNotification('Error updating biometric settings', 'error');
+    }
+  }, [settings, showNotification]);
 
   const navigateToExport = useCallback(() => {
     router.push('/export');
@@ -691,6 +832,23 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.button, styles.filePickerButton, isImportInProgress && styles.buttonDisabled]}
+            onPress={handleImportFromFile}
+            disabled={isImportInProgress}
+          >
+            <Text style={styles.buttonText}>
+              {isImportInProgress ? '⏳ Importing...' : '📂 Import from File (JSON/PDF)'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.shareButton]}
+            onPress={handleShareBackup}
+          >
+            <Text style={styles.buttonText}>📤 Share Backup (App-to-App)</Text>
+          </TouchableOpacity>
+
           <View style={styles.backupInfo}>
             <Text style={styles.infoTitle}>📁 Backup & Import Information</Text>
             <Text style={styles.infoText}>
@@ -703,9 +861,26 @@ export default function SettingsScreen() {
               - Import & Tally: Analyze backup data with detailed statistics
             </Text>
             <Text style={styles.infoText}>
+              - Import from File: Pick JSON backup files from anywhere
+            </Text>
+            <Text style={styles.infoText}>
+              - Share Backup: Transfer to another device via any sharing method
+            </Text>
+            <Text style={styles.infoText}>
               - Use &quot;Setup Backup Folder&quot; to ensure proper permissions
             </Text>
           </View>
+        </View>
+
+        {/* Metrics & Formulas */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📐 Metrics & Formulas</Text>
+          <Text style={styles.sectionDescription}>
+            Customize the calculation formulas used throughout the app for AWs, efficiency, and performance metrics.
+          </Text>
+          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => router.push('/metrics')}>
+            <Text style={styles.buttonText}>⚙️ Edit Formulas</Text>
+          </TouchableOpacity>
         </View>
 
         {/* PIN Settings */}
@@ -738,6 +913,31 @@ export default function SettingsScreen() {
           <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdatePin}>
             <Text style={styles.buttonText}>🔄 Update PIN</Text>
           </TouchableOpacity>
+
+          {/* Biometric Authentication */}
+          {biometricAvailable && (
+            <View style={styles.biometricSection}>
+              <View style={styles.biometricHeader}>
+                <View style={styles.biometricInfo}>
+                  <Text style={styles.biometricTitle}>
+                    {biometricTypes.includes('Face ID') ? '👤' : '👆'} Biometric Login
+                  </Text>
+                  <Text style={styles.biometricSubtext}>
+                    {biometricTypes.join(' or ')} available
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.biometricEnabled || false}
+                  onValueChange={handleToggleBiometric}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={settings.biometricEnabled ? colors.background : colors.background}
+                />
+              </View>
+              <Text style={styles.biometricDescription}>
+                Enable biometric authentication for quick and secure access to the app. You can still use your PIN as a fallback.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Export Section */}
@@ -1073,6 +1273,15 @@ const createStyles = (colors: any) => StyleSheet.create({
   importButton: {
     backgroundColor: '#6c757d',
   },
+  filePickerButton: {
+    backgroundColor: '#17a2b8',
+  },
+  shareButton: {
+    backgroundColor: '#28a745',
+  },
+  metricsButton: {
+    backgroundColor: '#6f42c1',
+  },
   exportButton: {
     backgroundColor: colors.primary,
   },
@@ -1084,6 +1293,36 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   dangerButton: {
     backgroundColor: colors.error,
+  },
+  biometricSection: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  biometricHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  biometricInfo: {
+    flex: 1,
+  },
+  biometricTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  biometricSubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  biometricDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
   buttonText: {
     color: '#ffffff',
