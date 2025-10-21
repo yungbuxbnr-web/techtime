@@ -15,6 +15,8 @@ const GOOGLE_DRIVE_UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3';
 
 // Storage keys for persistent data
 const GOOGLE_DRIVE_TOKEN_KEY = 'google_drive_token';
+const GOOGLE_DRIVE_REFRESH_TOKEN_KEY = 'google_drive_refresh_token';
+const GOOGLE_DRIVE_TOKEN_EXPIRY_KEY = 'google_drive_token_expiry';
 const GOOGLE_DRIVE_FOLDER_KEY = 'google_drive_backup_folder';
 const GOOGLE_DRIVE_CONFIG_KEY = 'google_drive_config';
 
@@ -79,10 +81,20 @@ export const GoogleDriveService = {
     }
   },
 
-  // Token management
-  async saveToken(token: string): Promise<void> {
+  // Token management with refresh token support
+  async saveToken(token: string, refreshToken?: string, expiresIn?: number): Promise<void> {
     try {
       await AsyncStorage.setItem(GOOGLE_DRIVE_TOKEN_KEY, token);
+      
+      if (refreshToken) {
+        await AsyncStorage.setItem(GOOGLE_DRIVE_REFRESH_TOKEN_KEY, refreshToken);
+      }
+      
+      if (expiresIn) {
+        const expiryTime = Date.now() + (expiresIn * 1000);
+        await AsyncStorage.setItem(GOOGLE_DRIVE_TOKEN_EXPIRY_KEY, expiryTime.toString());
+      }
+      
       console.log('Google Drive token saved');
     } catch (error) {
       console.log('Error saving Google Drive token:', error);
@@ -99,10 +111,114 @@ export const GoogleDriveService = {
     }
   },
 
+  async getRefreshToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(GOOGLE_DRIVE_REFRESH_TOKEN_KEY);
+    } catch (error) {
+      console.log('Error getting refresh token:', error);
+      return null;
+    }
+  },
+
+  async isTokenExpired(): Promise<boolean> {
+    try {
+      const expiryTimeStr = await AsyncStorage.getItem(GOOGLE_DRIVE_TOKEN_EXPIRY_KEY);
+      if (!expiryTimeStr) {
+        return true;
+      }
+      
+      const expiryTime = parseInt(expiryTimeStr, 10);
+      const now = Date.now();
+      
+      // Consider token expired if it expires in less than 5 minutes
+      return now >= (expiryTime - 300000);
+    } catch (error) {
+      console.log('Error checking token expiry:', error);
+      return true;
+    }
+  },
+
+  async refreshAccessToken(): Promise<{ success: boolean; accessToken?: string; error?: string }> {
+    try {
+      console.log('Refreshing access token...');
+      
+      const refreshToken = await this.getRefreshToken();
+      if (!refreshToken) {
+        return {
+          success: false,
+          error: 'No refresh token available. Please sign in again.'
+        };
+      }
+
+      const config = await this.getConfig();
+      const clientId = config?.clientId || GOOGLE_CLIENT_ID;
+      const clientSecret = config?.clientSecret || GOOGLE_CLIENT_SECRET;
+
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `client_id=${clientId}&client_secret=${clientSecret}&refresh_token=${refreshToken}&grant_type=refresh_token`,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await this.saveToken(data.access_token, undefined, data.expires_in);
+        console.log('Access token refreshed successfully');
+        return {
+          success: true,
+          accessToken: data.access_token,
+        };
+      } else {
+        const errorText = await response.text();
+        console.log('Error refreshing token:', errorText);
+        return {
+          success: false,
+          error: 'Failed to refresh token. Please sign in again.',
+        };
+      }
+    } catch (error) {
+      console.log('Error refreshing access token:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
+  async getValidToken(): Promise<string | null> {
+    try {
+      const token = await this.getToken();
+      if (!token) {
+        return null;
+      }
+
+      const isExpired = await this.isTokenExpired();
+      if (isExpired) {
+        console.log('Token expired, attempting to refresh...');
+        const refreshResult = await this.refreshAccessToken();
+        if (refreshResult.success && refreshResult.accessToken) {
+          return refreshResult.accessToken;
+        }
+        return null;
+      }
+
+      return token;
+    } catch (error) {
+      console.log('Error getting valid token:', error);
+      return null;
+    }
+  },
+
   async clearToken(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(GOOGLE_DRIVE_TOKEN_KEY);
-      console.log('Google Drive token cleared');
+      await AsyncStorage.multiRemove([
+        GOOGLE_DRIVE_TOKEN_KEY,
+        GOOGLE_DRIVE_REFRESH_TOKEN_KEY,
+        GOOGLE_DRIVE_TOKEN_EXPIRY_KEY
+      ]);
+      console.log('Google Drive tokens cleared');
     } catch (error) {
       console.log('Error clearing Google Drive token:', error);
     }
@@ -160,24 +276,36 @@ export const GoogleDriveService = {
       }
 
       const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'techtime',
         useProxy: true,
       });
+
+      console.log('Redirect URI:', redirectUri);
+
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      };
 
       const request = new AuthSession.AuthRequest({
         clientId,
         scopes: [GOOGLE_DRIVE_SCOPE],
         responseType: AuthSession.ResponseType.Code,
         redirectUri,
+        usePKCE: true,
         extraParams: {
           access_type: 'offline',
+          prompt: 'consent',
         },
       });
 
-      const result = await request.promptAsync({
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      });
+      const result = await request.promptAsync(discovery);
 
-      if (result.type === 'success') {
+      console.log('Auth result type:', result.type);
+
+      if (result.type === 'success' && result.params.code) {
+        console.log('Authorization code received, exchanging for token...');
+        
         // Exchange code for access token
         const tokenResult = await AuthSession.exchangeCodeAsync(
           {
@@ -185,25 +313,38 @@ export const GoogleDriveService = {
             clientSecret,
             code: result.params.code,
             redirectUri,
+            extraParams: {
+              code_verifier: request.codeVerifier || '',
+            },
           },
-          {
-            tokenEndpoint: 'https://oauth2.googleapis.com/token',
-          }
+          discovery
         );
 
-        // Save token for future use
-        await this.saveToken(tokenResult.accessToken);
+        console.log('Token exchange successful');
+
+        // Save token with refresh token
+        await this.saveToken(
+          tokenResult.accessToken,
+          tokenResult.refreshToken,
+          tokenResult.expiresIn
+        );
 
         console.log('Google Drive authentication successful');
         return {
           success: true,
           accessToken: tokenResult.accessToken,
         };
-      } else {
-        console.log('Google Drive authentication cancelled or failed');
+      } else if (result.type === 'error') {
+        console.log('Google Drive authentication error:', result.error);
         return {
           success: false,
-          error: 'Authentication cancelled or failed',
+          error: result.error?.message || 'Authentication failed',
+        };
+      } else {
+        console.log('Google Drive authentication cancelled');
+        return {
+          success: false,
+          error: 'Authentication cancelled',
         };
       }
     } catch (error) {
@@ -217,13 +358,13 @@ export const GoogleDriveService = {
 
   // Check if user is authenticated
   async isAuthenticated(): Promise<boolean> {
-    const token = await this.getToken();
+    const token = await this.getValidToken();
     return token !== null;
   },
 
   // Get current access token
   async getCurrentToken(): Promise<string | null> {
-    return await this.getToken();
+    return await this.getValidToken();
   },
 
   // List folders for selection
@@ -254,6 +395,16 @@ export const GoogleDriveService = {
       } else {
         const errorText = await response.text();
         console.log('Error listing Google Drive folders:', errorText);
+        
+        // Check if token is invalid
+        if (response.status === 401) {
+          return {
+            success: false,
+            folders: [],
+            message: 'Authentication expired. Please sign in again.',
+          };
+        }
+        
         return {
           success: false,
           folders: [],
@@ -371,6 +522,15 @@ export const GoogleDriveService = {
       } else {
         const errorText = await response.text();
         console.log('Error uploading to Google Drive:', errorText);
+        
+        // Check if token is invalid
+        if (response.status === 401) {
+          return {
+            success: false,
+            message: 'Authentication expired. Please sign in again.',
+          };
+        }
+        
         return {
           success: false,
           message: `Failed to upload backup to Google Drive: ${response.status} ${response.statusText}`,
@@ -418,6 +578,16 @@ export const GoogleDriveService = {
       } else {
         const errorText = await response.text();
         console.log('Error listing Google Drive files:', errorText);
+        
+        // Check if token is invalid
+        if (response.status === 401) {
+          return {
+            success: false,
+            files: [],
+            message: 'Authentication expired. Please sign in again.',
+          };
+        }
+        
         return {
           success: false,
           files: [],
@@ -466,6 +636,15 @@ export const GoogleDriveService = {
       } else {
         const errorText = await response.text();
         console.log('Error downloading from Google Drive:', errorText);
+        
+        // Check if token is invalid
+        if (response.status === 401) {
+          return {
+            success: false,
+            message: 'Authentication expired. Please sign in again.',
+          };
+        }
+        
         return {
           success: false,
           message: `Failed to download backup: ${response.status} ${response.statusText}`,
@@ -492,7 +671,7 @@ export const GoogleDriveService = {
         },
       });
 
-      if (response.ok) {
+      if (response.ok || response.status === 204) {
         console.log('Backup deleted successfully from Google Drive');
         return {
           success: true,
@@ -501,6 +680,15 @@ export const GoogleDriveService = {
       } else {
         const errorText = await response.text();
         console.log('Error deleting from Google Drive:', errorText);
+        
+        // Check if token is invalid
+        if (response.status === 401) {
+          return {
+            success: false,
+            message: 'Authentication expired. Please sign in again.',
+          };
+        }
+        
         return {
           success: false,
           message: `Failed to delete backup: ${response.status} ${response.statusText}`,

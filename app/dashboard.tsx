@@ -10,6 +10,7 @@ import { Job, MonthlyStats } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
+import * as Updates from 'expo-updates';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
@@ -35,28 +36,42 @@ export default function DashboardScreen() {
   const handleExitApp = useCallback(() => {
     Alert.alert(
       'Exit App',
-      'Are you sure you want to exit?',
+      'Are you sure you want to exit? The app will close completely and you will need to sign in again next time.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Exit',
           onPress: async () => {
             try {
+              console.log('Exiting app - resetting authentication...');
+              
               // Reset authentication to ensure fresh start next time
               const settings = await StorageService.getSettings();
               await StorageService.saveSettings({ ...settings, isAuthenticated: false });
               console.log('Authentication reset for fresh start');
               
+              // Close the app completely
               if (Platform.OS === 'android') {
+                // On Android, we can exit the app
                 BackHandler.exitApp();
               } else {
-                // For iOS, we can't actually exit the app, so just show a message
-                showNotification('App will close when you switch away', 'info');
+                // On iOS, we can't programmatically exit, but we can reload the app
+                // This will effectively restart it
+                try {
+                  await Updates.reloadAsync();
+                } catch (reloadError) {
+                  console.log('Could not reload app:', reloadError);
+                  // If reload fails, just show a message
+                  showNotification('Please close the app manually', 'info');
+                }
               }
             } catch (error) {
               console.log('Error during app exit:', error);
+              // If anything fails, still try to exit on Android
               if (Platform.OS === 'android') {
                 BackHandler.exitApp();
+              } else {
+                showNotification('Please close the app manually', 'info');
               }
             }
           }

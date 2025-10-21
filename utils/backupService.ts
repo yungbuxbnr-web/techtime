@@ -24,27 +24,46 @@ export interface BackupData {
 
 // Helper function to get document directory with proper type handling
 const getDocumentDirectory = (): string | null => {
-  // Use type assertion to access documentDirectory
-  const fs = FileSystem as any;
-  return fs.documentDirectory || null;
+  try {
+    // Use type assertion to access documentDirectory
+    const fs = FileSystem as any;
+    const docDir = fs.documentDirectory || null;
+    console.log('Document directory:', docDir);
+    return docDir;
+  } catch (error) {
+    console.log('Error accessing document directory:', error);
+    return null;
+  }
 };
 
 // Helper function to get cache directory with proper type handling
 const getCacheDirectory = (): string | null => {
-  // Use type assertion to access cacheDirectory
-  const fs = FileSystem as any;
-  return fs.cacheDirectory || null;
+  try {
+    // Use type assertion to access cacheDirectory
+    const fs = FileSystem as any;
+    const cacheDir = fs.cacheDirectory || null;
+    console.log('Cache directory:', cacheDir);
+    return cacheDir;
+  } catch (error) {
+    console.log('Error accessing cache directory:', error);
+    return null;
+  }
 };
 
 // Helper function to get encoding type with proper type handling
 const getEncodingType = () => {
-  // Use type assertion to access EncodingType
-  const fs = FileSystem as any;
-  return fs.EncodingType?.UTF8 || 'utf8';
+  try {
+    // Use type assertion to access EncodingType
+    const fs = FileSystem as any;
+    return fs.EncodingType?.UTF8 || 'utf8';
+  } catch (error) {
+    console.log('Error accessing encoding type:', error);
+    return 'utf8';
+  }
 };
 
 // Helper function to get available directories with fallback
-const getAvailableDirectory = (): { directory: string; type: 'document' | 'cache' } => {
+const getAvailableDirectory = (): { directory: string; type: 'document' | 'cache' } | null => {
   // Try document directory first
   const documentDir = getDocumentDirectory();
   if (documentDir) {
@@ -59,7 +78,8 @@ const getAvailableDirectory = (): { directory: string; type: 'document' | 'cache
     return { directory: cacheDir, type: 'cache' };
   }
   
-  throw new Error('No file system directory available');
+  console.log('No file system directory available');
+  return null;
 };
 
 // Request storage permissions with better error handling
@@ -174,19 +194,18 @@ export const BackupService = {
 
       // Step 2: Get available directory
       console.log('Step 2: Getting available directory...');
-      let directoryInfo;
-      try {
-        directoryInfo = getAvailableDirectory();
-        console.log('✓ Directory available:', directoryInfo.directory);
-      } catch (error) {
-        console.log('✗ No file system directory available:', error);
+      const directoryInfo = getAvailableDirectory();
+      
+      if (!directoryInfo) {
+        console.log('✗ No file system directory available');
         return { 
           success: false, 
-          message: 'File system not available on this device. Cannot create local backups.' 
+          message: 'File system not available on this device. This may happen if:\n\n• Storage permissions are not granted\n• Device storage is full\n• App does not have file system access\n\nPlease check your device settings and try again.' 
         };
       }
 
       const { directory, type } = directoryInfo;
+      console.log('✓ Directory available:', directory);
 
       // Step 3: Check if directory is writable
       console.log('Step 3: Checking directory write permissions...');
@@ -195,7 +214,7 @@ export const BackupService = {
         console.log('✗ Directory not writable');
         return {
           success: false,
-          message: `Cannot write to ${type} directory. Please check storage permissions and available space.`
+          message: `Cannot write to ${type} directory. Please check:\n\n• Storage permissions are granted\n• Device has available storage space\n• App has write access to storage\n\nTry restarting the app or checking device settings.`
         };
       }
       console.log('✓ Directory is writable');
@@ -325,7 +344,7 @@ export const BackupService = {
       console.log('✗ BACKUP PROCESS FAILED:', error);
       return {
         success: false,
-        message: `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease ensure:\n• Storage permissions are granted\n• Device has available storage space\n• App has file system access`
       };
     }
   },
@@ -336,12 +355,10 @@ export const BackupService = {
       
       // Step 1: Get available directory
       console.log('Step 1: Getting available directory...');
-      let directoryInfo;
-      try {
-        directoryInfo = getAvailableDirectory();
-        console.log('✓ Directory available:', directoryInfo.directory);
-      } catch (error) {
-        console.log('✗ No file system directory available:', error);
+      const directoryInfo = getAvailableDirectory();
+      
+      if (!directoryInfo) {
+        console.log('✗ No file system directory available');
         return { 
           success: false, 
           message: 'File system not available on this device. Cannot access local backups.' 
@@ -349,6 +366,7 @@ export const BackupService = {
       }
 
       const { directory, type } = directoryInfo;
+      console.log('✓ Directory available:', directory);
 
       // Step 2: Check if techtrace folder exists
       console.log('Step 2: Checking backup folder...');
@@ -477,10 +495,9 @@ export const BackupService = {
 
   async listBackupFiles(): Promise<{ success: boolean; files: string[]; message?: string }> {
     try {
-      let directoryInfo;
-      try {
-        directoryInfo = getAvailableDirectory();
-      } catch (error) {
+      const directoryInfo = getAvailableDirectory();
+      
+      if (!directoryInfo) {
         return { success: false, files: [], message: 'File system not available' };
       }
 
@@ -506,8 +523,11 @@ export const BackupService = {
 
   async getBackupFolderPath(): Promise<string | null> {
     try {
-      const { directory } = getAvailableDirectory();
-      return `${directory}${BACKUP_FOLDER_NAME}/`;
+      const directoryInfo = getAvailableDirectory();
+      if (!directoryInfo) {
+        return null;
+      }
+      return `${directoryInfo.directory}${BACKUP_FOLDER_NAME}/`;
     } catch (error) {
       console.log('Error getting backup folder path:', error);
       return null;
@@ -529,12 +549,10 @@ export const BackupService = {
 
       // Step 2: Get available directory
       console.log('Step 2: Getting available directory...');
-      let directoryInfo;
-      try {
-        directoryInfo = getAvailableDirectory();
-        console.log('✓ Directory available:', directoryInfo.directory);
-      } catch (error) {
-        console.log('✗ No file system directory available:', error);
+      const directoryInfo = getAvailableDirectory();
+      
+      if (!directoryInfo) {
+        console.log('✗ No file system directory available');
         return { 
           success: false, 
           message: 'File system not available on this device. Cannot create backup folders.' 
@@ -542,6 +560,7 @@ export const BackupService = {
       }
 
       const { directory, type } = directoryInfo;
+      console.log('✓ Directory available:', directory);
 
       // Step 3: Check if directory is writable
       console.log('Step 3: Checking directory write permissions...');
@@ -614,10 +633,9 @@ export const BackupService = {
       // For now, we'll save to the available directory and inform the user
       // Document picker for saving files is limited on mobile platforms
       
-      let directoryInfo;
-      try {
-        directoryInfo = getAvailableDirectory();
-      } catch (error) {
+      const directoryInfo = getAvailableDirectory();
+      
+      if (!directoryInfo) {
         return { 
           success: false, 
           message: 'File system not available on this device.' 
