@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { GoogleDriveService, GoogleDriveFile, GoogleDriveFolder } from '../utils/googleDriveService';
 import NotificationToast from './NotificationToast';
@@ -19,6 +20,8 @@ interface GoogleDriveFolderSelectorProps {
   onFolderSelected: (folder: GoogleDriveFolder) => void;
   onClose: () => void;
 }
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
   accessToken,
@@ -171,7 +174,7 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
       </View>
 
       <View style={styles.pathContainer}>
-        <Text style={styles.pathText}>{currentPath}</Text>
+        <Text style={styles.pathText} numberOfLines={1}>{currentPath}</Text>
         {currentPath !== 'Root' && (
           <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Back</Text>
@@ -214,7 +217,7 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
           style={[styles.button, styles.selectCurrentButton]}
           onPress={handleSelectCurrentFolder}
         >
-          <Text style={styles.selectCurrentButtonText}>
+          <Text style={styles.selectCurrentButtonText} numberOfLines={2}>
             📁 Use Current Folder: {currentPath}
           </Text>
         </TouchableOpacity>
@@ -226,7 +229,11 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
           <Text style={styles.loadingText}>Loading folders...</Text>
         </View>
       ) : (
-        <ScrollView style={styles.folderList} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.folderList} 
+          contentContainerStyle={styles.folderListContent}
+          showsVerticalScrollIndicator={false}
+        >
           {folders.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No folders found</Text>
@@ -240,7 +247,7 @@ const GoogleDriveFolderSelector: React.FC<GoogleDriveFolderSelectorProps> = ({
                 onPress={() => handleFolderPress(folder)}
               >
                 <Text style={styles.folderIcon}>📁</Text>
-                <Text style={styles.folderName}>{folder.name}</Text>
+                <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
                 <Text style={styles.folderArrow}>→</Text>
               </TouchableOpacity>
             ))
@@ -255,6 +262,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    maxHeight: SCREEN_HEIGHT * 0.9,
   },
   header: {
     flexDirection: 'row',
@@ -304,6 +312,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     flex: 1,
+    marginRight: 10,
   },
   backButton: {
     paddingHorizontal: 10,
@@ -390,6 +399,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   folderList: {
     flex: 1,
+  },
+  folderListContent: {
+    paddingBottom: 20,
   },
   emptyContainer: {
     flex: 1,

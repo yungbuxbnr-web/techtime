@@ -9,6 +9,7 @@ import {
   Linking,
   TextInput,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { GoogleDriveService, GoogleDriveConfig } from '../utils/googleDriveService';
 import NotificationToast from './NotificationToast';
@@ -17,6 +18,8 @@ import { useTheme } from '../contexts/ThemeContext';
 interface GoogleDriveSetupProps {
   onClose?: () => void;
 }
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
   const { colors } = useTheme();
@@ -113,7 +116,11 @@ const GoogleDriveSetup: React.FC<GoogleDriveSetupProps> = ({ onClose }) => {
         )}
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📋 Quick Setup Guide</Text>
           <Text style={styles.stepText}>
@@ -261,6 +268,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    maxHeight: SCREEN_HEIGHT * 0.9,
   },
   header: {
     flexDirection: 'row',
@@ -285,7 +293,10 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   section: {
     marginBottom: 30,

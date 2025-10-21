@@ -1,34 +1,35 @@
+
 {
   "expo": {
-    "name": "techtime",
+    "name": "TechTime",
     "slug": "techtime",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
+    "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Natively",
+      "bundleIdentifier": "com.brcarszw.techtime",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
+        "foregroundImage": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.techtracer"
+      "package": "com.brcarszw.techtime"
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -36,13 +37,12 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "natively",
+    "scheme": "techtime",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "router": {}
     }
-  },
-  "scheme": "TechTime"
+  }
 }

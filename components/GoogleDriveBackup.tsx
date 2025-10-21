@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { GoogleDriveService, GoogleDriveFile, GoogleDriveFolder } from '../utils/googleDriveService';
 import { BackupService, BackupData } from '../utils/backupService';
@@ -21,6 +22,8 @@ import { useTheme } from '../contexts/ThemeContext';
 interface GoogleDriveBackupProps {
   onClose?: () => void;
 }
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   const { colors } = useTheme();
@@ -85,7 +88,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     
     if (!configured) {
       showNotification(
-        'Google Drive requires one-time setup with Google Cloud Console credentials.',
+        'Google Drive integration requires setup. Please configure your Google Cloud Console credentials.',
         'info'
       );
     } else {
@@ -111,10 +114,10 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     if (!isConfigured) {
       Alert.alert(
         'Configuration Required',
-        'Please complete the Google Drive setup first.',
+        'Google Drive integration is not configured. You need to set up Google Cloud Console credentials first.\n\nWould you like to view the setup guide?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Setup', onPress: () => setShowSetupGuide(true) }
+          { text: 'View Setup Guide', onPress: () => setShowSetupGuide(true) }
         ]
       );
       return;
@@ -365,7 +368,11 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
         )}
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {!isConfigured && (
           <GoogleDriveInstructions onSetupGuide={() => setShowSetupGuide(true)} />
         )}
@@ -492,6 +499,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    maxHeight: SCREEN_HEIGHT * 0.9,
   },
   header: {
     flexDirection: 'row',
@@ -516,7 +524,10 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   authSection: {
     alignItems: 'center',
@@ -613,18 +624,18 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   backupList: {
     marginTop: 20,
+    marginBottom: 20,
   },
   backupItem: {
     backgroundColor: colors.cardBackground,
     padding: 15,
     borderRadius: 8,
     marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   backupInfo: {
-    flex: 1,
+    marginBottom: 10,
   },
   backupName: {
     fontSize: 16,
@@ -646,9 +657,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     gap: 8,
   },
   actionButton: {
+    flex: 1,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 6,
+    alignItems: 'center',
   },
   restoreButton: {
     backgroundColor: colors.success || colors.primary,
@@ -658,7 +671,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   actionButtonText: {
     color: colors.background,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
