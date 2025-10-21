@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -19,24 +19,7 @@ export default function AuthScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadSettings();
-    checkBiometricAvailability();
-    console.log('Auth screen loaded - Authentication required on app start');
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const settings = await StorageService.getSettings();
-      setCorrectPin(settings.pin);
-      setBiometricEnabled(settings.biometricEnabled || false);
-      console.log('Settings loaded, authentication required');
-    } catch (error) {
-      console.log('Error loading settings:', error);
-    }
-  };
-
-  const checkBiometricAvailability = async () => {
+  const checkBiometricAvailability = useCallback(async () => {
     try {
       const isAvailable = await BiometricService.isAvailable();
       setBiometricAvailable(isAvailable);
@@ -56,6 +39,23 @@ export default function AuthScreen() {
       }
     } catch (error) {
       console.log('Error checking biometric availability:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+    checkBiometricAvailability();
+    console.log('Auth screen loaded - Authentication required on app start');
+  }, [checkBiometricAvailability]);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await StorageService.getSettings();
+      setCorrectPin(settings.pin);
+      setBiometricEnabled(settings.biometricEnabled || false);
+      console.log('Settings loaded, authentication required');
+    } catch (error) {
+      console.log('Error loading settings:', error);
     }
   };
 

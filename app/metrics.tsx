@@ -318,11 +318,11 @@ export default function MetricsScreen() {
           <View style={styles.formulaBox}>
             <Text style={styles.formulaTitle}>Formula:</Text>
             <Text style={styles.formulaText}>Efficiency % = (Total Sold Hours / Total Available Hours) × 100</Text>
-            <Text style={styles.formulaTitle} style={{ marginTop: 12 }}>Where:</Text>
+            <Text style={[styles.formulaTitle, { marginTop: 12 }]}>Where:</Text>
             <Text style={styles.formulaText}>• Total Sold Hours = Total AWs × (1 AW in hours)</Text>
             <Text style={styles.formulaText}>• Total Available Hours = Weekdays × Hours per Day - Absence Hours</Text>
             <Text style={styles.formulaText}>• Weekdays = Monday to Friday only</Text>
-            <Text style={styles.exampleText} style={{ marginTop: 12 }}>
+            <Text style={[styles.exampleText, { marginTop: 12 }]}>
               Example: If you completed 1000 AWs in a month with 20 working days:
               {'\n'}• Sold Hours = 1000 × {((parseFloat(awToMinutes) || 5) / 60).toFixed(4)} = {(1000 * ((parseFloat(awToMinutes) || 5) / 60)).toFixed(2)} hours
               {'\n'}• Available Hours = 20 × {hoursPerDay || '8.5'} = {(20 * (parseFloat(hoursPerDay) || 8.5)).toFixed(2)} hours

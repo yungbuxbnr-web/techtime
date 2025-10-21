@@ -72,9 +72,9 @@ export const PDFImportService = {
     try {
       console.log('Reading JSON file from:', uri);
       
-      // Read file content
+      // Read file content - using string encoding directly
       const content = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
 
       // Parse JSON
