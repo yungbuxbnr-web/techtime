@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler, Alert, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler, Alert, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,6 +14,9 @@ import * as Updates from 'expo-updates';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
   const [jobs, setJobs] = useState<Job[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({
     totalJobs: 0,
@@ -200,7 +203,7 @@ export default function DashboardScreen() {
     ? Math.min((monthlyStats.totalSoldHours / monthlyStats.targetHours) * 100, 100)
     : 0;
 
-  const styles = createStyles(colors, efficiencyColor);
+  const styles = createStyles(colors, efficiencyColor, isLandscape);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -267,7 +270,7 @@ export default function DashboardScreen() {
             >
               <ProgressCircle
                 percentage={targetHoursPercentage}
-                size={140}
+                size={isLandscape ? 120 : 140}
                 strokeWidth={12}
                 color={colors.primary}
               />
@@ -289,7 +292,7 @@ export default function DashboardScreen() {
             >
               <ProgressCircle
                 percentage={efficiency}
-                size={140}
+                size={isLandscape ? 120 : 140}
                 strokeWidth={12}
                 color={efficiencyColor}
               />
@@ -455,7 +458,7 @@ export default function DashboardScreen() {
   );
 }
 
-const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create({
+const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -469,18 +472,18 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: isLandscape ? 12 : 20,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   welcomeText: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     color: colors.textSecondary,
     fontWeight: '500',
   },
   nameText: {
-    fontSize: 24,
+    fontSize: isLandscape ? 20 : 24,
     fontWeight: '700',
     color: colors.text,
     marginTop: 4,
@@ -504,7 +507,7 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
   },
   optionsMenu: {
     position: 'absolute',
-    top: 80,
+    top: isLandscape ? 60 : 80,
     right: 20,
     backgroundColor: colors.card,
     borderRadius: 8,
@@ -534,8 +537,8 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-start',
-    paddingVertical: 32,
-    gap: 16,
+    paddingVertical: isLandscape ? 16 : 32,
+    gap: isLandscape ? 12 : 16,
   },
   progressCircleContainer: {
     flex: 1,
@@ -543,29 +546,29 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
   },
   progressLabelsContainer: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: isLandscape ? 8 : 16,
   },
   progressLabel: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.text,
     textAlign: 'center',
     fontWeight: '600',
   },
   progressValue: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     color: colors.text,
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '700',
   },
   progressSubtext: {
-    fontSize: 12,
+    fontSize: isLandscape ? 11 : 12,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 2,
   },
   efficiencyStatus: {
-    fontSize: 12,
+    fontSize: isLandscape ? 11 : 12,
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '600',
@@ -573,24 +576,24 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
   efficiencyCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    padding: isLandscape ? 12 : 16,
+    marginBottom: isLandscape ? 16 : 24,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
     borderColor: colors.border,
   },
   efficiencyCardTitle: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: isLandscape ? 8 : 12,
   },
   efficiencyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: isLandscape ? 6 : 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -602,34 +605,34 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     borderBottomWidth: 0,
   },
   efficiencyLabel: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.textSecondary,
   },
   efficiencyLabelBold: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '700',
     color: colors.text,
   },
   efficiencyValue: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '600',
     color: colors.text,
   },
   efficiencyValueBold: {
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '700',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
+    gap: isLandscape ? 8 : 12,
+    marginBottom: isLandscape ? 16 : 24,
   },
   statCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
-    width: '48%',
+    padding: isLandscape ? 12 : 16,
+    width: isLandscape ? '23%' : '48%',
     alignItems: 'center',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
@@ -637,86 +640,88 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     borderColor: colors.border,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: isLandscape ? 16 : 20,
     fontWeight: '700',
     color: colors.primary,
     marginBottom: 4,
     textAlign: 'center',
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
   },
   statSubtext: {
-    fontSize: 12,
+    fontSize: isLandscape ? 10 : 12,
     color: colors.textSecondary,
     marginTop: 2,
     textAlign: 'center',
   },
   summarySection: {
-    gap: 12,
-    marginBottom: 24,
+    flexDirection: isLandscape ? 'row' : 'column',
+    gap: isLandscape ? 8 : 12,
+    marginBottom: isLandscape ? 16 : 24,
   },
   summaryCard: {
+    flex: isLandscape ? 1 : undefined,
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
+    padding: isLandscape ? 12 : 16,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
     borderColor: colors.border,
   },
   summaryTitle: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.textSecondary,
     marginBottom: 4,
   },
   summaryTime: {
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '700',
     color: colors.primary,
   },
   actionsSection: {
-    marginBottom: 24,
+    marginBottom: isLandscape ? 16 : 24,
   },
   primaryAction: {
     backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: isLandscape ? 12 : 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: isLandscape ? 8 : 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
     elevation: 3,
   },
   primaryActionText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '600',
   },
   secondaryActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: isLandscape ? 8 : 12,
   },
   secondaryAction: {
     flex: 1,
     backgroundColor: colors.card,
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: isLandscape ? 10 : 12,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
   },
   secondaryActionText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '600',
   },
   bottomNav: {
@@ -724,15 +729,15 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 12,
+    paddingVertical: isLandscape ? 8 : 12,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: isLandscape ? 6 : 8,
   },
   navText: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '500',
     color: colors.text,
   },

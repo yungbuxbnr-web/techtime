@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -12,6 +12,9 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function JobsScreen() {
   const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
@@ -173,7 +176,7 @@ export default function JobsScreen() {
     { jobs: 0, aws: 0, time: 0 }
   );
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, isLandscape);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -327,7 +330,7 @@ export default function JobsScreen() {
   );
 }
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, isLandscape: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -337,13 +340,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: isLandscape ? 12 : 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.background,
   },
   title: {
-    fontSize: 28,
+    fontSize: isLandscape ? 24 : 28,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
@@ -364,7 +367,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: isLandscape ? 12 : 16,
     backgroundColor: colors.backgroundAlt,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -390,19 +393,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginHorizontal: 16,
   },
   monthText: {
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '600',
     color: colors.text,
   },
   jobCountText: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.textSecondary,
     marginTop: 2,
   },
   monthlySummary: {
     flexDirection: 'row',
     backgroundColor: colors.card,
-    paddingVertical: 16,
+    paddingVertical: isLandscape ? 12 : 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -412,13 +415,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '700',
     color: colors.primary,
     marginBottom: 2,
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: isLandscape ? 11 : 12,
     color: colors.textSecondary,
     fontWeight: '500',
   },
@@ -445,13 +448,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     textAlign: 'center',
   },
   jobsList: {
-    paddingVertical: 16,
+    paddingVertical: isLandscape ? 12 : 16,
   },
   jobCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: isLandscape ? 12 : 16,
+    marginBottom: isLandscape ? 8 : 12,
     borderWidth: 1,
     borderColor: colors.border,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
@@ -461,10 +464,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: isLandscape ? 8 : 12,
   },
   wipNumber: {
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '700',
     color: colors.primary,
   },
@@ -500,7 +503,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     lineHeight: 20,
   },
   jobDetails: {
-    gap: 8,
+    gap: isLandscape ? 6 : 8,
   },
   detailRow: {
     flexDirection: 'row',
@@ -508,12 +511,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '500',
     color: colors.textSecondary,
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '600',
     color: colors.text,
   },
@@ -524,7 +527,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderTopColor: colors.border,
   },
   notesText: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.text,
     marginTop: 4,
     lineHeight: 20,
@@ -534,15 +537,15 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 12,
+    paddingVertical: isLandscape ? 8 : 12,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: isLandscape ? 6 : 8,
   },
   navText: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '500',
     color: colors.text,
   },

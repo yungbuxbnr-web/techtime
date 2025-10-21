@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -12,6 +12,9 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function StatisticsScreen() {
   const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
@@ -117,7 +120,7 @@ export default function StatisticsScreen() {
   const dailyAWs = dailyJobs.reduce((sum, job) => sum + job.awValue, 0);
   const weeklyAWs = weeklyJobs.reduce((sum, job) => sum + job.awValue, 0);
 
-  const styles = createStyles(colors, efficiencyColor);
+  const styles = createStyles(colors, efficiencyColor, isLandscape);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -171,60 +174,62 @@ export default function StatisticsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Period Statistics</Text>
             
-            <View style={styles.periodCard}>
-              <Text style={styles.periodTitle}>Today</Text>
-              <View style={styles.periodStats}>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>Jobs</Text>
-                  <Text style={styles.periodStatValue}>{dailyJobs.length}</Text>
-                </View>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>AWs</Text>
-                  <Text style={styles.periodStatValue}>{dailyAWs}</Text>
-                </View>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>Hours</Text>
-                  <Text style={styles.periodStatValue}>
-                    {CalculationService.calculateSoldHours(dailyAWs).toFixed(2)}h
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.periodCard}>
-              <Text style={styles.periodTitle}>This Week</Text>
-              <View style={styles.periodStats}>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>Jobs</Text>
-                  <Text style={styles.periodStatValue}>{weeklyJobs.length}</Text>
-                </View>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>AWs</Text>
-                  <Text style={styles.periodStatValue}>{weeklyAWs}</Text>
-                </View>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>Hours</Text>
-                  <Text style={styles.periodStatValue}>
-                    {CalculationService.calculateSoldHours(weeklyAWs).toFixed(2)}h
-                  </Text>
+            <View style={styles.periodCardsContainer}>
+              <View style={styles.periodCard}>
+                <Text style={styles.periodTitle}>Today</Text>
+                <View style={styles.periodStats}>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>Jobs</Text>
+                    <Text style={styles.periodStatValue}>{dailyJobs.length}</Text>
+                  </View>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>AWs</Text>
+                    <Text style={styles.periodStatValue}>{dailyAWs}</Text>
+                  </View>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>Hours</Text>
+                    <Text style={styles.periodStatValue}>
+                      {CalculationService.calculateSoldHours(dailyAWs).toFixed(2)}h
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.periodCard}>
-              <Text style={styles.periodTitle}>This Month</Text>
-              <View style={styles.periodStats}>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>Jobs</Text>
-                  <Text style={styles.periodStatValue}>{monthlyJobs.length}</Text>
+              <View style={styles.periodCard}>
+                <Text style={styles.periodTitle}>This Week</Text>
+                <View style={styles.periodStats}>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>Jobs</Text>
+                    <Text style={styles.periodStatValue}>{weeklyJobs.length}</Text>
+                  </View>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>AWs</Text>
+                    <Text style={styles.periodStatValue}>{weeklyAWs}</Text>
+                  </View>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>Hours</Text>
+                    <Text style={styles.periodStatValue}>
+                      {CalculationService.calculateSoldHours(weeklyAWs).toFixed(2)}h
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>AWs</Text>
-                  <Text style={styles.periodStatValue}>{totalAWs}</Text>
-                </View>
-                <View style={styles.periodStat}>
-                  <Text style={styles.periodStatLabel}>Hours</Text>
-                  <Text style={styles.periodStatValue}>{totalSoldHours.toFixed(2)}h</Text>
+              </View>
+
+              <View style={styles.periodCard}>
+                <Text style={styles.periodTitle}>This Month</Text>
+                <View style={styles.periodStats}>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>Jobs</Text>
+                    <Text style={styles.periodStatValue}>{monthlyJobs.length}</Text>
+                  </View>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>AWs</Text>
+                    <Text style={styles.periodStatValue}>{totalAWs}</Text>
+                  </View>
+                  <View style={styles.periodStat}>
+                    <Text style={styles.periodStatLabel}>Hours</Text>
+                    <Text style={styles.periodStatValue}>{totalSoldHours.toFixed(2)}h</Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -362,7 +367,7 @@ export default function StatisticsScreen() {
   );
 }
 
-const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create({
+const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -373,13 +378,13 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: isLandscape ? 12 : 20,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: isLandscape ? 24 : 28,
     fontWeight: '700',
     color: colors.text,
   },
@@ -389,7 +394,7 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     backgroundColor: colors.background,
   },
   section: {
-    marginTop: 24,
+    marginTop: isLandscape ? 16 : 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -398,7 +403,7 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: isLandscape ? 18 : 20,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
@@ -411,7 +416,7 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
   efficiencyCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 20,
+    padding: isLandscape ? 16 : 20,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
@@ -425,48 +430,53 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     borderBottomColor: colors.border,
   },
   efficiencyPercentage: {
-    fontSize: 48,
+    fontSize: isLandscape ? 40 : 48,
     fontWeight: '700',
     color: efficiencyColor,
   },
   efficiencyStatus: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '600',
     marginTop: 4,
   },
   efficiencyDetails: {
-    gap: 8,
+    gap: isLandscape ? 6 : 8,
   },
   efficiencyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: isLandscape ? 6 : 8,
   },
   efficiencyLabel: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.textSecondary,
   },
   efficiencyValue: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '600',
     color: colors.text,
   },
+  periodCardsContainer: {
+    flexDirection: isLandscape ? 'row' : 'column',
+    gap: isLandscape ? 8 : 12,
+  },
   periodCard: {
+    flex: isLandscape ? 1 : undefined,
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: isLandscape ? 12 : 16,
+    marginBottom: isLandscape ? 0 : 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
     borderColor: colors.border,
   },
   periodTitle: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: isLandscape ? 8 : 12,
   },
   periodStats: {
     flexDirection: 'row',
@@ -476,19 +486,19 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     alignItems: 'center',
   },
   periodStatLabel: {
-    fontSize: 12,
+    fontSize: isLandscape ? 11 : 12,
     color: colors.textSecondary,
     marginBottom: 4,
   },
   periodStatValue: {
-    fontSize: 18,
+    fontSize: isLandscape ? 16 : 18,
     fontWeight: '700',
     color: colors.primary,
   },
   allTimeCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 20,
+    padding: isLandscape ? 16 : 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
@@ -500,13 +510,13 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     alignItems: 'center',
   },
   allTimeValue: {
-    fontSize: 24,
+    fontSize: isLandscape ? 20 : 24,
     fontWeight: '700',
     color: colors.primary,
     marginBottom: 4,
   },
   allTimeLabel: {
-    fontSize: 12,
+    fontSize: isLandscape ? 11 : 12,
     color: colors.textSecondary,
   },
   selectionCard: {
@@ -545,8 +555,8 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
   jobCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: isLandscape ? 12 : 16,
+    marginBottom: isLandscape ? 8 : 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     borderWidth: 1,
@@ -563,17 +573,17 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     marginBottom: 8,
   },
   jobWip: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '700',
     color: colors.text,
   },
   jobAw: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '600',
     color: colors.primary,
   },
   jobReg: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     color: colors.textSecondary,
     marginBottom: 8,
   },
@@ -583,11 +593,11 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     alignItems: 'center',
   },
   jobDate: {
-    fontSize: 12,
+    fontSize: isLandscape ? 11 : 12,
     color: colors.textSecondary,
   },
   jobTime: {
-    fontSize: 14,
+    fontSize: isLandscape ? 12 : 14,
     fontWeight: '600',
     color: colors.text,
   },
@@ -631,15 +641,15 @@ const createStyles = (colors: any, efficiencyColor: string) => StyleSheet.create
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 12,
+    paddingVertical: isLandscape ? 8 : 12,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: isLandscape ? 6 : 8,
   },
   navText: {
-    fontSize: 16,
+    fontSize: isLandscape ? 14 : 16,
     fontWeight: '500',
     color: colors.text,
   },
