@@ -44,7 +44,7 @@ export default function HelpScreen() {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Technician Records - User Guide</title>
+          <title>Technician Records - Complete User Guide</title>
           <style>
             * {
               box-sizing: border-box;
@@ -291,7 +291,7 @@ export default function HelpScreen() {
                 <div class="info-box">
                   <div class="info-box-title">💡 What is an AW?</div>
                   <p class="info-box-text">
-                    AW stands for Allocated Work Unit. In this app, 1 AW equals 5 minutes of work time. This standardized unit helps you accurately track and calculate job durations.
+                    AW stands for Allocated Work Unit. By default, 1 AW equals 5 minutes of work time. This standardized unit helps you accurately track and calculate job durations. You can customize this conversion in the Metrics & Formulas settings.
                   </p>
                   <p class="info-box-text">
                     <strong>Example:</strong> A job with 12 AWs = 12 × 5 minutes = 60 minutes (1 hour)
@@ -309,6 +309,7 @@ export default function HelpScreen() {
                   <li>Enter the default PIN: <strong>3101</strong></li>
                   <li>You'll be taken to the Dashboard (Home screen)</li>
                   <li>Navigate to Settings to customize your PIN and monthly target hours</li>
+                  <li>Set up biometric authentication (fingerprint/Face ID) for quick access</li>
                 </ol>
 
                 <div class="tip-box">
@@ -341,13 +342,16 @@ export default function HelpScreen() {
                     Efficiency is calculated as: (Sold Hours ÷ Available Hours) × 100
                   </p>
                   <p class="info-box-text">
-                    <strong>Sold Hours:</strong> Total hours from completed jobs (AWs × 5 minutes ÷ 60)
+                    <strong>Sold Hours:</strong> Total hours from completed jobs (AWs × AW time conversion ÷ 60)
                   </p>
                   <p class="info-box-text">
-                    <strong>Available Hours:</strong> Working hours available to date (weekdays only, minus absences)
+                    <strong>Available Hours:</strong> Working hours available to date (weekdays only, 8 AM - 5 PM with 30-min lunch, minus absences)
                   </p>
                   <p class="info-box-text">
-                    <strong>Color Coding:</strong> Green (65-100%), Yellow (30-65%), Red (0-30%)
+                    <strong>Color Coding:</strong> Green (65-100%), Yellow (31-64%), Red (0-30%)
+                  </p>
+                  <p class="info-box-text">
+                    <strong>Note:</strong> You can customize these thresholds in Metrics & Formulas settings
                   </p>
                 </div>
               </div>
@@ -505,21 +509,65 @@ export default function HelpScreen() {
                   <li><strong>Change PIN:</strong> Update your security PIN (minimum 4 digits)</li>
                   <li><strong>PIN Confirmation:</strong> Must confirm new PIN to prevent errors</li>
                   <li><strong>Secure Storage:</strong> PIN is encrypted and stored securely</li>
+                  <li><strong>Biometric Authentication:</strong> Enable fingerprint or Face ID login</li>
+                  <li><strong>Fallback Option:</strong> PIN always available as backup</li>
                 </ul>
 
                 <div class="subsection-title">Backup & Import</div>
                 <ul class="feature-list">
+                  <li><strong>Setup Backup Folder:</strong> Ensure proper permissions for local backups</li>
+                  <li><strong>Create Local Backup:</strong> Save backup files to device (Documents/techtrace/)</li>
+                  <li><strong>Import Local Backup:</strong> Restore data from backup files</li>
+                  <li><strong>Import from File:</strong> Pick JSON backup files from anywhere on device</li>
+                  <li><strong>Share Backup:</strong> Transfer to another device via any sharing method</li>
                   <li><strong>Google Drive Backup:</strong> Cloud backup and restore functionality</li>
                   <li><strong>Import & Tally:</strong> Analyze backup data with detailed statistics</li>
-                  <li><strong>Local Backup:</strong> Create backup files on device (Documents/techtrace/)</li>
-                  <li><strong>Import Backup:</strong> Restore data from backup files</li>
-                  <li><strong>Setup Backup Folder:</strong> Ensure proper permissions for backups</li>
                 </ul>
 
                 <div class="warning-box">
                   <div class="warning-box-title">⚠️ Important: Backup Regularly</div>
                   <p class="warning-box-text">
                     Always create backups before clearing data or switching devices. Backups are essential for data recovery and device migration.
+                  </p>
+                  <p class="warning-box-text">
+                    Local backups are stored in Documents/techtrace/ folder. Use "Setup Backup Folder" to ensure proper permissions.
+                  </p>
+                  <p class="warning-box-text">
+                    The backup process now includes verification steps to ensure data integrity.
+                  </p>
+                </div>
+
+                <div class="subsection-title">Metrics & Formulas</div>
+                <p class="description">
+                  Customize the calculation formulas used throughout the app.
+                </p>
+                <ul class="feature-list">
+                  <li><strong>AW Time Conversion:</strong> Define how many minutes equal one AW (default: 5)</li>
+                  <li><strong>Working Hours per Day:</strong> Set standard working hours (default: 8.5)</li>
+                  <li><strong>Target AWs per Hour:</strong> Set performance targets (default: 12)</li>
+                  <li><strong>Efficiency Thresholds:</strong> Customize color-coding thresholds</li>
+                  <li><strong>Green Threshold:</strong> Excellent performance level (default: 65%)</li>
+                  <li><strong>Yellow Threshold:</strong> Average performance level (default: 31%)</li>
+                  <li><strong>Reset to Defaults:</strong> Restore original formula values</li>
+                  <li><strong>App Restart Required:</strong> Changes take effect after restarting the app</li>
+                </ul>
+
+                <div class="info-box">
+                  <div class="info-box-title">🧮 Efficiency Formula Explained</div>
+                  <p class="info-box-text">
+                    <strong>Formula:</strong> Efficiency % = (Total Sold Hours / Total Available Hours) × 100
+                  </p>
+                  <p class="info-box-text">
+                    <strong>Total Sold Hours:</strong> Sum of all job hours (AWs × AW conversion / 60)
+                  </p>
+                  <p class="info-box-text">
+                    <strong>Total Available Hours:</strong> Weekdays from 1st to current date × Hours per Day - Absence Hours
+                  </p>
+                  <p class="info-box-text">
+                    <strong>Weekdays:</strong> Monday to Friday only (8 AM - 5 PM with 30-min lunch = 8.5h)
+                  </p>
+                  <p class="info-box-text">
+                    <strong>Example:</strong> 1000 AWs in 20 working days = (1000 × 5 / 60) / (20 × 8.5) × 100 = 49.02%
                   </p>
                 </div>
               </div>
@@ -578,12 +626,21 @@ export default function HelpScreen() {
                   <p class="tip-box-text">
                     • Use the statistics screen to identify trends and patterns
                   </p>
+                  <p class="tip-box-text">
+                    • Customize formulas in Metrics & Formulas to match your workflow
+                  </p>
                 </div>
 
                 <div class="tip-box">
                   <div class="tip-box-title">📊 Data Management</div>
                   <p class="tip-box-text">
                     • Create weekly backups to prevent data loss
+                  </p>
+                  <p class="tip-box-text">
+                    • Use "Setup Backup Folder" before creating first backup
+                  </p>
+                  <p class="tip-box-text">
+                    • Verify backup files after creation (app does this automatically)
                   </p>
                   <p class="tip-box-text">
                     • Use Google Drive backup for automatic cloud storage
@@ -594,6 +651,9 @@ export default function HelpScreen() {
                   <p class="tip-box-text">
                     • Review and clean up old jobs periodically
                   </p>
+                  <p class="tip-box-text">
+                    • Test restore process occasionally to ensure backups work
+                  </p>
                 </div>
 
                 <div class="tip-box">
@@ -603,6 +663,9 @@ export default function HelpScreen() {
                   </p>
                   <p class="tip-box-text">
                     • Use a memorable but secure PIN (avoid 0000, 1234, etc.)
+                  </p>
+                  <p class="tip-box-text">
+                    • Enable biometric authentication for quick access
                   </p>
                   <p class="tip-box-text">
                     • Never share your PIN with others
@@ -643,7 +706,21 @@ export default function HelpScreen() {
                 <div class="info-box">
                   <div class="info-box-title">❓ Backup/Restore Issues</div>
                   <p class="info-box-text">
-                    Use "Setup Backup Folder" in Settings to ensure proper permissions. For Google Drive backup, make sure you're authenticated and have selected a backup folder.
+                    Use "Setup Backup Folder" in Settings to ensure proper permissions. The app will verify the backup folder is writable and create it if needed. For Google Drive backup, make sure you're authenticated and have selected a backup folder.
+                  </p>
+                </div>
+
+                <div class="info-box">
+                  <div class="info-box-title">❓ Backup Verification Failed</div>
+                  <p class="info-box-text">
+                    If backup verification fails, the backup file may be corrupted. Try creating a new backup. Ensure you have sufficient storage space on your device.
+                  </p>
+                </div>
+
+                <div class="info-box">
+                  <div class="info-box-title">❓ Formula Changes Not Applied</div>
+                  <p class="info-box-text">
+                    After changing formulas in Metrics & Formulas, you must restart the app for changes to take full effect. Close the app completely and reopen it.
                   </p>
                 </div>
               </div>
@@ -671,6 +748,9 @@ export default function HelpScreen() {
                   </p>
                   <p class="info-box-text">
                     • Backups are encrypted and secure
+                  </p>
+                  <p class="info-box-text">
+                    • No tracking or analytics data is collected
                   </p>
                 </div>
               </div>
@@ -702,6 +782,9 @@ export default function HelpScreen() {
                   </p>
                   <p class="info-box-text">
                     <strong>Designed for:</strong> Vehicle Technicians
+                  </p>
+                  <p class="info-box-text">
+                    <strong>Features:</strong> Job tracking, efficiency calculations, backup & restore, customizable formulas
                   </p>
                 </div>
               </div>
@@ -803,7 +886,7 @@ export default function HelpScreen() {
           <View style={styles.infoBox}>
             <Text style={styles.infoBoxTitle}>💡 What is an AW?</Text>
             <Text style={styles.infoBoxText}>
-              AW stands for Allocated Work Unit. In this app, 1 AW equals 5 minutes of work time. This standardized unit helps you accurately track and calculate job durations.
+              AW stands for Allocated Work Unit. By default, 1 AW equals 5 minutes of work time. This standardized unit helps you accurately track and calculate job durations. You can customize this conversion in the Metrics & Formulas settings.
             </Text>
             <Text style={styles.infoBoxText}>
               Example: A job with 12 AWs = 12 × 5 minutes = 60 minutes (1 hour)
@@ -819,6 +902,7 @@ export default function HelpScreen() {
           <Text style={styles.stepText}>2. Enter the default PIN: 3101</Text>
           <Text style={styles.stepText}>3. You&apos;ll be taken to the Dashboard (Home screen)</Text>
           <Text style={styles.stepText}>4. Navigate to Settings to customize your PIN and monthly target hours</Text>
+          <Text style={styles.stepText}>5. Set up biometric authentication (fingerprint/Face ID) for quick access</Text>
           
           <View style={styles.tipBox}>
             <Text style={styles.tipBoxTitle}>💡 Pro Tip</Text>
@@ -848,148 +932,143 @@ export default function HelpScreen() {
               Efficiency = (Sold Hours ÷ Available Hours) × 100
             </Text>
             <Text style={styles.infoBoxText}>
-              Sold Hours: Total hours from completed jobs (AWs × 5 minutes ÷ 60)
+              Sold Hours: Total hours from completed jobs (AWs × AW conversion ÷ 60)
             </Text>
             <Text style={styles.infoBoxText}>
-              Available Hours: Working hours available to date (weekdays only, minus absences)
+              Available Hours: Working hours available to date (weekdays only, 8 AM - 5 PM with 30-min lunch, minus absences)
             </Text>
             <Text style={styles.infoBoxText}>
-              Color Coding: Green (65-100%), Yellow (30-65%), Red (0-30%)
+              Color Coding: Green (65-100%), Yellow (31-64%), Red (0-30%)
+            </Text>
+            <Text style={styles.infoBoxText}>
+              Note: You can customize these thresholds in Metrics & Formulas settings
             </Text>
           </View>
         </View>
 
-        {/* Adding Jobs */}
+        {/* Metrics & Formulas */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>➕ Adding Jobs</Text>
+          <Text style={styles.sectionTitle}>📐 Metrics & Formulas</Text>
           <Text style={styles.description}>
-            Log your completed jobs quickly and efficiently with all necessary details.
+            Customize the calculation formulas used throughout the app to match your specific workflow and requirements.
           </Text>
           
-          <Text style={styles.subsectionTitle}>How to Add a Job</Text>
-          <Text style={styles.stepText}>1. Tap the &quot;Add Job&quot; button on the Dashboard or Jobs screen</Text>
-          <Text style={styles.stepText}>2. Enter the WIP Number (5-digit format, e.g., 12345)</Text>
-          <Text style={styles.stepText}>3. Enter the Vehicle Registration (e.g., ABC123)</Text>
-          <Text style={styles.stepText}>4. Select AWs from the dropdown (0-100)</Text>
-          <Text style={styles.stepText}>5. Add optional notes about the job</Text>
-          <Text style={styles.stepText}>6. Tap &quot;Save Job&quot; to record the entry</Text>
+          <Text style={styles.subsectionTitle}>Customizable Formulas</Text>
+          <Text style={styles.featureText}>- AW Time Conversion: Define how many minutes equal one AW (default: 5)</Text>
+          <Text style={styles.featureText}>- Working Hours per Day: Set standard working hours (default: 8.5)</Text>
+          <Text style={styles.featureText}>- Target AWs per Hour: Set performance targets (default: 12)</Text>
+          <Text style={styles.featureText}>- Efficiency Thresholds: Customize color-coding thresholds</Text>
+          <Text style={styles.featureText}>- Green Threshold: Excellent performance level (default: 65%)</Text>
+          <Text style={styles.featureText}>- Yellow Threshold: Average performance level (default: 31%)</Text>
+          
+          <View style={styles.infoBox}>
+            <Text style={styles.infoBoxTitle}>🧮 Efficiency Formula Explained</Text>
+            <Text style={styles.infoBoxText}>
+              Formula: Efficiency % = (Total Sold Hours / Total Available Hours) × 100
+            </Text>
+            <Text style={styles.infoBoxText}>
+              Total Sold Hours: Sum of all job hours (AWs × AW conversion / 60)
+            </Text>
+            <Text style={styles.infoBoxText}>
+              Total Available Hours: Weekdays from 1st to current date × Hours per Day - Absence Hours
+            </Text>
+            <Text style={styles.infoBoxText}>
+              Weekdays: Monday to Friday only (8 AM - 5 PM with 30-min lunch = 8.5h)
+            </Text>
+            <Text style={styles.infoBoxText}>
+              Example: 1000 AWs in 20 working days = (1000 × 5 / 60) / (20 × 8.5) × 100 = 49.02%
+            </Text>
+          </View>
           
           <View style={styles.tipBox}>
-            <Text style={styles.tipBoxTitle}>⌨️ Keyboard Tip</Text>
+            <Text style={styles.tipBoxTitle}>⚠️ Important</Text>
             <Text style={styles.tipBoxText}>
-              The app automatically adjusts the screen when the keyboard appears, ensuring text fields are always visible while typing.
+              After changing formulas, you must restart the app for changes to take full effect. Close the app completely and reopen it.
             </Text>
           </View>
         </View>
 
-        {/* Jobs Screen */}
+        {/* Backup & Restore */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Jobs Screen</Text>
+          <Text style={styles.sectionTitle}>💾 Backup & Restore</Text>
           <Text style={styles.description}>
-            View, edit, and manage all your recorded jobs organized by month.
+            Protect your data with comprehensive backup options and easy restore functionality.
           </Text>
           
-          <Text style={styles.subsectionTitle}>Features</Text>
-          <Text style={styles.featureText}>- Monthly View: Jobs are organized by month with clear separators</Text>
-          <Text style={styles.featureText}>- Month Navigation: Use arrow buttons to browse different months</Text>
-          <Text style={styles.featureText}>- Job Details: Each job shows WIP, registration, AWs, time, notes, and date</Text>
-          <Text style={styles.featureText}>- Edit Jobs: Tap any job to edit its details</Text>
-          <Text style={styles.featureText}>- Delete Jobs: Swipe or tap delete to remove jobs (with confirmation)</Text>
-          <Text style={styles.featureText}>- Quick Add: Add new jobs directly from this screen</Text>
-        </View>
-
-        {/* Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚙️ Settings</Text>
+          <Text style={styles.subsectionTitle}>Local Backup Features</Text>
+          <Text style={styles.featureText}>- Setup Backup Folder: Ensure proper permissions for local backups</Text>
+          <Text style={styles.featureText}>- Create Local Backup: Save backup files to device (Documents/techtrace/)</Text>
+          <Text style={styles.featureText}>- Automatic Verification: Backups are verified after creation</Text>
+          <Text style={styles.featureText}>- Import Local Backup: Restore data from backup files</Text>
+          <Text style={styles.featureText}>- Import from File: Pick JSON backup files from anywhere on device</Text>
+          <Text style={styles.featureText}>- Share Backup: Transfer to another device via any sharing method</Text>
           
-          <Text style={styles.subsectionTitle}>Absence Logger</Text>
-          <Text style={styles.description}>
-            Track absences and automatically adjust your hours calculations.
-          </Text>
-          <Text style={styles.featureText}>- Number of Days: Select 1-31 absent days</Text>
-          <Text style={styles.featureText}>- Absence Type: Half Day (4.25h) or Full Day (8.5h)</Text>
-          <Text style={styles.featureText}>- Deduction Type: Monthly Target Hours or Total Available Hours</Text>
-          <Text style={styles.featureText}>- Preview: See calculation before confirming</Text>
-          <Text style={styles.featureText}>- Auto Reset: Absence hours reset each new month</Text>
+          <Text style={styles.subsectionTitle}>Cloud Backup Features</Text>
+          <Text style={styles.featureText}>- Google Drive Backup: Cloud backup and restore functionality</Text>
+          <Text style={styles.featureText}>- Import & Tally: Analyze backup data with detailed statistics</Text>
           
           <View style={styles.infoBox}>
-            <Text style={styles.infoBoxTitle}>🏖️ Absence Calculation Example</Text>
+            <Text style={styles.infoBoxTitle}>📁 Backup Process</Text>
             <Text style={styles.infoBoxText}>
-              2 Full Days absent = 2 × 8.5 hours = 17 hours deducted
+              1. Request storage permissions
             </Text>
             <Text style={styles.infoBoxText}>
-              If deducting from Monthly Target: 180h - 17h = 163h new target
+              2. Verify directory is writable
             </Text>
             <Text style={styles.infoBoxText}>
-              If deducting from Available Hours: Efficiency calculation adjusts automatically
+              3. Create backup folder if needed
+            </Text>
+            <Text style={styles.infoBoxText}>
+              4. Load all data from storage
+            </Text>
+            <Text style={styles.infoBoxText}>
+              5. Create backup data structure
+            </Text>
+            <Text style={styles.infoBoxText}>
+              6. Write backup files (timestamped + latest)
+            </Text>
+            <Text style={styles.infoBoxText}>
+              7. Verify backup file integrity
+            </Text>
+            <Text style={styles.infoBoxText}>
+              8. Confirm successful backup
+            </Text>
+          </View>
+          
+          <View style={styles.tipBox}>
+            <Text style={styles.tipBoxTitle}>💡 Best Practices</Text>
+            <Text style={styles.tipBoxText}>
+              • Create weekly backups to prevent data loss
+            </Text>
+            <Text style={styles.tipBoxText}>
+              • Use &quot;Setup Backup Folder&quot; before creating first backup
+            </Text>
+            <Text style={styles.tipBoxText}>
+              • Verify backup files after creation (app does this automatically)
+            </Text>
+            <Text style={styles.tipBoxText}>
+              • Test restore process occasionally to ensure backups work
+            </Text>
+            <Text style={styles.tipBoxText}>
+              • Keep multiple backup copies in different locations
             </Text>
           </View>
         </View>
 
-        {/* Export Reports */}
+        {/* Troubleshooting */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📄 Export Reports</Text>
-          <Text style={styles.description}>
-            Generate professional PDF reports with comprehensive statistics and efficiency graphs.
-          </Text>
+          <Text style={styles.sectionTitle}>🔧 Troubleshooting</Text>
           
-          <Text style={styles.subsectionTitle}>Export Options</Text>
-          <Text style={styles.featureText}>- Daily Export: Today&apos;s jobs (8.5h target)</Text>
-          <Text style={styles.featureText}>- Weekly Export: Current week&apos;s jobs (45h target)</Text>
-          <Text style={styles.featureText}>- Monthly Export: Selected month&apos;s jobs (180h target)</Text>
-          <Text style={styles.featureText}>- Complete History: All recorded jobs</Text>
+          <Text style={styles.subsectionTitle}>Backup Issues</Text>
+          <Text style={styles.featureText}>- Use &quot;Setup Backup Folder&quot; to ensure proper permissions</Text>
+          <Text style={styles.featureText}>- Check available storage space on device</Text>
+          <Text style={styles.featureText}>- Verify backup file exists in Documents/techtrace/</Text>
+          <Text style={styles.featureText}>- If verification fails, try creating a new backup</Text>
           
-          <Text style={styles.subsectionTitle}>Sharing Options</Text>
-          <Text style={styles.featureText}>- Share to Apps: Email, cloud storage, messaging apps</Text>
-          <Text style={styles.featureText}>- Save to Backup: Store in backup folder for device migration</Text>
-          <Text style={styles.featureText}>- Choose Folder: Select custom location on device</Text>
-          <Text style={styles.featureText}>- Save to Storage: Save directly to device storage</Text>
-        </View>
-
-        {/* Tips & Best Practices */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💡 Tips & Best Practices</Text>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.tipBoxTitle}>🎯 Maximize Efficiency</Text>
-            <Text style={styles.tipBoxText}>• Log jobs immediately after completion for accurate time tracking</Text>
-            <Text style={styles.tipBoxText}>• Review your efficiency circle daily to monitor performance</Text>
-            <Text style={styles.tipBoxText}>• Aim for 12 AWs per hour for optimal efficiency (100%)</Text>
-            <Text style={styles.tipBoxText}>• Use the statistics screen to identify trends and patterns</Text>
-          </View>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.tipBoxTitle}>📊 Data Management</Text>
-            <Text style={styles.tipBoxText}>• Create weekly backups to prevent data loss</Text>
-            <Text style={styles.tipBoxText}>• Use Google Drive backup for automatic cloud storage</Text>
-            <Text style={styles.tipBoxText}>• Export monthly reports for record keeping</Text>
-            <Text style={styles.tipBoxText}>• Review and clean up old jobs periodically</Text>
-          </View>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.tipBoxTitle}>🔒 Security</Text>
-            <Text style={styles.tipBoxText}>• Change default PIN immediately after first login</Text>
-            <Text style={styles.tipBoxText}>• Use a memorable but secure PIN (avoid 0000, 1234, etc.)</Text>
-            <Text style={styles.tipBoxText}>• Never share your PIN with others</Text>
-            <Text style={styles.tipBoxText}>• The app stores only vehicle registrations (GDPR compliant)</Text>
-          </View>
-        </View>
-
-        {/* GDPR Compliance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔒 GDPR Compliance</Text>
-          <Text style={styles.description}>
-            This app is designed with privacy and data protection in mind.
-          </Text>
-          
-          <View style={styles.infoBox}>
-            <Text style={styles.infoBoxTitle}>🛡️ Data Protection</Text>
-            <Text style={styles.infoBoxText}>• Only vehicle registration numbers are stored (no personal customer data)</Text>
-            <Text style={styles.infoBoxText}>• All data is stored locally on your device</Text>
-            <Text style={styles.infoBoxText}>• No data is transmitted to external servers (except Google Drive backups if you choose)</Text>
-            <Text style={styles.infoBoxText}>• You have full control over your data (export, backup, delete)</Text>
-            <Text style={styles.infoBoxText}>• Backups are encrypted and secure</Text>
-          </View>
+          <Text style={styles.subsectionTitle}>Formula Changes</Text>
+          <Text style={styles.featureText}>- Restart app after changing formulas</Text>
+          <Text style={styles.featureText}>- Use &quot;Reset to Defaults&quot; if calculations seem incorrect</Text>
+          <Text style={styles.featureText}>- Historical data will be recalculated using new formulas</Text>
         </View>
 
         {/* Export Button at Bottom */}
