@@ -15,7 +15,6 @@ import GoogleDriveBackup from '../components/GoogleDriveBackup';
 import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
-import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
@@ -27,6 +26,7 @@ export default function SettingsScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
   const [isImportInProgress, setIsImportInProgress] = useState(false);
+  const [isShareInProgress, setIsShareInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -457,37 +457,28 @@ export default function SettingsScreen() {
   }, [isImportInProgress, showNotification]);
 
   const handleShareBackup = useCallback(async () => {
+    if (isShareInProgress) return;
+    
+    setIsShareInProgress(true);
+    showNotification('Preparing backup for sharing...', 'info');
+
     try {
-      showNotification('Creating shareable backup...', 'info');
+      const result = await BackupService.shareBackup();
       
-      const result = await BackupService.createBackup();
-      
-      if (!result.success || !result.filePath) {
+      if (result.success) {
+        showNotification(result.message, 'success');
+        console.log('Backup shared successfully');
+      } else {
         showNotification(result.message, 'error');
-        return;
+        console.log('Share failed:', result.message);
       }
-
-      // Check if sharing is available
-      const isAvailable = await Sharing.isAvailableAsync();
-      
-      if (!isAvailable) {
-        showNotification('Sharing is not available on this device', 'error');
-        return;
-      }
-
-      // Share the backup file
-      await Sharing.shareAsync(result.filePath, {
-        mimeType: 'application/json',
-        dialogTitle: 'Share Backup File',
-      });
-
-      showNotification('Backup file ready to share!', 'success');
-      console.log('Backup file shared successfully');
     } catch (error) {
       console.log('Error sharing backup:', error);
-      showNotification('Error sharing backup file', 'error');
+      showNotification('Unexpected error sharing backup', 'error');
+    } finally {
+      setIsShareInProgress(false);
     }
-  }, [showNotification]);
+  }, [isShareInProgress, showNotification]);
 
   const handleToggleBiometric = useCallback(async () => {
     try {
@@ -760,25 +751,25 @@ export default function SettingsScreen() {
             <View style={styles.absenceLoggerInfo}>
               <Text style={styles.infoTitle}>ℹ️ How Absence Logging Works:</Text>
               <Text style={styles.infoText}>
-                • Half Day = 4.25 hours deducted
+                - Half Day = 4.25 hours deducted
               </Text>
               <Text style={styles.infoText}>
-                • Full Day = 8.5 hours deducted
+                - Full Day = 8.5 hours deducted
               </Text>
               <Text style={styles.infoText}>
-                • Monthly Target Hours: Reduces your monthly target permanently
+                - Monthly Target Hours: Reduces your monthly target permanently
               </Text>
               <Text style={styles.infoText}>
-                • Total Available Hours: Reduces hours for efficiency calculations
+                - Total Available Hours: Reduces hours for efficiency calculations
               </Text>
               <Text style={styles.infoText}>
-                • Progress circles update automatically based on deduction type
+                - Progress circles update automatically based on deduction type
               </Text>
               <Text style={styles.infoText}>
-                • Absence hours reset automatically each new month
+                - Absence hours reset automatically each new month
               </Text>
               <Text style={styles.infoText}>
-                • Example: 2 full days absent = 17h deducted from selected type
+                - Example: 2 full days absent = 17h deducted from selected type
               </Text>
             </View>
           </View>
@@ -843,10 +834,13 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.shareButton]}
+            style={[styles.button, styles.shareButton, isShareInProgress && styles.buttonDisabled]}
             onPress={handleShareBackup}
+            disabled={isShareInProgress}
           >
-            <Text style={styles.buttonText}>📤 Share Backup (App-to-App)</Text>
+            <Text style={styles.buttonText}>
+              {isShareInProgress ? '⏳ Preparing...' : '📤 Share Backup (App-to-App)'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.backupInfo}>

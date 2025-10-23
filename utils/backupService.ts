@@ -2,6 +2,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Sharing from 'expo-sharing';
 import { StorageService } from './storage';
 import { Job, AppSettings } from '../types';
 import { Platform } from 'react-native';
@@ -349,6 +350,71 @@ export const BackupService = {
     }
   },
 
+  async shareBackup(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('=== STARTING SHARE BACKUP PROCESS ===');
+      
+      // Step 1: Create a fresh backup
+      console.log('Step 1: Creating backup for sharing...');
+      const backupResult = await BackupService.createBackup();
+      
+      if (!backupResult.success || !backupResult.filePath) {
+        console.log('✗ Failed to create backup for sharing');
+        return {
+          success: false,
+          message: backupResult.message || 'Failed to create backup file'
+        };
+      }
+      
+      console.log('✓ Backup created at:', backupResult.filePath);
+
+      // Step 2: Check if sharing is available
+      console.log('Step 2: Checking if sharing is available...');
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (!isAvailable) {
+        console.log('✗ Sharing not available on this device');
+        return {
+          success: false,
+          message: 'Sharing is not available on this device. The backup file has been saved locally at:\n\n' + backupResult.filePath
+        };
+      }
+      
+      console.log('✓ Sharing is available');
+
+      // Step 3: Share the backup file
+      console.log('Step 3: Opening share dialog...');
+      await Sharing.shareAsync(backupResult.filePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Share TechTrace Backup',
+        UTI: 'public.json'
+      });
+
+      console.log('=== SHARE BACKUP PROCESS COMPLETED ===');
+      
+      return {
+        success: true,
+        message: '✅ Backup file ready to share!\n\nYou can now share your backup to:\n• Email\n• Cloud storage (Drive, Dropbox, etc.)\n• Messaging apps\n• Another device\n\nThe backup file contains all your job records and settings.'
+      };
+
+    } catch (error) {
+      console.log('✗ SHARE BACKUP PROCESS FAILED:', error);
+      
+      // If sharing was cancelled by user, don't show error
+      if (error instanceof Error && error.message.includes('cancelled')) {
+        return {
+          success: false,
+          message: 'Sharing cancelled. Your backup file is still saved locally.'
+        };
+      }
+      
+      return {
+        success: false,
+        message: `Failed to share backup: ${error instanceof Error ? error.message : 'Unknown error'}\n\nThe backup file may still be saved locally. Check Documents/techtrace/ folder.`
+      };
+    }
+  },
+
   async importBackup(): Promise<{ success: boolean; message: string; data?: BackupData }> {
     try {
       console.log('=== STARTING IMPORT PROCESS ===');
@@ -621,49 +687,6 @@ export const BackupService = {
       return {
         success: false,
         message: `Failed to ensure backup folder exists: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-    }
-  },
-
-  // New method to save backup to custom location using document picker
-  async saveFileToCustomLocation(content: string, filename: string): Promise<{ success: boolean; message: string; filePath?: string }> {
-    try {
-      console.log('Saving backup to custom location...');
-      
-      // For now, we'll save to the available directory and inform the user
-      // Document picker for saving files is limited on mobile platforms
-      
-      const directoryInfo = getAvailableDirectory();
-      
-      if (!directoryInfo) {
-        return { 
-          success: false, 
-          message: 'File system not available on this device.' 
-        };
-      }
-
-      const { directory, type } = directoryInfo;
-      const filePath = `${directory}${filename}`;
-      
-      await FileSystem.writeAsStringAsync(
-        filePath,
-        content,
-        { encoding: getEncodingType() }
-      );
-
-      const directoryTypeText = type === 'document' ? 'Documents' : 'Cache';
-      
-      return {
-        success: true,
-        message: `Backup saved successfully!\n\nLocation: ${directoryTypeText}/${filename}\n\nYou can access this file through your device's file manager.`,
-        filePath
-      };
-
-    } catch (error) {
-      console.log('Error saving file to custom location:', error);
-      return {
-        success: false,
-        message: `Failed to save backup: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
