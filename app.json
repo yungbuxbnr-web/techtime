@@ -1,7 +1,6 @@
-
 {
   "expo": {
-    "name": "TechTime",
+    "name": "techtime",
     "slug": "techtime",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +25,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.techtime"
+      "package": "com.brcarszw.techtracer"
     },
     "web": {
       "favicon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
