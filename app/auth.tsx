@@ -19,6 +19,28 @@ export default function AuthScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
 
+  const handleBiometricAuth = useCallback(async () => {
+    try {
+      const result = await BiometricService.authenticate('Authenticate to access Technician Records');
+      
+      if (result.success) {
+        const settings = await StorageService.getSettings();
+        await StorageService.saveSettings({ ...settings, isAuthenticated: true });
+        showNotification('Biometric Authentication Successful', 'success');
+        console.log('Biometric authentication successful');
+        setTimeout(() => {
+          router.replace('/dashboard');
+        }, 1000);
+      } else {
+        showNotification(result.error || 'Biometric authentication failed. Please use PIN.', 'error');
+        console.log('Biometric authentication failed:', result.error);
+      }
+    } catch (error) {
+      console.log('Error during biometric authentication:', error);
+      showNotification('Biometric authentication error. Please use PIN.', 'error');
+    }
+  }, []);
+
   const checkBiometricAvailability = useCallback(async () => {
     try {
       const isAvailable = await BiometricService.isAvailable();
@@ -40,7 +62,7 @@ export default function AuthScreen() {
     } catch (error) {
       console.log('Error checking biometric availability:', error);
     }
-  }, []);
+  }, [handleBiometricAuth]);
 
   useEffect(() => {
     loadSettings();
@@ -56,28 +78,6 @@ export default function AuthScreen() {
       console.log('Settings loaded, authentication required');
     } catch (error) {
       console.log('Error loading settings:', error);
-    }
-  };
-
-  const handleBiometricAuth = async () => {
-    try {
-      const result = await BiometricService.authenticate('Authenticate to access Technician Records');
-      
-      if (result.success) {
-        const settings = await StorageService.getSettings();
-        await StorageService.saveSettings({ ...settings, isAuthenticated: true });
-        showNotification('Biometric Authentication Successful', 'success');
-        console.log('Biometric authentication successful');
-        setTimeout(() => {
-          router.replace('/dashboard');
-        }, 1000);
-      } else {
-        showNotification(result.error || 'Biometric authentication failed. Please use PIN.', 'error');
-        console.log('Biometric authentication failed:', result.error);
-      }
-    } catch (error) {
-      console.log('Error during biometric authentication:', error);
-      showNotification('Biometric authentication error. Please use PIN.', 'error');
     }
   };
 

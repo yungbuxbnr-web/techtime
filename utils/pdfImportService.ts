@@ -369,7 +369,7 @@ export const PDFImportService = {
       
       // Read PDF file as base64
       const base64Content = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       // Decode base64 to text (this works for text-based PDFs)
