@@ -1,6 +1,6 @@
 
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { BackupData } from './backupService';
 import { Job, AppSettings } from '../types';
 
@@ -74,7 +74,7 @@ export const PDFImportService = {
       
       // Read file content - using string encoding directly
       const content = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'utf8',
+        encoding: FileSystem.EncodingType.UTF8,
       });
 
       // Parse JSON
@@ -369,7 +369,7 @@ export const PDFImportService = {
       
       // Read PDF file as base64
       const base64Content = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
+        encoding: FileSystem.EncodingType.Base64,
       });
 
       // Decode base64 to text (this works for text-based PDFs)
