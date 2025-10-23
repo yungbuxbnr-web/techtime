@@ -184,17 +184,8 @@ export const BackupService = {
     try {
       console.log('=== STARTING BACKUP PROCESS ===');
       
-      // Step 1: Request permissions
-      console.log('Step 1: Requesting permissions...');
-      const permissionResult = await requestStoragePermissions();
-      if (!permissionResult.success) {
-        console.log('Permission request failed:', permissionResult.message);
-        return permissionResult;
-      }
-      console.log('✓ Permissions granted');
-
-      // Step 2: Get available directory
-      console.log('Step 2: Getting available directory...');
+      // Step 1: Get available directory (no permissions needed for cache/document directory)
+      console.log('Step 1: Getting available directory...');
       const directoryInfo = getAvailableDirectory();
       
       if (!directoryInfo) {
@@ -208,8 +199,8 @@ export const BackupService = {
       const { directory, type } = directoryInfo;
       console.log('✓ Directory available:', directory);
 
-      // Step 3: Check if directory is writable
-      console.log('Step 3: Checking directory write permissions...');
+      // Step 2: Check if directory is writable
+      console.log('Step 2: Checking directory write permissions...');
       const isWritable = await checkDirectoryWritable(directory);
       if (!isWritable) {
         console.log('✗ Directory not writable');
@@ -220,8 +211,8 @@ export const BackupService = {
       }
       console.log('✓ Directory is writable');
 
-      // Step 4: Create techtrace folder if it doesn't exist
-      console.log('Step 4: Creating/verifying backup folder...');
+      // Step 3: Create techtrace folder if it doesn't exist
+      console.log('Step 3: Creating/verifying backup folder...');
       const backupFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
       
       try {
@@ -252,20 +243,20 @@ export const BackupService = {
         };
       }
 
-      // Step 5: Get all data from storage
-      console.log('Step 5: Loading data from storage...');
+      // Step 4: Get all data from storage
+      console.log('Step 4: Loading data from storage...');
       const jobs = await StorageService.getJobs();
       const settings = await StorageService.getSettings();
       console.log('✓ Data loaded. Jobs:', jobs.length);
 
-      // Step 6: Calculate metadata
-      console.log('Step 6: Calculating metadata...');
+      // Step 5: Calculate metadata
+      console.log('Step 5: Calculating metadata...');
       const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
       const currentDate = new Date().toISOString();
       console.log('✓ Metadata calculated. Total AWs:', totalAWs);
 
-      // Step 7: Create backup data structure
-      console.log('Step 7: Creating backup data structure...');
+      // Step 6: Create backup data structure
+      console.log('Step 6: Creating backup data structure...');
       const backupData: BackupData = {
         version: '1.0.0',
         timestamp: currentDate,
@@ -283,8 +274,8 @@ export const BackupService = {
       };
       console.log('✓ Backup data structure created');
 
-      // Step 8: Create backup file with timestamp
-      console.log('Step 8: Writing backup files...');
+      // Step 7: Create backup file with timestamp
+      console.log('Step 7: Writing backup files...');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const backupFileName = `backup_${timestamp}.json`;
       const backupFilePath = `${backupFolderPath}${backupFileName}`;
@@ -305,8 +296,8 @@ export const BackupService = {
         };
       }
 
-      // Step 9: Also create a latest backup file for easy access
-      console.log('Step 9: Creating latest backup file...');
+      // Step 8: Also create a latest backup file for easy access
+      console.log('Step 8: Creating latest backup file...');
       const latestBackupPath = `${backupFolderPath}${BACKUP_FILE_NAME}`;
       try {
         await FileSystem.writeAsStringAsync(
@@ -320,8 +311,8 @@ export const BackupService = {
         // Don't fail the entire backup if latest file fails
       }
 
-      // Step 10: Verify backup file integrity
-      console.log('Step 10: Verifying backup file integrity...');
+      // Step 9: Verify backup file integrity
+      console.log('Step 9: Verifying backup file integrity...');
       const verificationResult = await verifyBackupFile(backupFilePath);
       if (!verificationResult.valid) {
         console.log('✗ Backup verification failed:', verificationResult.message);
@@ -354,63 +345,88 @@ export const BackupService = {
     try {
       console.log('=== STARTING SHARE BACKUP PROCESS ===');
       
-      // Step 1: Create a fresh backup
-      console.log('Step 1: Creating backup for sharing...');
-      const backupResult = await BackupService.createBackup();
-      
-      if (!backupResult.success || !backupResult.filePath) {
-        console.log('✗ Failed to create backup for sharing');
-        return {
-          success: false,
-          message: backupResult.message || 'Failed to create backup file'
-        };
-      }
-      
-      console.log('✓ Backup created at:', backupResult.filePath);
-
-      // Step 2: Check if sharing is available
-      console.log('Step 2: Checking if sharing is available...');
+      // Step 1: Check if sharing is available first
+      console.log('Step 1: Checking if sharing is available...');
       const isAvailable = await Sharing.isAvailableAsync();
       
       if (!isAvailable) {
         console.log('✗ Sharing not available on this device');
         return {
           success: false,
-          message: 'Sharing is not available on this device. The backup file has been saved locally at:\n\n' + backupResult.filePath
+          message: 'Sharing is not available on this device or platform. Please try:\n\n• Creating a local backup instead\n• Using Google Drive backup\n• Checking if your device supports file sharing'
         };
       }
       
       console.log('✓ Sharing is available');
 
-      // Step 3: Share the backup file
-      console.log('Step 3: Opening share dialog...');
-      await Sharing.shareAsync(backupResult.filePath, {
-        mimeType: 'application/json',
-        dialogTitle: 'Share TechTrace Backup',
-        UTI: 'public.json'
-      });
-
-      console.log('=== SHARE BACKUP PROCESS COMPLETED ===');
+      // Step 2: Create a fresh backup
+      console.log('Step 2: Creating backup for sharing...');
+      const backupResult = await BackupService.createBackup();
       
-      return {
-        success: true,
-        message: '✅ Backup file ready to share!\n\nYou can now share your backup to:\n• Email\n• Cloud storage (Drive, Dropbox, etc.)\n• Messaging apps\n• Another device\n\nThe backup file contains all your job records and settings.'
-      };
+      if (!backupResult.success || !backupResult.filePath) {
+        console.log('✗ Failed to create backup for sharing');
+        return {
+          success: false,
+          message: backupResult.message || 'Failed to create backup file for sharing'
+        };
+      }
+      
+      console.log('✓ Backup created at:', backupResult.filePath);
+
+      // Step 3: Verify the file exists before sharing
+      console.log('Step 3: Verifying backup file exists...');
+      const fileInfo = await FileSystem.getInfoAsync(backupResult.filePath);
+      
+      if (!fileInfo.exists) {
+        console.log('✗ Backup file does not exist');
+        return {
+          success: false,
+          message: 'Backup file was created but cannot be found. Please try creating a local backup instead.'
+        };
+      }
+      
+      console.log('✓ Backup file exists, size:', fileInfo.size, 'bytes');
+
+      // Step 4: Share the backup file
+      console.log('Step 4: Opening share dialog...');
+      
+      try {
+        await Sharing.shareAsync(backupResult.filePath, {
+          mimeType: 'application/json',
+          dialogTitle: 'Share TechTrace Backup',
+          UTI: 'public.json'
+        });
+
+        console.log('=== SHARE BACKUP PROCESS COMPLETED ===');
+        
+        return {
+          success: true,
+          message: '✅ Backup file shared successfully!\n\nYou can now:\n• Save to cloud storage (Drive, Dropbox, etc.)\n• Send via email or messaging apps\n• Transfer to another device\n• Save to Files app\n\nThe backup contains all your job records and settings in JSON format.'
+        };
+      } catch (shareError) {
+        console.log('Error during sharing:', shareError);
+        
+        // Check if user cancelled
+        if (shareError instanceof Error && 
+            (shareError.message.includes('cancel') || 
+             shareError.message.includes('dismiss') ||
+             shareError.message.includes('abort'))) {
+          console.log('User cancelled sharing');
+          return {
+            success: false,
+            message: 'Sharing cancelled. Your backup file is still saved locally at:\n\n' + backupResult.filePath
+          };
+        }
+        
+        throw shareError;
+      }
 
     } catch (error) {
       console.log('✗ SHARE BACKUP PROCESS FAILED:', error);
       
-      // If sharing was cancelled by user, don't show error
-      if (error instanceof Error && error.message.includes('cancelled')) {
-        return {
-          success: false,
-          message: 'Sharing cancelled. Your backup file is still saved locally.'
-        };
-      }
-      
       return {
         success: false,
-        message: `Failed to share backup: ${error instanceof Error ? error.message : 'Unknown error'}\n\nThe backup file may still be saved locally. Check Documents/techtrace/ folder.`
+        message: `Failed to share backup: ${error instanceof Error ? error.message : 'Unknown error'}\n\nThe backup file may still be saved locally. Try:\n• Creating a local backup\n• Using Google Drive backup\n• Checking file permissions`
       };
     }
   },
@@ -604,17 +620,8 @@ export const BackupService = {
     try {
       console.log('=== ENSURING BACKUP FOLDER EXISTS ===');
       
-      // Step 1: Request permissions
-      console.log('Step 1: Requesting permissions...');
-      const permissionResult = await requestStoragePermissions();
-      if (!permissionResult.success) {
-        console.log('✗ Permission request failed');
-        return permissionResult;
-      }
-      console.log('✓ Permissions granted');
-
-      // Step 2: Get available directory
-      console.log('Step 2: Getting available directory...');
+      // Step 1: Get available directory
+      console.log('Step 1: Getting available directory...');
       const directoryInfo = getAvailableDirectory();
       
       if (!directoryInfo) {
@@ -628,8 +635,8 @@ export const BackupService = {
       const { directory, type } = directoryInfo;
       console.log('✓ Directory available:', directory);
 
-      // Step 3: Check if directory is writable
-      console.log('Step 3: Checking directory write permissions...');
+      // Step 2: Check if directory is writable
+      console.log('Step 2: Checking directory write permissions...');
       const isWritable = await checkDirectoryWritable(directory);
       if (!isWritable) {
         console.log('✗ Directory not writable');
@@ -640,8 +647,8 @@ export const BackupService = {
       }
       console.log('✓ Directory is writable');
 
-      // Step 4: Create or verify backup folder
-      console.log('Step 4: Creating/verifying backup folder...');
+      // Step 3: Create or verify backup folder
+      console.log('Step 3: Creating/verifying backup folder...');
       const backupFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
       const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
       
