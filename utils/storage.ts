@@ -1,42 +1,20 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import { File, Directory, Paths } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Sharing from 'expo-sharing';
 import { Job, AppSettings } from '../types';
+import { Platform } from 'react-native';
 
 const JOBS_KEY = 'jobs';
 const SETTINGS_KEY = 'settings';
+const BACKUP_DIRECTORY_URI_KEY = 'backup_directory_uri';
 
 const defaultSettings: AppSettings = {
   pin: '3101',
   isAuthenticated: false,
   targetHours: 180,
   theme: 'light',
-};
-
-// Helper function to get document directory with proper type handling
-const getDocumentDirectory = (): string => {
-  // Use type assertion to access documentDirectory
-  const fs = FileSystem as any;
-  if (fs.documentDirectory) {
-    return fs.documentDirectory;
-  }
-  // Fallback for web or other platforms
-  return fs.cacheDirectory || '';
-};
-
-// Helper function to get cache directory with proper type handling
-const getCacheDirectory = (): string => {
-  // Use type assertion to access cacheDirectory
-  const fs = FileSystem as any;
-  return fs.cacheDirectory || '';
-};
-
-// Helper function to get encoding type with proper type handling
-const getEncodingType = () => {
-  // Use type assertion to access EncodingType
-  const fs = FileSystem as any;
-  return fs.EncodingType?.UTF8 || 'utf8';
 };
 
 export const StorageService = {
@@ -133,74 +111,192 @@ export const StorageService = {
     }
   },
 
-  // File operations
-  async saveToFile(content: string, filename: string, allowFolderSelection: boolean = false): Promise<string> {
+  // Backup directory URI management
+  async getBackupDirectoryUri(): Promise<string | null> {
     try {
-      let targetDirectory = getDocumentDirectory();
+      return await AsyncStorage.getItem(BACKUP_DIRECTORY_URI_KEY);
+    } catch (error) {
+      console.log('Error getting backup directory URI:', error);
+      return null;
+    }
+  },
+
+  async saveBackupDirectoryUri(uri: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(BACKUP_DIRECTORY_URI_KEY, uri);
+      console.log('Backup directory URI saved:', uri);
+    } catch (error) {
+      console.log('Error saving backup directory URI:', error);
+      throw error;
+    }
+  },
+
+  // File operations using new expo-file-system API
+  async pickBackupDirectory(): Promise<string | null> {
+    try {
+      console.log('Opening directory picker...');
       
-      if (allowFolderSelection) {
-        try {
-          const result = await DocumentPicker.getDocumentAsync({
-            type: 'application/*',
-            copyToCacheDirectory: false,
-          });
-          
-          if (!result.canceled && result.assets && result.assets.length > 0) {
-            const selectedUri = result.assets[0].uri;
-            // Extract directory from selected file URI
-            const lastSlash = selectedUri.lastIndexOf('/');
-            if (lastSlash !== -1) {
-              targetDirectory = selectedUri.substring(0, lastSlash + 1);
-            }
-          }
-        } catch (pickerError) {
-          console.log('Folder selection failed, using default directory:', pickerError);
-          // Continue with default directory
+      if (Platform.OS === 'android') {
+        // On Android, use Storage Access Framework
+        const directory = await Directory.pickDirectoryAsync();
+        if (directory) {
+          console.log('Directory selected:', directory.uri);
+          await this.saveBackupDirectoryUri(directory.uri);
+          return directory.uri;
         }
+      } else {
+        // On iOS, use document directory
+        const docDir = new Directory(Paths.document, 'techtracer-backups');
+        docDir.create({ intermediates: true });
+        console.log('Using iOS document directory:', docDir.uri);
+        await this.saveBackupDirectoryUri(docDir.uri);
+        return docDir.uri;
       }
+      
+      return null;
+    } catch (error) {
+      console.log('Error picking backup directory:', error);
+      throw error;
+    }
+  },
 
-      const fileUri = `${targetDirectory}${filename}`;
-      await FileSystem.writeAsStringAsync(fileUri, content, {
-        encoding: getEncodingType(),
+  async writeJsonToDirectory(directoryUri: string, fileName: string, data: any): Promise<string> {
+    try {
+      console.log('Writing JSON to directory:', directoryUri, fileName);
+      
+      const jsonContent = JSON.stringify(data, null, 2);
+      
+      if (Platform.OS === 'android' && directoryUri.startsWith('content://')) {
+        // Android SAF content URI
+        const directory = new Directory(directoryUri);
+        const file = directory.createFile(fileName, 'application/json');
+        file.write(jsonContent);
+        console.log('File written successfully (Android SAF):', file.uri);
+        return file.uri;
+      } else {
+        // iOS or regular file URI
+        const directory = new Directory(directoryUri);
+        const file = new File(directory, fileName);
+        file.create({ overwrite: true });
+        file.write(jsonContent);
+        console.log('File written successfully:', file.uri);
+        return file.uri;
+      }
+    } catch (error) {
+      console.log('Error writing JSON to directory:', error);
+      throw error;
+    }
+  },
+
+  async pickJsonFile(): Promise<DocumentPicker.DocumentPickerResult> {
+    try {
+      console.log('Opening file picker...');
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'application/pdf'],
+        copyToCacheDirectory: true,
+        multiple: false,
       });
       
-      console.log('File saved successfully to:', fileUri);
-      return fileUri;
+      console.log('File picker result:', result);
+      return result;
     } catch (error) {
-      console.log('Error saving file:', error);
+      console.log('Error picking file:', error);
       throw error;
     }
   },
 
-  async readFromFile(uri: string): Promise<string> {
+  async readJsonFromUri(uri: string): Promise<any> {
     try {
-      const content = await FileSystem.readAsStringAsync(uri, {
-        encoding: getEncodingType(),
+      console.log('Reading JSON from URI:', uri);
+      
+      const file = new File(uri);
+      const content = file.textSync();
+      const data = JSON.parse(content);
+      
+      console.log('JSON read successfully');
+      return data;
+    } catch (error) {
+      console.log('Error reading JSON from URI:', error);
+      throw error;
+    }
+  },
+
+  async shareFile(fileUri: string): Promise<void> {
+    try {
+      console.log('Checking if sharing is available...');
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (!isAvailable) {
+        throw new Error('Sharing is not available on this device');
+      }
+      
+      console.log('Sharing file:', fileUri);
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Share TechTracer Backup',
+        UTI: 'public.json',
       });
-      console.log('File read successfully from:', uri);
-      return content;
+      
+      console.log('File shared successfully');
     } catch (error) {
-      console.log('Error reading file:', error);
+      console.log('Error sharing file:', error);
       throw error;
     }
   },
 
-  async fileExists(uri: string): Promise<boolean> {
+  async createBackup(): Promise<string> {
     try {
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      return fileInfo.exists;
+      console.log('Creating backup...');
+      
+      // Get all data
+      const jobs = await this.getJobs();
+      const settings = await this.getSettings();
+      
+      // Create backup data
+      const backupData = {
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        jobs,
+        settings: {
+          ...settings,
+          isAuthenticated: false, // Don't backup authentication state
+        },
+        metadata: {
+          totalJobs: jobs.length,
+          totalAWs: jobs.reduce((sum, job) => sum + job.awValue, 0),
+          exportDate: new Date().toISOString(),
+          appVersion: '1.0.0',
+        },
+      };
+      
+      // Create filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+      const fileName = `techtracer-backup-${timestamp}.json`;
+      
+      // Write to cache directory first
+      const cacheDir = new Directory(Paths.cache, 'backups');
+      cacheDir.create({ intermediates: true });
+      
+      const file = new File(cacheDir, fileName);
+      file.create({ overwrite: true });
+      file.write(JSON.stringify(backupData, null, 2));
+      
+      console.log('Backup created successfully:', file.uri);
+      return file.uri;
     } catch (error) {
-      console.log('Error checking file existence:', error);
-      return false;
+      console.log('Error creating backup:', error);
+      throw error;
     }
   },
 
-  async deleteFile(uri: string): Promise<void> {
+  async shareBackup(): Promise<void> {
     try {
-      await FileSystem.deleteAsync(uri);
-      console.log('File deleted successfully:', uri);
+      console.log('Creating and sharing backup...');
+      const backupUri = await this.createBackup();
+      await this.shareFile(backupUri);
+      console.log('Backup shared successfully');
     } catch (error) {
-      console.log('Error deleting file:', error);
+      console.log('Error sharing backup:', error);
       throw error;
     }
   },
@@ -263,29 +359,24 @@ export const StorageService = {
     }
   },
 
-  // Backup and restore
-  async createBackup(): Promise<string> {
+  // File system utilities
+  async fileExists(uri: string): Promise<boolean> {
     try {
-      const exportData = await this.exportData();
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `techtimetracking_backup_${timestamp}.json`;
-      
-      const backupUri = await this.saveToFile(exportData, filename, true);
-      console.log('Backup created successfully:', backupUri);
-      return backupUri;
+      const file = new File(uri);
+      return file.exists;
     } catch (error) {
-      console.log('Error creating backup:', error);
-      throw error;
+      console.log('Error checking file existence:', error);
+      return false;
     }
   },
 
-  async restoreFromBackup(backupUri: string): Promise<void> {
+  async deleteFile(uri: string): Promise<void> {
     try {
-      const backupData = await this.readFromFile(backupUri);
-      await this.importData(backupData);
-      console.log('Backup restored successfully');
+      const file = new File(uri);
+      file.delete();
+      console.log('File deleted successfully:', uri);
     } catch (error) {
-      console.log('Error restoring backup:', error);
+      console.log('Error deleting file:', error);
       throw error;
     }
   },
