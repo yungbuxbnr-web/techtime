@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
-import { StorageService } from '../utils/storage';
+import { StorageService, pickBackupDir, writeJson, shareFile, pickJsonFile, readJson } from '../utils/storage';
 import { BackupService, BackupData } from '../utils/backupService';
 import { BiometricService } from '../utils/biometricService';
 import { PDFImportService } from '../utils/pdfImportService';
@@ -289,21 +289,26 @@ export default function SettingsScreen() {
   }, [showNotification]);
 
   const handleEnsureBackupFolder = useCallback(async () => {
-    showNotification('Checking backup folder permissions...', 'info');
+    showNotification('Setting up backup folder...', 'info');
 
     try {
-      const result = await BackupService.ensureBackupFolderExists();
+      const uri = await pickBackupDir();
       
-      if (result.success) {
-        showNotification(result.message, 'success');
-        console.log('Backup folder ensured successfully');
+      if (uri) {
+        await StorageService.saveBackupDirectoryUri(uri);
+        showNotification(
+          Platform.OS === 'android' 
+            ? '✅ Backup folder selected successfully!\n\nYou can now create backups to this location.' 
+            : '✅ Backup folder configured!\n\nBackups will be saved to app Documents folder.',
+          'success'
+        );
+        console.log('Backup directory URI saved:', uri);
       } else {
-        showNotification(result.message, 'error');
-        console.log('Failed to ensure backup folder:', result.message);
+        showNotification('No folder selected. Please try again.', 'error');
       }
     } catch (error) {
-      console.log('Error ensuring backup folder:', error);
-      showNotification('Unexpected error checking backup folder', 'error');
+      console.log('Error setting up backup folder:', error);
+      showNotification('Error setting up backup folder', 'error');
     }
   }, [showNotification]);
 
@@ -314,18 +319,39 @@ export default function SettingsScreen() {
     showNotification('Creating backup...', 'info');
 
     try {
-      const result = await BackupService.createBackup();
+      // Get saved directory URI
+      const dir = await StorageService.getBackupDirectoryUri();
       
-      if (result.success) {
-        showNotification(result.message, 'success');
-        console.log('Backup created successfully');
-      } else {
-        showNotification(result.message, 'error');
-        console.log('Backup failed:', result.message);
-      }
+      // Get all app data
+      const appData = await StorageService.getAllData();
+      
+      // Create filename with timestamp
+      const timestamp = Date.now();
+      const fileName = `techtracer-${timestamp}.json`;
+      
+      // Write JSON file
+      const uri = await writeJson(dir, fileName, appData);
+      
+      // Share the file
+      await shareFile(uri);
+      
+      showNotification(
+        `✅ Backup created successfully!\n\n📄 File: ${fileName}\n📊 Jobs: ${appData.jobs.length}\n⏱️ Total AWs: ${appData.metadata.totalAWs}\n\nThe share sheet has opened. You can save to Drive, Files, or any other app.`,
+        'success'
+      );
+      console.log('Backup created and shared successfully');
     } catch (error) {
       console.log('Error creating backup:', error);
-      showNotification('Unexpected error creating backup', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('No directory permission')) {
+        showNotification(
+          '❌ No backup folder selected.\n\nPlease use "Setup Backup Folder" first to select where to save backups.',
+          'error'
+        );
+      } else {
+        showNotification(`Error creating backup: ${errorMessage}`, 'error');
+      }
     } finally {
       setIsBackupInProgress(false);
     }
@@ -407,18 +433,28 @@ export default function SettingsScreen() {
     showNotification('Opening file picker...', 'info');
 
     try {
-      const importResult = await PDFImportService.importFile();
+      // Pick JSON file
+      const uri = await pickJsonFile();
       
-      if (!importResult.success || !importResult.data) {
-        showNotification(importResult.message || 'Failed to import file', 'error');
-        console.log('Import failed:', importResult.message);
+      if (!uri) {
+        showNotification('No file selected', 'info');
+        setIsImportInProgress(false);
+        return;
+      }
+
+      // Read JSON data
+      const data = await readJson(uri);
+      
+      // Validate data structure
+      if (!data.jobs || !Array.isArray(data.jobs)) {
+        showNotification('Invalid backup file format. Missing jobs data.', 'error');
         setIsImportInProgress(false);
         return;
       }
 
       Alert.alert(
         'Confirm Import',
-        `${importResult.message}\n\nThis will replace all current data. Continue?`,
+        `Found backup with ${data.jobs.length} jobs.\n\nThis will replace all current data. Continue?`,
         [
           { text: 'Cancel', style: 'cancel', onPress: () => setIsImportInProgress(false) },
           {
@@ -426,22 +462,21 @@ export default function SettingsScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                const restoreResult = await BackupService.restoreFromBackup(importResult.data as BackupData);
+                // Import the data
+                await StorageService.importJobs(data);
                 
-                if (restoreResult.success) {
-                  showNotification(restoreResult.message, 'success');
-                  console.log('Data restored successfully');
-                  
-                  setTimeout(() => {
-                    router.replace('/auth');
-                  }, 2000);
-                } else {
-                  showNotification(restoreResult.message, 'error');
-                  console.log('Restore failed:', restoreResult.message);
-                }
+                showNotification(
+                  `✅ Data imported successfully!\n\n📊 Jobs imported: ${data.jobs.length}\n\n🔐 Please sign in again to access the app.`,
+                  'success'
+                );
+                console.log('Data imported successfully');
+                
+                setTimeout(() => {
+                  router.replace('/auth');
+                }, 2000);
               } catch (error) {
-                console.log('Error restoring backup:', error);
-                showNotification('Unexpected error restoring backup', 'error');
+                console.log('Error importing data:', error);
+                showNotification('Error importing data', 'error');
               } finally {
                 setIsImportInProgress(false);
               }
@@ -451,7 +486,8 @@ export default function SettingsScreen() {
       );
     } catch (error) {
       console.log('Error importing file:', error);
-      showNotification('Unexpected error importing file', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      showNotification(`Error importing file: ${errorMessage}`, 'error');
       setIsImportInProgress(false);
     }
   }, [isImportInProgress, showNotification]);
