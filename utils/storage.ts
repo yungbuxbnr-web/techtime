@@ -28,10 +28,22 @@ export async function pickBackupDirectory(): Promise<string | null> {
   try {
     if (Platform.OS === 'android') {
       const res = await SAF.requestDirectoryPermissionsAsync();
-      return res.granted ? res.directoryUri ?? null : null;
+      if (!res.granted) {
+        console.log('Folder access denied by user');
+        return null;
+      }
+      const dirUri = res.directoryUri ?? null;
+      if (dirUri) {
+        // Save the directory URI for future use
+        await AsyncStorage.setItem(BACKUP_DIRECTORY_URI_KEY, dirUri);
+        console.log('Backup directory URI saved:', dirUri);
+      }
+      return dirUri;
     } else {
       // iOS: use documentDirectory (no picker needed)
-      return FileSystem.documentDirectory || null;
+      const dirUri = FileSystem.documentDirectory || null;
+      console.log('iOS documentDirectory:', dirUri);
+      return dirUri;
     }
   } catch (error) {
     console.log('Error picking backup directory:', error);
@@ -49,7 +61,8 @@ export async function writeJsonToDirectory(
 
     if (Platform.OS === 'android') {
       const targetDir = dirUri ?? (await pickBackupDirectory());
-      if (!targetDir) throw new Error('No directory permission');
+      if (!targetDir) throw new Error('No directory permission granted');
+      
       const fileUri = await SAF.createFileAsync(
         targetDir,
         fileName,
@@ -61,9 +74,9 @@ export async function writeJsonToDirectory(
     }
 
     // iOS (and web/native fallback)
-    const base =
-      FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? '';
+    const base = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!base) throw new Error('No writable directory available');
+    
     const fileUri = base + fileName;
     await FileSystem.writeAsStringAsync(fileUri, data);
     console.log('JSON file written successfully (iOS):', fileUri);
@@ -95,7 +108,10 @@ export async function pickJsonFile(): Promise<string | null> {
       copyToCacheDirectory: true,
       multiple: false,
     });
-    if (res.canceled) return null;
+    if (res.canceled) {
+      console.log('File picker canceled by user');
+      return null;
+    }
     const uri = res.assets?.[0]?.uri;
     console.log('JSON file picked:', uri);
     return uri ?? null;
