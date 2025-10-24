@@ -8,7 +8,9 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
-  Dimensions,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { GoogleDriveService, GoogleDriveFile, GoogleDriveFolder } from '../utils/googleDriveService';
 import { BackupService, BackupData } from '../utils/backupService';
@@ -23,10 +25,9 @@ interface GoogleDriveBackupProps {
   onClose?: () => void;
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
 const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   const { colors } = useTheme();
+  const { height: screenHeight } = useWindowDimensions();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -334,7 +335,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     });
   };
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, screenHeight);
 
   if (showSetupGuide) {
     return <GoogleDriveSetup onClose={() => setShowSetupGuide(false)} />;
@@ -351,7 +352,11 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -371,7 +376,8 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       <ScrollView 
         style={styles.content} 
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
       >
         {!isConfigured && (
           <GoogleDriveInstructions onSetupGuide={() => setShowSetupGuide(true)} />
@@ -403,7 +409,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
             <View style={styles.folderSection}>
               <Text style={styles.folderLabel}>Backup Folder:</Text>
               <View style={styles.folderInfo}>
-                <Text style={styles.folderPath}>
+                <Text style={styles.folderPath} numberOfLines={2}>
                   {selectedFolder ? selectedFolder.path : 'Root (not selected)'}
                 </Text>
                 <TouchableOpacity
@@ -458,7 +464,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
                 {backupFiles.map((file) => (
                   <View key={file.id} style={styles.backupItem}>
                     <View style={styles.backupInfo}>
-                      <Text style={styles.backupName}>{file.name}</Text>
+                      <Text style={styles.backupName} numberOfLines={2}>{file.name}</Text>
                       <Text style={styles.backupDate}>
                         {formatDate(file.modifiedTime)}
                       </Text>
@@ -491,46 +497,51 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
           </View>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    maxHeight: SCREEN_HEIGHT * 0.9,
+    maxHeight: Math.min(screenHeight * 0.92, 800),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
   },
   closeButton: {
-    padding: 5,
+    padding: 8,
+    marginLeft: 10,
   },
   closeButtonText: {
-    fontSize: 18,
+    fontSize: 24,
     color: colors.text,
+    fontWeight: '300',
   },
   content: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   authSection: {
     alignItems: 'center',
+    paddingVertical: 20,
   },
   authenticatedSection: {
     flex: 1,
@@ -540,61 +551,66 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 15,
+    marginTop: 10,
   },
   description: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
-    lineHeight: 22,
+    lineHeight: 24,
+    paddingHorizontal: 10,
   },
   folderSection: {
     backgroundColor: colors.cardBackground,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
   folderLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   folderInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    gap: 10,
   },
   folderPath: {
     fontSize: 14,
     color: colors.text,
     flex: 1,
-    marginRight: 10,
+    lineHeight: 20,
   },
   selectFolderButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 6,
+    minWidth: 70,
+    alignItems: 'center',
   },
   selectFolderButtonText: {
     color: colors.background,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   folderDescription: {
     fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   button: {
-    padding: 15,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   primaryButton: {
     backgroundColor: colors.primary,
@@ -628,25 +644,26 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   backupItem: {
     backgroundColor: colors.cardBackground,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
   },
   backupInfo: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   backupName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   backupDate: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   backupSize: {
     fontSize: 12,
@@ -654,13 +671,13 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   backupActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   actionButton: {
     flex: 1,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
     alignItems: 'center',
   },
   restoreButton: {

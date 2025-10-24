@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { GoogleDriveService, GoogleDriveFile } from '../utils/googleDriveService';
 import { ImportTallyService, ImportTallyData } from '../utils/importTallyService';
@@ -20,6 +21,7 @@ interface GoogleDriveImportTallyProps {
 
 const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose }) => {
   const { colors } = useTheme();
+  const { height: screenHeight } = useWindowDimensions();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -166,7 +168,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
   };
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, screenHeight);
 
   if (!isAuthenticated) {
     return (
@@ -179,7 +181,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
         />
 
         <View style={styles.header}>
-          <Text style={styles.title}>Import & Tally from Google Drive</Text>
+          <Text style={styles.title} numberOfLines={1}>Import & Tally</Text>
           {onClose && (
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
@@ -218,7 +220,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
       />
 
       <View style={styles.header}>
-        <Text style={styles.title}>Import & Tally from Google Drive</Text>
+        <Text style={styles.title} numberOfLines={1}>Import & Tally</Text>
         {onClose && (
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>✕</Text>
@@ -226,7 +228,12 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
         )}
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+      >
         {!tallyData ? (
           <View>
             <Text style={styles.sectionTitle}>Select Backup File to Analyze</Text>
@@ -247,7 +254,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
                 {backupFiles.map((file) => (
                   <View key={file.id} style={styles.fileItem}>
                     <View style={styles.fileInfo}>
-                      <Text style={styles.fileName}>{file.name}</Text>
+                      <Text style={styles.fileName} numberOfLines={2}>{file.name}</Text>
                       <Text style={styles.fileDate}>
                         Modified: {formatDate(file.modifiedTime)}
                       </Text>
@@ -265,7 +272,7 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
                       {isLoading && selectedFile?.id === file.id ? (
                         <ActivityIndicator color={colors.background} size="small" />
                       ) : (
-                        <Text style={styles.actionButtonText}>Import & Tally</Text>
+                        <Text style={styles.actionButtonText}>Import</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -379,58 +386,68 @@ const GoogleDriveImportTally: React.FC<GoogleDriveImportTallyProps> = ({ onClose
   );
 };
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    maxHeight: Math.min(screenHeight * 0.92, 800),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
   },
   closeButton: {
-    padding: 5,
+    padding: 8,
+    marginLeft: 10,
   },
   closeButtonText: {
-    fontSize: 18,
+    fontSize: 24,
     color: colors.text,
+    fontWeight: '300',
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 60,
   },
   authSection: {
     alignItems: 'center',
-    paddingTop: 50,
+    paddingTop: 40,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 15,
+    marginBottom: 12,
   },
   description: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 22,
   },
   button: {
-    padding: 15,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    minWidth: 200,
   },
   primaryButton: {
     backgroundColor: colors.primary,
@@ -451,56 +468,64 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
   },
   fileList: {
-    marginTop: 20,
+    marginTop: 16,
   },
   fileItem: {
     backgroundColor: colors.cardBackground,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
   },
   fileInfo: {
     flex: 1,
   },
   fileName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   fileDate: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   fileSize: {
     fontSize: 12,
     color: colors.textSecondary,
   },
   actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
   },
   importButton: {
     backgroundColor: colors.primary,
   },
   actionButtonText: {
     color: colors.background,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 50,
+    paddingHorizontal: 20,
   },
   emptyStateText: {
     fontSize: 16,
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 10,
+    fontWeight: '500',
   },
   emptyStateSubtext: {
     fontSize: 14,
@@ -515,24 +540,25 @@ const createStyles = (colors: any) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    gap: 10,
   },
   newAnalysisButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   newAnalysisButtonText: {
     color: colors.background,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   infoCard: {
     backgroundColor: colors.cardBackground,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -540,40 +566,47 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   infoText: {
     fontSize: 14,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   statText: {
     fontSize: 14,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
     fontWeight: '500',
+    lineHeight: 20,
   },
   breakdownItem: {
-    marginBottom: 8,
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border + '30',
   },
   breakdownMonth: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   breakdownVehicle: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   breakdownStats: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
+    lineHeight: 18,
   },
   actionButtons: {
-    marginTop: 20,
+    marginTop: 10,
+    marginBottom: 20,
   },
 });
 
