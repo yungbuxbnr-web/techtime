@@ -1,12 +1,13 @@
 
+/* eslint-disable import/namespace */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FS from 'expo-file-system';
-import * as DP from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { Job, AppSettings } from '../types';
 import { Platform } from 'react-native';
 
-const SAF = FS.StorageAccessFramework;
+const SAF = FileSystem.StorageAccessFramework;
 
 const JOBS_KEY = 'jobs';
 const SETTINGS_KEY = 'settings';
@@ -23,14 +24,14 @@ const defaultSettings: AppSettings = {
 // FILE SYSTEM UTILITIES (SAF on Android, documentDirectory on iOS)
 // ============================================
 
-export async function pickBackupDir(): Promise<string | null> {
+export async function pickBackupDirectory(): Promise<string | null> {
   try {
     if (Platform.OS === 'android') {
       const res = await SAF.requestDirectoryPermissionsAsync();
-      return res.granted ? res.directoryUri! : null;
+      return res.granted ? res.directoryUri ?? null : null;
     } else {
       // iOS: use documentDirectory (no picker needed)
-      return FS.documentDirectory || null;
+      return FileSystem.documentDirectory || null;
     }
   } catch (error) {
     console.log('Error picking backup directory:', error);
@@ -38,34 +39,45 @@ export async function pickBackupDir(): Promise<string | null> {
   }
 }
 
-export async function writeJson(dirUri: string | null, name: string, data: any): Promise<string> {
+export async function writeJsonToDirectory(
+  dirUri: string | null,
+  fileName: string,
+  jsonObj: unknown
+): Promise<string> {
   try {
-    const json = JSON.stringify(data, null, 2);
-    let fileUri: string;
+    const data = JSON.stringify(jsonObj, null, 2);
 
     if (Platform.OS === 'android') {
-      const dir = dirUri ?? (await pickBackupDir());
-      if (!dir) throw new Error('No directory permission');
-      fileUri = await SAF.createFileAsync(dir, name, 'application/json');
-      await SAF.writeAsStringAsync(fileUri, json);
-    } else {
-      // iOS: write to documentDirectory
-      fileUri = (FS.documentDirectory || '') + name;
-      await FS.writeAsStringAsync(fileUri, json);
+      const targetDir = dirUri ?? (await pickBackupDirectory());
+      if (!targetDir) throw new Error('No directory permission');
+      const fileUri = await SAF.createFileAsync(
+        targetDir,
+        fileName,
+        'application/json'
+      );
+      await SAF.writeAsStringAsync(fileUri, data);
+      console.log('JSON file written successfully (Android):', fileUri);
+      return fileUri;
     }
 
-    console.log('JSON file written successfully:', fileUri);
+    // iOS (and web/native fallback)
+    const base =
+      FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? '';
+    if (!base) throw new Error('No writable directory available');
+    const fileUri = base + fileName;
+    await FileSystem.writeAsStringAsync(fileUri, data);
+    console.log('JSON file written successfully (iOS):', fileUri);
     return fileUri;
   } catch (error) {
-    console.log('Error writing JSON:', error);
+    console.log('Error writing JSON to directory:', error);
     throw error;
   }
 }
 
-export async function shareFile(uri: string): Promise<void> {
+export async function shareFile(fileUri: string): Promise<void> {
   try {
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: 'application/json' });
+      await Sharing.shareAsync(fileUri, { mimeType: 'application/json' });
       console.log('File shared successfully');
     } else {
       throw new Error('Sharing is not available on this device');
@@ -78,30 +90,44 @@ export async function shareFile(uri: string): Promise<void> {
 
 export async function pickJsonFile(): Promise<string | null> {
   try {
-    const r = await DP.getDocumentAsync({ 
-      type: 'application/json', 
-      copyToCacheDirectory: true 
+    const res = await DocumentPicker.getDocumentAsync({
+      type: 'application/json',
+      copyToCacheDirectory: true,
+      multiple: false,
     });
-    
-    if (r.canceled) {
-      return null;
-    }
-    
-    return r.assets?.[0]?.uri ?? null;
+    if (res.canceled) return null;
+    const uri = res.assets?.[0]?.uri;
+    console.log('JSON file picked:', uri);
+    return uri ?? null;
   } catch (error) {
     console.log('Error picking JSON file:', error);
     return null;
   }
 }
 
-export async function readJson(uri: string): Promise<any> {
+export async function readJsonFromUri<T = any>(uri: string): Promise<T> {
   try {
-    const s = await FS.readAsStringAsync(uri);
-    return JSON.parse(s);
+    const content = await FileSystem.readAsStringAsync(uri);
+    const parsed = JSON.parse(content) as T;
+    console.log('JSON file read successfully from URI');
+    return parsed;
   } catch (error) {
-    console.log('Error reading JSON:', error);
+    console.log('Error reading JSON from URI:', error);
     throw error;
   }
+}
+
+// Legacy function names for backward compatibility
+export async function pickBackupDir(): Promise<string | null> {
+  return pickBackupDirectory();
+}
+
+export async function writeJson(dirUri: string | null, name: string, data: any): Promise<string> {
+  return writeJsonToDirectory(dirUri, name, data);
+}
+
+export async function readJson(uri: string): Promise<any> {
+  return readJsonFromUri(uri);
 }
 
 // ============================================
