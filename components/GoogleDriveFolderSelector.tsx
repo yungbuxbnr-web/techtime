@@ -271,7 +271,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    maxHeight: Math.min(screenHeight * 0.92, 800),
+    maxHeight: screenHeight * 0.95,
   },
   header: {
     flexDirection: 'row',
@@ -424,7 +424,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
     flex: 1,
   },
   folderListContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   emptyContainer: {
     flex: 1,

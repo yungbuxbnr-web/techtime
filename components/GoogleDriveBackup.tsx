@@ -128,15 +128,15 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Simple Google Drive Backup</Text>
           <Text style={styles.description}>
-            This feature creates a backup file and opens your device's share menu. 
+            This feature creates a backup file and opens your device&apos;s share menu. 
             From there, you can select Google Drive to save your backup.
           </Text>
           
           <View style={styles.instructionsBox}>
             <Text style={styles.instructionsTitle}>📱 How it works:</Text>
-            <Text style={styles.instructionStep}>1. Tap "Create Backup" below</Text>
+            <Text style={styles.instructionStep}>1. Tap &quot;Create Backup&quot; below</Text>
             <Text style={styles.instructionStep}>2. A share menu will appear</Text>
-            <Text style={styles.instructionStep}>3. Select "Google Drive" from the options</Text>
+            <Text style={styles.instructionStep}>3. Select &quot;Google Drive&quot; from the options</Text>
             <Text style={styles.instructionStep}>4. Choose a folder and save</Text>
           </View>
 
@@ -149,7 +149,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
               - You can also save to other cloud services like Dropbox, OneDrive, etc.
             </Text>
             <Text style={styles.tipText}>
-              - To restore, download the backup file and use "Import from File (JSON)" in Settings
+              - To restore, download the backup file and use &quot;Import from File (JSON)&quot; in Settings
             </Text>
           </View>
         </View>
@@ -172,8 +172,8 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
         <View style={styles.noteSection}>
           <Text style={styles.noteTitle}>📝 Note:</Text>
           <Text style={styles.noteText}>
-            This simplified approach doesn't require any Google API setup or authentication. 
-            It uses your device's native sharing capabilities to save files to Google Drive or any other cloud service you have installed.
+            This simplified approach doesn&apos;t require any Google API setup or authentication. 
+            It uses your device&apos;s native sharing capabilities to save files to Google Drive or any other cloud service you have installed.
           </Text>
         </View>
       </ScrollView>
@@ -185,7 +185,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    maxHeight: Math.min(screenHeight * 0.92, 800),
+    maxHeight: screenHeight * 0.95,
   },
   header: {
     flexDirection: 'row',
@@ -217,7 +217,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 60,
+    paddingBottom: 100,
   },
   infoSection: {
     marginBottom: 20,
@@ -304,6 +304,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: 40,
   },
   noteTitle: {
     fontSize: 15,
