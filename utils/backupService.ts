@@ -129,7 +129,7 @@ const checkDirectoryWritable = async (directoryPath: string): Promise<boolean> =
   try {
     const testFilePath = `${directoryPath}test_write_${Date.now()}.tmp`;
     await FileSystem.writeAsStringAsync(testFilePath, 'test', { 
-      encoding: FileSystem.EncodingType.UTF8 
+      encoding: 'utf8'
     });
     await FileSystem.deleteAsync(testFilePath, { idempotent: true });
     console.log('Directory is writable:', directoryPath);
@@ -158,7 +158,7 @@ const verifyBackupFile = async (filePath: string): Promise<{ valid: boolean; mes
     
     // Read and parse file content
     const content = await FileSystem.readAsStringAsync(filePath, { 
-      encoding: FileSystem.EncodingType.UTF8 
+      encoding: 'utf8'
     });
     const data = JSON.parse(content);
     
@@ -330,7 +330,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         backupFilePath,
         JSON.stringify(backupData, null, 2),
-        { encoding: FileSystem.EncodingType.UTF8 }
+        { encoding: 'utf8' }
       );
       console.log('✓ Timestamped backup file written:', backupFileName);
 
@@ -340,7 +340,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         latestBackupPath,
         JSON.stringify(backupData, null, 2),
-        { encoding: FileSystem.EncodingType.UTF8 }
+        { encoding: 'utf8' }
       );
       console.log('✓ Latest backup file written');
 
@@ -499,7 +499,7 @@ export const BackupService = {
       // Step 4: Read backup file
       console.log('Step 4: Reading backup file...');
       const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
-        encoding: FileSystem.EncodingType.UTF8
+        encoding: 'utf8'
       });
 
       // Step 5: Parse backup data
