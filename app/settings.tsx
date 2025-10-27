@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
@@ -36,6 +36,11 @@ export default function SettingsScreen() {
   const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
   const [absenceType, setAbsenceType] = useState<'half' | 'full'>('full');
   const [deductionType, setDeductionType] = useState<'monthly' | 'available'>('monthly');
+  
+  // iOS picker modal states
+  const [showDaysPicker, setShowDaysPicker] = useState(false);
+  const [showAbsenceTypePicker, setShowAbsenceTypePicker] = useState(false);
+  const [showDeductionTypePicker, setShowDeductionTypePicker] = useState(false);
 
   const isDarkMode = theme === 'dark';
 
@@ -685,47 +690,222 @@ export default function SettingsScreen() {
             {/* Number of Absent Days Dropdown */}
             <View style={styles.dropdownContainer}>
               <Text style={styles.dropdownLabel}>Number of Absent Days</Text>
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={numberOfAbsentDays}
-                  onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
-                  style={styles.picker}
-                >
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                    <Picker.Item key={day} label={`${day} ${day === 1 ? 'day' : 'days'}`} value={day} />
-                  ))}
-                </Picker>
-              </View>
+              {Platform.OS === 'ios' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => setShowDaysPicker(true)}
+                  >
+                    <Text style={styles.pickerButtonText}>
+                      {numberOfAbsentDays} {numberOfAbsentDays === 1 ? 'day' : 'days'}
+                    </Text>
+                    <Text style={styles.pickerButtonIcon}>▼</Text>
+                  </TouchableOpacity>
+                  
+                  <Modal
+                    visible={showDaysPicker}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowDaysPicker(false)}
+                  >
+                    <View style={styles.modalOverlay}>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>Select Number of Days</Text>
+                          <TouchableOpacity
+                            style={styles.modalDoneButton}
+                            onPress={() => setShowDaysPicker(false)}
+                          >
+                            <Text style={styles.modalDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Picker
+                          selectedValue={numberOfAbsentDays}
+                          onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
+                          style={styles.iosPicker}
+                        >
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                            <Picker.Item 
+                              key={day} 
+                              label={`${day} ${day === 1 ? 'day' : 'days'}`} 
+                              value={day}
+                              color={colors.text}
+                            />
+                          ))}
+                        </Picker>
+                      </View>
+                    </View>
+                  </Modal>
+                </>
+              ) : (
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={numberOfAbsentDays}
+                    onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
+                    style={styles.picker}
+                    dropdownIconColor={colors.text}
+                  >
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                      <Picker.Item 
+                        key={day} 
+                        label={`${day} ${day === 1 ? 'day' : 'days'}`} 
+                        value={day}
+                        color={colors.text}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              )}
             </View>
 
             {/* Absence Type Dropdown */}
             <View style={styles.dropdownContainer}>
               <Text style={styles.dropdownLabel}>Absence Type</Text>
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={absenceType}
-                  onValueChange={(itemValue) => setAbsenceType(itemValue)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Half Day (4.25 hours)" value="half" />
-                  <Picker.Item label="Full Day (8.5 hours)" value="full" />
-                </Picker>
-              </View>
+              {Platform.OS === 'ios' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => setShowAbsenceTypePicker(true)}
+                  >
+                    <Text style={styles.pickerButtonText}>
+                      {absenceType === 'half' ? 'Half Day (4.25 hours)' : 'Full Day (8.5 hours)'}
+                    </Text>
+                    <Text style={styles.pickerButtonIcon}>▼</Text>
+                  </TouchableOpacity>
+                  
+                  <Modal
+                    visible={showAbsenceTypePicker}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowAbsenceTypePicker(false)}
+                  >
+                    <View style={styles.modalOverlay}>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>Select Absence Type</Text>
+                          <TouchableOpacity
+                            style={styles.modalDoneButton}
+                            onPress={() => setShowAbsenceTypePicker(false)}
+                          >
+                            <Text style={styles.modalDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Picker
+                          selectedValue={absenceType}
+                          onValueChange={(itemValue) => setAbsenceType(itemValue)}
+                          style={styles.iosPicker}
+                        >
+                          <Picker.Item 
+                            label="Half Day (4.25 hours)" 
+                            value="half"
+                            color={colors.text}
+                          />
+                          <Picker.Item 
+                            label="Full Day (8.5 hours)" 
+                            value="full"
+                            color={colors.text}
+                          />
+                        </Picker>
+                      </View>
+                    </View>
+                  </Modal>
+                </>
+              ) : (
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={absenceType}
+                    onValueChange={(itemValue) => setAbsenceType(itemValue)}
+                    style={styles.picker}
+                    dropdownIconColor={colors.text}
+                  >
+                    <Picker.Item 
+                      label="Half Day (4.25 hours)" 
+                      value="half"
+                      color={colors.text}
+                    />
+                    <Picker.Item 
+                      label="Full Day (8.5 hours)" 
+                      value="full"
+                      color={colors.text}
+                    />
+                  </Picker>
+                </View>
+              )}
             </View>
 
-            {/* Deduction Type Dropdown - NEW */}
+            {/* Deduction Type Dropdown */}
             <View style={styles.dropdownContainer}>
               <Text style={styles.dropdownLabel}>Deduction Type</Text>
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={deductionType}
-                  onValueChange={(itemValue) => setDeductionType(itemValue)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Monthly Target Hours" value="monthly" />
-                  <Picker.Item label="Total Available Hours" value="available" />
-                </Picker>
-              </View>
+              {Platform.OS === 'ios' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => setShowDeductionTypePicker(true)}
+                  >
+                    <Text style={styles.pickerButtonText}>
+                      {deductionType === 'monthly' ? 'Monthly Target Hours' : 'Total Available Hours'}
+                    </Text>
+                    <Text style={styles.pickerButtonIcon}>▼</Text>
+                  </TouchableOpacity>
+                  
+                  <Modal
+                    visible={showDeductionTypePicker}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowDeductionTypePicker(false)}
+                  >
+                    <View style={styles.modalOverlay}>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>Select Deduction Type</Text>
+                          <TouchableOpacity
+                            style={styles.modalDoneButton}
+                            onPress={() => setShowDeductionTypePicker(false)}
+                          >
+                            <Text style={styles.modalDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Picker
+                          selectedValue={deductionType}
+                          onValueChange={(itemValue) => setDeductionType(itemValue)}
+                          style={styles.iosPicker}
+                        >
+                          <Picker.Item 
+                            label="Monthly Target Hours" 
+                            value="monthly"
+                            color={colors.text}
+                          />
+                          <Picker.Item 
+                            label="Total Available Hours" 
+                            value="available"
+                            color={colors.text}
+                          />
+                        </Picker>
+                      </View>
+                    </View>
+                  </Modal>
+                </>
+              ) : (
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={deductionType}
+                    onValueChange={(itemValue) => setDeductionType(itemValue)}
+                    style={styles.picker}
+                    dropdownIconColor={colors.text}
+                  >
+                    <Picker.Item 
+                      label="Monthly Target Hours" 
+                      value="monthly"
+                      color={colors.text}
+                    />
+                    <Picker.Item 
+                      label="Total Available Hours" 
+                      value="available"
+                      color={colors.text}
+                    />
+                  </Picker>
+                </View>
+              )}
               <Text style={styles.dropdownHint}>
                 {deductionType === 'monthly' 
                   ? '📊 Will reduce your monthly target hours (affects progress circle)' 
@@ -1210,6 +1390,66 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 50,
     width: '100%',
     color: colors.text,
+  },
+  pickerButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 50,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  pickerButtonIcon: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalDoneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  modalDoneText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  iosPicker: {
+    width: '100%',
+    height: 216,
+    backgroundColor: colors.card,
   },
   dropdownHint: {
     fontSize: 13,

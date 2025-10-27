@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
@@ -32,6 +32,7 @@ export default function AddJobScreen() {
   const [regSuggestions, setRegSuggestions] = useState<JobSuggestion[]>([]);
   const [showWipSuggestions, setShowWipSuggestions] = useState(false);
   const [showRegSuggestions, setShowRegSuggestions] = useState(false);
+  const [showAwPicker, setShowAwPicker] = useState(false);
 
   const wipRef = useRef<TextInput>(null);
   const vehicleRef = useRef<TextInput>(null);
@@ -439,18 +440,72 @@ export default function AddJobScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>AW Value *</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={awValue}
-                  onValueChange={setAwValue}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                >
-                  {Array.from({ length: 101 }, (_, i) => (
-                    <Picker.Item key={i} label={`${i} AW${i !== 1 ? 's' : ''}`} value={i} />
-                  ))}
-                </Picker>
-              </View>
+              {Platform.OS === 'ios' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => setShowAwPicker(true)}
+                  >
+                    <Text style={styles.pickerButtonText}>
+                      {awValue} AW{awValue !== 1 ? 's' : ''}
+                    </Text>
+                    <Text style={styles.pickerButtonIcon}>▼</Text>
+                  </TouchableOpacity>
+                  
+                  <Modal
+                    visible={showAwPicker}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowAwPicker(false)}
+                  >
+                    <View style={styles.modalOverlay}>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>Select AW Value</Text>
+                          <TouchableOpacity
+                            style={styles.modalDoneButton}
+                            onPress={() => setShowAwPicker(false)}
+                          >
+                            <Text style={styles.modalDoneText}>Done</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Picker
+                          selectedValue={awValue}
+                          onValueChange={(value) => setAwValue(value)}
+                          style={styles.iosPicker}
+                        >
+                          {Array.from({ length: 101 }, (_, i) => (
+                            <Picker.Item 
+                              key={i} 
+                              label={`${i} AW${i !== 1 ? 's' : ''}`} 
+                              value={i}
+                              color={colors.text}
+                            />
+                          ))}
+                        </Picker>
+                      </View>
+                    </View>
+                  </Modal>
+                </>
+              ) : (
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={awValue}
+                    onValueChange={setAwValue}
+                    style={styles.picker}
+                    dropdownIconColor={colors.text}
+                  >
+                    {Array.from({ length: 101 }, (_, i) => (
+                      <Picker.Item 
+                        key={i} 
+                        label={`${i} AW${i !== 1 ? 's' : ''}`} 
+                        value={i}
+                        color={colors.text}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              )}
               <Text style={styles.helperText}>
                 1 AW = 5 minutes • Selected: {CalculationService.formatTime(awValue * 5)}
               </Text>
@@ -577,9 +632,65 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 50,
     color: colors.text,
   },
-  pickerItem: {
+  pickerButton: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  pickerButtonText: {
     fontSize: 16,
     color: colors.text,
+    fontWeight: '500',
+  },
+  pickerButtonIcon: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalDoneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  modalDoneText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  iosPicker: {
+    width: '100%',
+    height: 216,
+    backgroundColor: colors.card,
   },
   saveButton: {
     backgroundColor: colors.primary,

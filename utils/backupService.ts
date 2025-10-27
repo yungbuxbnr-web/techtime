@@ -7,7 +7,7 @@ import { StorageService } from './storage';
 import { Job, AppSettings } from '../types';
 import { Platform } from 'react-native';
 
-const BACKUP_FOLDER_NAME = 'techtrace';
+const BACKUP_FOLDER_NAME = 'TechTraceData';
 const BACKUP_FILE_NAME = 'backup.json';
 
 export interface BackupData {
@@ -23,56 +23,58 @@ export interface BackupData {
   };
 }
 
-// Helper function to get document directory with proper type handling
+// iOS-optimized: Get document directory with proper error handling
 const getDocumentDirectory = (): string | null => {
   try {
-    // Use type assertion to access documentDirectory
-    const fs = FileSystem as any;
-    const docDir = fs.documentDirectory || null;
-    console.log('Document directory:', docDir);
-    return docDir;
+    if (Platform.OS === 'ios') {
+      // iOS: Always use documentDirectory (backed up to iCloud if enabled)
+      const docDir = FileSystem.documentDirectory;
+      if (docDir) {
+        console.log('[iOS] Document directory:', docDir);
+        return docDir;
+      }
+    } else {
+      // Android: Use documentDirectory
+      const docDir = FileSystem.documentDirectory;
+      if (docDir) {
+        console.log('[Android] Document directory:', docDir);
+        return docDir;
+      }
+    }
+    console.log('Document directory not available');
+    return null;
   } catch (error) {
     console.log('Error accessing document directory:', error);
     return null;
   }
 };
 
-// Helper function to get cache directory with proper type handling
+// iOS-optimized: Get cache directory as fallback
 const getCacheDirectory = (): string | null => {
   try {
-    // Use type assertion to access cacheDirectory
-    const fs = FileSystem as any;
-    const cacheDir = fs.cacheDirectory || null;
-    console.log('Cache directory:', cacheDir);
-    return cacheDir;
+    const cacheDir = FileSystem.cacheDirectory;
+    if (cacheDir) {
+      console.log('Cache directory:', cacheDir);
+      return cacheDir;
+    }
+    console.log('Cache directory not available');
+    return null;
   } catch (error) {
     console.log('Error accessing cache directory:', error);
     return null;
   }
 };
 
-// Helper function to get encoding type with proper type handling
-const getEncodingType = () => {
-  try {
-    // Use type assertion to access EncodingType
-    const fs = FileSystem as any;
-    return fs.EncodingType?.UTF8 || 'utf8';
-  } catch (error) {
-    console.log('Error accessing encoding type:', error);
-    return 'utf8';
-  }
-};
-
-// Helper function to get available directories with fallback
+// iOS-optimized: Get available directory with iOS preference
 const getAvailableDirectory = (): { directory: string; type: 'document' | 'cache' } | null => {
-  // Try document directory first
+  // iOS: Always prefer document directory (iCloud backup compatible)
   const documentDir = getDocumentDirectory();
   if (documentDir) {
     console.log('Using document directory:', documentDir);
     return { directory: documentDir, type: 'document' };
   }
   
-  // Fallback to cache directory
+  // Fallback to cache directory (not backed up)
   const cacheDir = getCacheDirectory();
   if (cacheDir) {
     console.log('Document directory not available, using cache directory:', cacheDir);
@@ -83,7 +85,7 @@ const getAvailableDirectory = (): { directory: string; type: 'document' | 'cache
   return null;
 };
 
-// Request storage permissions with better error handling
+// iOS-optimized: Request storage permissions
 const requestStoragePermissions = async (): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('Requesting storage permissions...');
@@ -109,9 +111,9 @@ const requestStoragePermissions = async (): Promise<{ success: boolean; message:
         };
       }
     } else {
-      // iOS doesn't require explicit permissions for document directory
-      console.log('iOS - no explicit permissions needed for document directory');
-      return { success: true, message: 'Permissions not required on iOS' };
+      // iOS: No explicit permissions needed for document directory
+      console.log('[iOS] No explicit permissions needed for document directory');
+      return { success: true, message: 'iOS: Permissions not required for document directory' };
     }
   } catch (error) {
     console.log('Error requesting storage permissions:', error);
@@ -122,11 +124,13 @@ const requestStoragePermissions = async (): Promise<{ success: boolean; message:
   }
 };
 
-// Check if directory is writable
+// iOS-optimized: Check if directory is writable
 const checkDirectoryWritable = async (directoryPath: string): Promise<boolean> => {
   try {
-    const testFilePath = `${directoryPath}test_write.tmp`;
-    await FileSystem.writeAsStringAsync(testFilePath, 'test', { encoding: getEncodingType() });
+    const testFilePath = `${directoryPath}test_write_${Date.now()}.tmp`;
+    await FileSystem.writeAsStringAsync(testFilePath, 'test', { 
+      encoding: FileSystem.EncodingType.UTF8 
+    });
     await FileSystem.deleteAsync(testFilePath, { idempotent: true });
     console.log('Directory is writable:', directoryPath);
     return true;
@@ -136,7 +140,7 @@ const checkDirectoryWritable = async (directoryPath: string): Promise<boolean> =
   }
 };
 
-// Verify backup file integrity
+// iOS-optimized: Verify backup file integrity
 const verifyBackupFile = async (filePath: string): Promise<{ valid: boolean; message: string }> => {
   try {
     console.log('Verifying backup file:', filePath);
@@ -153,7 +157,9 @@ const verifyBackupFile = async (filePath: string): Promise<{ valid: boolean; mes
     }
     
     // Read and parse file content
-    const content = await FileSystem.readAsStringAsync(filePath, { encoding: getEncodingType() });
+    const content = await FileSystem.readAsStringAsync(filePath, { 
+      encoding: FileSystem.EncodingType.UTF8 
+    });
     const data = JSON.parse(content);
     
     // Validate structure
@@ -175,6 +181,81 @@ const verifyBackupFile = async (filePath: string): Promise<{ valid: boolean; mes
   }
 };
 
+// iOS-optimized: Get operating folder path
+const getOperatingFolderPath = async (): Promise<string | null> => {
+  try {
+    const directoryInfo = getAvailableDirectory();
+    if (!directoryInfo) {
+      return null;
+    }
+    
+    const operatingFolderPath = `${directoryInfo.directory}${BACKUP_FOLDER_NAME}/`;
+    console.log('[Operating Folder] Path:', operatingFolderPath);
+    return operatingFolderPath;
+  } catch (error) {
+    console.log('Error getting operating folder path:', error);
+    return null;
+  }
+};
+
+// iOS-optimized: Ensure operating folder exists
+const ensureOperatingFolderExists = async (): Promise<{ success: boolean; path: string | null; message: string }> => {
+  try {
+    console.log('=== ENSURING OPERATING FOLDER EXISTS ===');
+    
+    const directoryInfo = getAvailableDirectory();
+    if (!directoryInfo) {
+      return { 
+        success: false, 
+        path: null,
+        message: 'File system not available on this device' 
+      };
+    }
+
+    const { directory, type } = directoryInfo;
+    const operatingFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
+    
+    // Check if folder exists
+    const folderInfo = await FileSystem.getInfoAsync(operatingFolderPath);
+    
+    if (!folderInfo.exists) {
+      console.log('[Operating Folder] Creating folder at:', operatingFolderPath);
+      await FileSystem.makeDirectoryAsync(operatingFolderPath, { intermediates: true });
+      
+      // Verify creation
+      const verifyInfo = await FileSystem.getInfoAsync(operatingFolderPath);
+      if (!verifyInfo.exists) {
+        return { 
+          success: false, 
+          path: null,
+          message: 'Failed to create operating folder' 
+        };
+      }
+      
+      console.log('[Operating Folder] Created successfully');
+      return { 
+        success: true, 
+        path: operatingFolderPath,
+        message: `Operating folder created at ${type === 'document' ? 'Documents' : 'Cache'}/${BACKUP_FOLDER_NAME}/` 
+      };
+    } else {
+      console.log('[Operating Folder] Already exists');
+      return { 
+        success: true, 
+        path: operatingFolderPath,
+        message: `Operating folder exists at ${type === 'document' ? 'Documents' : 'Cache'}/${BACKUP_FOLDER_NAME}/` 
+      };
+    }
+  } catch (error) {
+    console.log('[Operating Folder] Error:', error);
+    return { 
+      success: false, 
+      path: null,
+      message: `Failed to ensure operating folder: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
+  }
+};
+
 export const BackupService = {
   async requestPermissions(): Promise<{ success: boolean; message: string }> {
     return await requestStoragePermissions();
@@ -184,86 +265,51 @@ export const BackupService = {
     try {
       console.log('=== STARTING BACKUP PROCESS ===');
       
-      // Step 1: Get available directory (no permissions needed for cache/document directory)
-      console.log('Step 1: Getting available directory...');
-      const directoryInfo = getAvailableDirectory();
-      
-      if (!directoryInfo) {
-        console.log('✗ No file system directory available');
+      // Step 1: Ensure operating folder exists
+      console.log('Step 1: Ensuring operating folder exists...');
+      const folderResult = await ensureOperatingFolderExists();
+      if (!folderResult.success || !folderResult.path) {
+        console.log('✗ Failed to ensure operating folder');
         return { 
           success: false, 
-          message: 'File system not available on this device. This may happen if:\n\n• Storage permissions are not granted\n• Device storage is full\n• App does not have file system access\n\nPlease check your device settings and try again.' 
+          message: folderResult.message 
         };
       }
-
-      const { directory, type } = directoryInfo;
-      console.log('✓ Directory available:', directory);
+      console.log('✓ Operating folder ready:', folderResult.path);
 
       // Step 2: Check if directory is writable
       console.log('Step 2: Checking directory write permissions...');
-      const isWritable = await checkDirectoryWritable(directory);
+      const isWritable = await checkDirectoryWritable(folderResult.path);
       if (!isWritable) {
         console.log('✗ Directory not writable');
         return {
           success: false,
-          message: `Cannot write to ${type} directory. Please check:\n\n• Storage permissions are granted\n• Device has available storage space\n• App has write access to storage\n\nTry restarting the app or checking device settings.`
+          message: 'Cannot write to operating folder. Please check storage permissions and available space.'
         };
       }
       console.log('✓ Directory is writable');
 
-      // Step 3: Create techtrace folder if it doesn't exist
-      console.log('Step 3: Creating/verifying backup folder...');
-      const backupFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
-      
-      try {
-        const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
-        
-        if (!folderInfo.exists) {
-          console.log('Creating backup folder at:', backupFolderPath);
-          await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
-          
-          // Verify folder was created successfully
-          const verifyFolderInfo = await FileSystem.getInfoAsync(backupFolderPath);
-          if (!verifyFolderInfo.exists) {
-            console.log('✗ Failed to create backup folder');
-            return { 
-              success: false, 
-              message: 'Failed to create backup folder. Please check storage permissions and available space.' 
-            };
-          }
-          console.log('✓ Backup folder created successfully');
-        } else {
-          console.log('✓ Backup folder already exists');
-        }
-      } catch (folderError) {
-        console.log('✗ Error with backup folder:', folderError);
-        return { 
-          success: false, 
-          message: `Failed to access backup folder: ${folderError instanceof Error ? folderError.message : 'Unknown error'}` 
-        };
-      }
-
-      // Step 4: Get all data from storage
-      console.log('Step 4: Loading data from storage...');
+      // Step 3: Get all data from storage
+      console.log('Step 3: Loading data from storage...');
       const jobs = await StorageService.getJobs();
       const settings = await StorageService.getSettings();
       console.log('✓ Data loaded. Jobs:', jobs.length);
 
-      // Step 5: Calculate metadata
-      console.log('Step 5: Calculating metadata...');
+      // Step 4: Calculate metadata
+      console.log('Step 4: Calculating metadata...');
       const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
       const currentDate = new Date().toISOString();
       console.log('✓ Metadata calculated. Total AWs:', totalAWs);
 
-      // Step 6: Create backup data structure
-      console.log('Step 6: Creating backup data structure...');
+      // Step 5: Create backup data structure
+      console.log('Step 5: Creating backup data structure...');
       const backupData: BackupData = {
         version: '1.0.0',
         timestamp: currentDate,
         jobs,
         settings: {
           ...settings,
-          isAuthenticated: false // Don't backup authentication state
+          isAuthenticated: false
         },
         metadata: {
           totalJobs: jobs.length,
@@ -274,45 +320,32 @@ export const BackupService = {
       };
       console.log('✓ Backup data structure created');
 
-      // Step 7: Create backup file with timestamp
-      console.log('Step 7: Writing backup files...');
+      // Step 6: Create backup files
+      console.log('Step 6: Writing backup files...');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const backupFileName = `backup_${timestamp}.json`;
-      const backupFilePath = `${backupFolderPath}${backupFileName}`;
+      const backupFilePath = `${folderResult.path}${backupFileName}`;
 
       // Write timestamped backup file
-      try {
-        await FileSystem.writeAsStringAsync(
-          backupFilePath,
-          JSON.stringify(backupData, null, 2),
-          { encoding: getEncodingType() }
-        );
-        console.log('✓ Timestamped backup file written:', backupFileName);
-      } catch (writeError) {
-        console.log('✗ Error writing backup file:', writeError);
-        return { 
-          success: false, 
-          message: `Failed to write backup file: ${writeError instanceof Error ? writeError.message : 'Unknown error'}` 
-        };
-      }
+      await FileSystem.writeAsStringAsync(
+        backupFilePath,
+        JSON.stringify(backupData, null, 2),
+        { encoding: FileSystem.EncodingType.UTF8 }
+      );
+      console.log('✓ Timestamped backup file written:', backupFileName);
 
-      // Step 8: Also create a latest backup file for easy access
-      console.log('Step 8: Creating latest backup file...');
-      const latestBackupPath = `${backupFolderPath}${BACKUP_FILE_NAME}`;
-      try {
-        await FileSystem.writeAsStringAsync(
-          latestBackupPath,
-          JSON.stringify(backupData, null, 2),
-          { encoding: getEncodingType() }
-        );
-        console.log('✓ Latest backup file written');
-      } catch (latestWriteError) {
-        console.log('⚠ Warning: Error writing latest backup file:', latestWriteError);
-        // Don't fail the entire backup if latest file fails
-      }
+      // Step 7: Also create a latest backup file
+      console.log('Step 7: Creating latest backup file...');
+      const latestBackupPath = `${folderResult.path}${BACKUP_FILE_NAME}`;
+      await FileSystem.writeAsStringAsync(
+        latestBackupPath,
+        JSON.stringify(backupData, null, 2),
+        { encoding: FileSystem.EncodingType.UTF8 }
+      );
+      console.log('✓ Latest backup file written');
 
-      // Step 9: Verify backup file integrity
-      console.log('Step 9: Verifying backup file integrity...');
+      // Step 8: Verify backup file integrity
+      console.log('Step 8: Verifying backup file integrity...');
       const verificationResult = await verifyBackupFile(backupFilePath);
       if (!verificationResult.valid) {
         console.log('✗ Backup verification failed:', verificationResult.message);
@@ -323,12 +356,11 @@ export const BackupService = {
       }
       console.log('✓ Backup verified successfully');
 
-      const directoryTypeText = type === 'document' ? 'Documents' : 'Cache';
       console.log('=== BACKUP PROCESS COMPLETED SUCCESSFULLY ===');
       
       return {
         success: true,
-        message: `✅ Backup created and verified successfully!\n\n📁 Location: ${directoryTypeText}/${BACKUP_FOLDER_NAME}/\n📄 File: ${backupFileName}\n📊 Jobs backed up: ${jobs.length}\n⏱️ Total AWs: ${totalAWs}\n💾 ${verificationResult.message}${type === 'cache' ? '\n\n⚠️ Note: Saved to cache directory. For permanent storage, ensure document directory access.' : ''}`,
+        message: `✅ Backup created and verified successfully!\n\n📁 Location: ${BACKUP_FOLDER_NAME}/\n📄 File: ${backupFileName}\n📊 Jobs backed up: ${jobs.length}\n⏱️ Total AWs: ${totalAWs}\n💾 ${verificationResult.message}${Platform.OS === 'ios' ? '\n\n☁️ Note: Backed up to app Documents folder (iCloud compatible)' : ''}`,
         filePath: backupFilePath
       };
 
@@ -345,7 +377,7 @@ export const BackupService = {
     try {
       console.log('=== STARTING SHARE BACKUP PROCESS ===');
       
-      // Step 1: Check if sharing is available first
+      // Step 1: Check if sharing is available
       console.log('Step 1: Checking if sharing is available...');
       const isAvailable = await Sharing.isAvailableAsync();
       
@@ -353,10 +385,9 @@ export const BackupService = {
         console.log('✗ Sharing not available on this device');
         return {
           success: false,
-          message: 'Sharing is not available on this device or platform. Please try:\n\n• Creating a local backup instead\n• Using Google Drive backup\n• Checking if your device supports file sharing'
+          message: 'Sharing is not available on this device or platform.'
         };
       }
-      
       console.log('✓ Sharing is available');
 
       // Step 2: Create a fresh backup
@@ -370,10 +401,9 @@ export const BackupService = {
           message: backupResult.message || 'Failed to create backup file for sharing'
         };
       }
-      
       console.log('✓ Backup created at:', backupResult.filePath);
 
-      // Step 3: Verify the file exists before sharing
+      // Step 3: Verify the file exists
       console.log('Step 3: Verifying backup file exists...');
       const fileInfo = await FileSystem.getInfoAsync(backupResult.filePath);
       
@@ -381,52 +411,44 @@ export const BackupService = {
         console.log('✗ Backup file does not exist');
         return {
           success: false,
-          message: 'Backup file was created but cannot be found. Please try creating a local backup instead.'
+          message: 'Backup file was created but cannot be found.'
         };
       }
-      
       console.log('✓ Backup file exists, size:', fileInfo.size, 'bytes');
 
       // Step 4: Share the backup file
       console.log('Step 4: Opening share dialog...');
       
-      try {
-        await Sharing.shareAsync(backupResult.filePath, {
-          mimeType: 'application/json',
-          dialogTitle: 'Share TechTrace Backup',
-          UTI: 'public.json'
-        });
+      await Sharing.shareAsync(backupResult.filePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Share TechTrace Backup',
+        UTI: 'public.json'
+      });
 
-        console.log('=== SHARE BACKUP PROCESS COMPLETED ===');
-        
-        return {
-          success: true,
-          message: '✅ Backup file shared successfully!\n\nYou can now:\n• Save to cloud storage (Drive, Dropbox, etc.)\n• Send via email or messaging apps\n• Transfer to another device\n• Save to Files app\n\nThe backup contains all your job records and settings in JSON format.'
-        };
-      } catch (shareError) {
-        console.log('Error during sharing:', shareError);
-        
-        // Check if user cancelled
-        if (shareError instanceof Error && 
-            (shareError.message.includes('cancel') || 
-             shareError.message.includes('dismiss') ||
-             shareError.message.includes('abort'))) {
-          console.log('User cancelled sharing');
-          return {
-            success: false,
-            message: 'Sharing cancelled. Your backup file is still saved locally at:\n\n' + backupResult.filePath
-          };
-        }
-        
-        throw shareError;
-      }
+      console.log('=== SHARE BACKUP PROCESS COMPLETED ===');
+      
+      return {
+        success: true,
+        message: '✅ Backup file shared successfully!\n\nYou can now:\n• Save to cloud storage (Drive, Dropbox, etc.)\n• Send via email or messaging apps\n• Transfer to another device\n• Save to Files app'
+      };
 
     } catch (error) {
       console.log('✗ SHARE BACKUP PROCESS FAILED:', error);
       
+      // Check if user cancelled
+      if (error instanceof Error && 
+          (error.message.includes('cancel') || 
+           error.message.includes('dismiss') ||
+           error.message.includes('abort'))) {
+        return {
+          success: false,
+          message: 'Sharing cancelled by user.'
+        };
+      }
+      
       return {
         success: false,
-        message: `Failed to share backup: ${error instanceof Error ? error.message : 'Unknown error'}\n\nThe backup file may still be saved locally. Try:\n• Creating a local backup\n• Using Google Drive backup\n• Checking file permissions`
+        message: `Failed to share backup: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   },
@@ -435,52 +457,35 @@ export const BackupService = {
     try {
       console.log('=== STARTING IMPORT PROCESS ===');
       
-      // Step 1: Get available directory
-      console.log('Step 1: Getting available directory...');
-      const directoryInfo = getAvailableDirectory();
+      // Step 1: Get operating folder path
+      console.log('Step 1: Getting operating folder path...');
+      const operatingFolderPath = await getOperatingFolderPath();
       
-      if (!directoryInfo) {
-        console.log('✗ No file system directory available');
+      if (!operatingFolderPath) {
+        console.log('✗ Operating folder not available');
         return { 
           success: false, 
-          message: 'File system not available on this device. Cannot access local backups.' 
+          message: 'Operating folder not available. Please create a backup first.' 
         };
       }
+      console.log('✓ Operating folder path:', operatingFolderPath);
 
-      const { directory, type } = directoryInfo;
-      console.log('✓ Directory available:', directory);
-
-      // Step 2: Check if techtrace folder exists
-      console.log('Step 2: Checking backup folder...');
-      const backupFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
-      
-      if (!folderInfo.exists) {
-        const directoryTypeText = type === 'document' ? 'Documents' : 'Cache';
-        console.log('✗ Backup folder does not exist');
-        return { 
-          success: false, 
-          message: `No backup folder found. Please create a backup first or ensure the ${BACKUP_FOLDER_NAME} folder exists in ${directoryTypeText}.` 
-        };
-      }
-      console.log('✓ Backup folder exists');
-
-      // Step 3: Check if backup file exists
-      console.log('Step 3: Checking backup file...');
-      const backupFilePath = `${backupFolderPath}${BACKUP_FILE_NAME}`;
+      // Step 2: Check if backup file exists
+      console.log('Step 2: Checking backup file...');
+      const backupFilePath = `${operatingFolderPath}${BACKUP_FILE_NAME}`;
       const fileInfo = await FileSystem.getInfoAsync(backupFilePath);
       
       if (!fileInfo.exists) {
         console.log('✗ Backup file does not exist');
         return { 
           success: false, 
-          message: `No backup file found in the ${BACKUP_FOLDER_NAME} folder. Please ensure ${BACKUP_FILE_NAME} exists.` 
+          message: `No backup file found in ${BACKUP_FOLDER_NAME} folder. Please create a backup first.` 
         };
       }
       console.log('✓ Backup file exists');
 
-      // Step 4: Verify backup file integrity
-      console.log('Step 4: Verifying backup file...');
+      // Step 3: Verify backup file integrity
+      console.log('Step 3: Verifying backup file...');
       const verificationResult = await verifyBackupFile(backupFilePath);
       if (!verificationResult.valid) {
         console.log('✗ Backup verification failed:', verificationResult.message);
@@ -491,18 +496,18 @@ export const BackupService = {
       }
       console.log('✓ Backup file verified');
 
-      // Step 5: Read backup file
-      console.log('Step 5: Reading backup file...');
+      // Step 4: Read backup file
+      console.log('Step 4: Reading backup file...');
       const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
-        encoding: getEncodingType()
+        encoding: FileSystem.EncodingType.UTF8
       });
 
-      // Step 6: Parse backup data
-      console.log('Step 6: Parsing backup data...');
+      // Step 5: Parse backup data
+      console.log('Step 5: Parsing backup data...');
       const backupData: BackupData = JSON.parse(backupContent);
 
-      // Step 7: Validate backup data structure
-      console.log('Step 7: Validating backup structure...');
+      // Step 6: Validate backup data structure
+      console.log('Step 6: Validating backup structure...');
       if (!backupData.jobs || !backupData.settings || !backupData.metadata) {
         console.log('✗ Invalid backup file structure');
         return { 
@@ -513,11 +518,6 @@ export const BackupService = {
       console.log('✓ Backup structure valid');
 
       console.log('=== IMPORT PROCESS COMPLETED SUCCESSFULLY ===');
-      console.log('Backup data loaded:', {
-        jobs: backupData.jobs.length,
-        totalAWs: backupData.metadata.totalAWs,
-        backupDate: backupData.timestamp
-      });
 
       return {
         success: true,
@@ -538,7 +538,7 @@ export const BackupService = {
     try {
       console.log('=== STARTING RESTORE PROCESS ===');
 
-      // Step 1: Clear existing data first
+      // Step 1: Clear existing data
       console.log('Step 1: Clearing existing data...');
       await StorageService.clearAllData();
       console.log('✓ Existing data cleared');
@@ -550,7 +550,7 @@ export const BackupService = {
       }
       console.log('✓ Jobs restored:', backupData.jobs.length);
 
-      // Step 3: Restore settings (but keep authentication state as false)
+      // Step 3: Restore settings
       console.log('Step 3: Restoring settings...');
       const settingsToRestore = {
         ...backupData.settings,
@@ -577,21 +577,19 @@ export const BackupService = {
 
   async listBackupFiles(): Promise<{ success: boolean; files: string[]; message?: string }> {
     try {
-      const directoryInfo = getAvailableDirectory();
+      const operatingFolderPath = await getOperatingFolderPath();
       
-      if (!directoryInfo) {
-        return { success: false, files: [], message: 'File system not available' };
+      if (!operatingFolderPath) {
+        return { success: false, files: [], message: 'Operating folder not available' };
       }
 
-      const { directory } = directoryInfo;
-      const backupFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
+      const folderInfo = await FileSystem.getInfoAsync(operatingFolderPath);
       
       if (!folderInfo.exists) {
-        return { success: false, files: [], message: 'Backup folder does not exist' };
+        return { success: false, files: [], message: 'Operating folder does not exist' };
       }
 
-      const files = await FileSystem.readDirectoryAsync(backupFolderPath);
+      const files = await FileSystem.readDirectoryAsync(operatingFolderPath);
       const backupFiles = files.filter(file => file.endsWith('.json'));
       
       console.log('Found backup files:', backupFiles);
@@ -599,102 +597,19 @@ export const BackupService = {
 
     } catch (error) {
       console.log('Error listing backup files:', error);
-      return { success: false, files: [], message: 'Error accessing backup folder' };
+      return { success: false, files: [], message: 'Error accessing operating folder' };
     }
   },
 
   async getBackupFolderPath(): Promise<string | null> {
-    try {
-      const directoryInfo = getAvailableDirectory();
-      if (!directoryInfo) {
-        return null;
-      }
-      return `${directoryInfo.directory}${BACKUP_FOLDER_NAME}/`;
-    } catch (error) {
-      console.log('Error getting backup folder path:', error);
-      return null;
-    }
+    return await getOperatingFolderPath();
   },
 
   async ensureBackupFolderExists(): Promise<{ success: boolean; message: string }> {
-    try {
-      console.log('=== ENSURING BACKUP FOLDER EXISTS ===');
-      
-      // Step 1: Get available directory
-      console.log('Step 1: Getting available directory...');
-      const directoryInfo = getAvailableDirectory();
-      
-      if (!directoryInfo) {
-        console.log('✗ No file system directory available');
-        return { 
-          success: false, 
-          message: 'File system not available on this device. Cannot create backup folders.' 
-        };
-      }
-
-      const { directory, type } = directoryInfo;
-      console.log('✓ Directory available:', directory);
-
-      // Step 2: Check if directory is writable
-      console.log('Step 2: Checking directory write permissions...');
-      const isWritable = await checkDirectoryWritable(directory);
-      if (!isWritable) {
-        console.log('✗ Directory not writable');
-        return {
-          success: false,
-          message: `Cannot write to ${type} directory. Please check storage permissions and available space.`
-        };
-      }
-      console.log('✓ Directory is writable');
-
-      // Step 3: Create or verify backup folder
-      console.log('Step 3: Creating/verifying backup folder...');
-      const backupFolderPath = `${directory}${BACKUP_FOLDER_NAME}/`;
-      const folderInfo = await FileSystem.getInfoAsync(backupFolderPath);
-      
-      if (!folderInfo.exists) {
-        try {
-          await FileSystem.makeDirectoryAsync(backupFolderPath, { intermediates: true });
-          console.log('✓ Created backup folder at:', backupFolderPath);
-          
-          // Verify folder was created
-          const verifyInfo = await FileSystem.getInfoAsync(backupFolderPath);
-          if (!verifyInfo.exists) {
-            console.log('✗ Failed to verify folder creation');
-            return { 
-              success: false, 
-              message: 'Failed to create backup folder. Please check storage permissions and available space.' 
-            };
-          }
-          
-          const directoryTypeText = type === 'document' ? 'Documents' : 'Cache';
-          console.log('=== BACKUP FOLDER CREATED SUCCESSFULLY ===');
-          return { 
-            success: true, 
-            message: `✅ Backup folder created successfully!\n\n📁 Location: ${directoryTypeText}/${BACKUP_FOLDER_NAME}/\n\n✓ You can now create backups.${type === 'cache' ? '\n\n⚠️ Note: Using cache directory. For permanent storage, ensure document directory access.' : ''}` 
-          };
-        } catch (createError) {
-          console.log('✗ Error creating backup folder:', createError);
-          return {
-            success: false,
-            message: `Failed to create backup folder: ${createError instanceof Error ? createError.message : 'Unknown error'}\n\nPlease check storage permissions in your device settings.`
-          };
-        }
-      } else {
-        console.log('✓ Backup folder already exists at:', backupFolderPath);
-        const directoryTypeText = type === 'document' ? 'Documents' : 'Cache';
-        console.log('=== BACKUP FOLDER VERIFIED ===');
-        return { 
-          success: true, 
-          message: `✅ Backup folder already exists!\n\n📁 Location: ${directoryTypeText}/${BACKUP_FOLDER_NAME}/\n\n✓ Ready for backups.` 
-        };
-      }
-    } catch (error) {
-      console.log('✗ ERROR ENSURING BACKUP FOLDER:', error);
-      return {
-        success: false,
-        message: `Failed to ensure backup folder exists: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-    }
+    const result = await ensureOperatingFolderExists();
+    return {
+      success: result.success,
+      message: result.message
+    };
   }
 };

@@ -21,7 +21,7 @@ const defaultSettings: AppSettings = {
 };
 
 // ============================================
-// FILE SYSTEM UTILITIES (SAF on Android, documentDirectory on iOS)
+// FILE SYSTEM UTILITIES (iOS-optimized)
 // ============================================
 
 export async function pickBackupDirectory(): Promise<string | null> {
@@ -29,32 +29,31 @@ export async function pickBackupDirectory(): Promise<string | null> {
     if (Platform.OS === 'android') {
       const res = await SAF.requestDirectoryPermissionsAsync();
       if (!res.granted) {
-        console.log('Folder access denied by user');
+        console.log('[Android] Folder access denied by user');
         return null;
       }
       const dirUri = res.directoryUri ?? null;
       if (dirUri) {
-        // Save the directory URI for future use
         await AsyncStorage.setItem(BACKUP_DIRECTORY_URI_KEY, dirUri);
-        console.log('Backup directory URI saved:', dirUri);
+        console.log('[Android] Backup directory URI saved:', dirUri);
       }
       return dirUri;
     } else {
-      // iOS: use documentDirectory (no picker needed, always available)
+      // iOS: Always use documentDirectory (iCloud backup compatible)
       const dirUri = FileSystem.documentDirectory;
       if (!dirUri) {
-        console.log('iOS documentDirectory not available');
+        console.log('[iOS] documentDirectory not available');
         return null;
       }
       
       // Ensure the directory exists
       const dirInfo = await FileSystem.getInfoAsync(dirUri);
       if (!dirInfo.exists) {
-        console.log('Creating iOS documentDirectory');
+        console.log('[iOS] Creating documentDirectory');
         await FileSystem.makeDirectoryAsync(dirUri, { intermediates: true });
       }
       
-      console.log('iOS documentDirectory:', dirUri);
+      console.log('[iOS] documentDirectory ready:', dirUri);
       return dirUri;
     }
   } catch (error) {
@@ -81,11 +80,11 @@ export async function writeJsonToDirectory(
         'application/json'
       );
       await SAF.writeAsStringAsync(fileUri, data);
-      console.log('JSON file written successfully (Android):', fileUri);
+      console.log('[Android] JSON file written successfully:', fileUri);
       return fileUri;
     }
 
-    // iOS (and web/native fallback)
+    // iOS: Use documentDirectory
     const base = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!base) throw new Error('No writable directory available');
     
@@ -99,7 +98,7 @@ export async function writeJsonToDirectory(
     await FileSystem.writeAsStringAsync(fileUri, data, {
       encoding: FileSystem.EncodingType.UTF8,
     });
-    console.log('JSON file written successfully (iOS):', fileUri);
+    console.log('[iOS] JSON file written successfully:', fileUri);
     return fileUri;
   } catch (error) {
     console.log('Error writing JSON to directory:', error);
@@ -114,19 +113,19 @@ export async function shareFile(fileUri: string): Promise<void> {
       throw new Error('Sharing is not available on this device');
     }
 
-    // iOS-specific: Ensure file exists before sharing
+    // iOS: Ensure file exists before sharing
     if (Platform.OS === 'ios') {
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
       if (!fileInfo.exists) {
         throw new Error('File does not exist');
       }
-      console.log('iOS file exists, size:', fileInfo.size);
+      console.log('[iOS] File exists, size:', fileInfo.size);
     }
 
     await Sharing.shareAsync(fileUri, { 
       mimeType: 'application/json',
       dialogTitle: 'Save Backup File',
-      UTI: 'public.json', // iOS-specific Uniform Type Identifier
+      UTI: 'public.json',
     });
     console.log('File shared successfully');
   } catch (error) {
@@ -138,7 +137,9 @@ export async function shareFile(fileUri: string): Promise<void> {
 export async function pickJsonFile(): Promise<string | null> {
   try {
     const res = await DocumentPicker.getDocumentAsync({
-      type: ['application/json', 'text/plain', 'application/*'], // More flexible for iOS
+      type: Platform.OS === 'ios' 
+        ? ['public.json', 'public.plain-text', 'public.data']
+        : ['application/json', 'text/plain', 'application/*'],
       copyToCacheDirectory: true,
       multiple: false,
     });
@@ -154,14 +155,14 @@ export async function pickJsonFile(): Promise<string | null> {
       return null;
     }
     
-    // iOS-specific: Verify file is accessible
+    // iOS: Verify file is accessible
     if (Platform.OS === 'ios') {
       const fileInfo = await FileSystem.getInfoAsync(uri);
       if (!fileInfo.exists) {
-        console.log('Selected file does not exist or is not accessible');
+        console.log('[iOS] Selected file does not exist or is not accessible');
         return null;
       }
-      console.log('iOS file selected, size:', fileInfo.size);
+      console.log('[iOS] File selected, size:', fileInfo.size);
     }
     
     console.log('JSON file picked:', uri);
@@ -174,7 +175,7 @@ export async function pickJsonFile(): Promise<string | null> {
 
 export async function readJsonFromUri<T = any>(uri: string): Promise<T> {
   try {
-    // iOS-specific: Verify file exists before reading
+    // iOS: Verify file exists before reading
     if (Platform.OS === 'ios') {
       const fileInfo = await FileSystem.getInfoAsync(uri);
       if (!fileInfo.exists) {
@@ -316,11 +317,11 @@ export const StorageService = {
   // Backup directory URI management
   async getBackupDirectoryUri(): Promise<string | null> {
     try {
-      // iOS always uses documentDirectory
+      // iOS: Always use documentDirectory
       if (Platform.OS === 'ios') {
         return FileSystem.documentDirectory || null;
       }
-      // Android uses saved SAF URI
+      // Android: Use saved SAF URI
       return await AsyncStorage.getItem(BACKUP_DIRECTORY_URI_KEY);
     } catch (error) {
       console.log('Error getting backup directory URI:', error);
