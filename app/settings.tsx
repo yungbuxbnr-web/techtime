@@ -708,8 +708,16 @@ export default function SettingsScreen() {
                     animationType="slide"
                     onRequestClose={() => setShowDaysPicker(false)}
                   >
-                    <View style={styles.modalOverlay}>
-                      <View style={styles.modalContent}>
+                    <TouchableOpacity 
+                      style={styles.modalOverlay}
+                      activeOpacity={1}
+                      onPress={() => setShowDaysPicker(false)}
+                    >
+                      <TouchableOpacity 
+                        style={styles.modalContent}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                      >
                         <View style={styles.modalHeader}>
                           <Text style={styles.modalTitle}>Select Number of Days</Text>
                           <TouchableOpacity
@@ -723,18 +731,18 @@ export default function SettingsScreen() {
                           selectedValue={numberOfAbsentDays}
                           onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
                           style={styles.iosPicker}
+                          itemStyle={styles.iosPickerItem}
                         >
                           {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                             <Picker.Item 
                               key={day} 
                               label={`${day} ${day === 1 ? 'day' : 'days'}`} 
                               value={day}
-                              color={colors.text}
                             />
                           ))}
                         </Picker>
-                      </View>
-                    </View>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
                   </Modal>
                 </>
               ) : (
@@ -779,8 +787,16 @@ export default function SettingsScreen() {
                     animationType="slide"
                     onRequestClose={() => setShowAbsenceTypePicker(false)}
                   >
-                    <View style={styles.modalOverlay}>
-                      <View style={styles.modalContent}>
+                    <TouchableOpacity 
+                      style={styles.modalOverlay}
+                      activeOpacity={1}
+                      onPress={() => setShowAbsenceTypePicker(false)}
+                    >
+                      <TouchableOpacity 
+                        style={styles.modalContent}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                      >
                         <View style={styles.modalHeader}>
                           <Text style={styles.modalTitle}>Select Absence Type</Text>
                           <TouchableOpacity
@@ -794,20 +810,19 @@ export default function SettingsScreen() {
                           selectedValue={absenceType}
                           onValueChange={(itemValue) => setAbsenceType(itemValue)}
                           style={styles.iosPicker}
+                          itemStyle={styles.iosPickerItem}
                         >
                           <Picker.Item 
                             label="Half Day (4.25 hours)" 
                             value="half"
-                            color={colors.text}
                           />
                           <Picker.Item 
                             label="Full Day (8.5 hours)" 
                             value="full"
-                            color={colors.text}
                           />
                         </Picker>
-                      </View>
-                    </View>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
                   </Modal>
                 </>
               ) : (
@@ -854,8 +869,16 @@ export default function SettingsScreen() {
                     animationType="slide"
                     onRequestClose={() => setShowDeductionTypePicker(false)}
                   >
-                    <View style={styles.modalOverlay}>
-                      <View style={styles.modalContent}>
+                    <TouchableOpacity 
+                      style={styles.modalOverlay}
+                      activeOpacity={1}
+                      onPress={() => setShowDeductionTypePicker(false)}
+                    >
+                      <TouchableOpacity 
+                        style={styles.modalContent}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                      >
                         <View style={styles.modalHeader}>
                           <Text style={styles.modalTitle}>Select Deduction Type</Text>
                           <TouchableOpacity
@@ -869,20 +892,19 @@ export default function SettingsScreen() {
                           selectedValue={deductionType}
                           onValueChange={(itemValue) => setDeductionType(itemValue)}
                           style={styles.iosPicker}
+                          itemStyle={styles.iosPickerItem}
                         >
                           <Picker.Item 
                             label="Monthly Target Hours" 
                             value="monthly"
-                            color={colors.text}
                           />
                           <Picker.Item 
                             label="Total Available Hours" 
                             value="available"
-                            color={colors.text}
                           />
                         </Picker>
-                      </View>
-                    </View>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
                   </Modal>
                 </>
               ) : (
@@ -1421,7 +1443,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 34,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1449,7 +1471,11 @@ const createStyles = (colors: any) => StyleSheet.create({
   iosPicker: {
     width: '100%',
     height: 216,
-    backgroundColor: colors.card,
+  },
+  iosPickerItem: {
+    fontSize: 18,
+    height: 216,
+    color: colors.text,
   },
   dropdownHint: {
     fontSize: 13,

@@ -458,8 +458,16 @@ export default function AddJobScreen() {
                     animationType="slide"
                     onRequestClose={() => setShowAwPicker(false)}
                   >
-                    <View style={styles.modalOverlay}>
-                      <View style={styles.modalContent}>
+                    <TouchableOpacity 
+                      style={styles.modalOverlay}
+                      activeOpacity={1}
+                      onPress={() => setShowAwPicker(false)}
+                    >
+                      <TouchableOpacity 
+                        style={styles.modalContent}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                      >
                         <View style={styles.modalHeader}>
                           <Text style={styles.modalTitle}>Select AW Value</Text>
                           <TouchableOpacity
@@ -473,18 +481,18 @@ export default function AddJobScreen() {
                           selectedValue={awValue}
                           onValueChange={(value) => setAwValue(value)}
                           style={styles.iosPicker}
+                          itemStyle={styles.iosPickerItem}
                         >
                           {Array.from({ length: 101 }, (_, i) => (
                             <Picker.Item 
                               key={i} 
                               label={`${i} AW${i !== 1 ? 's' : ''}`} 
                               value={i}
-                              color={colors.text}
                             />
                           ))}
                         </Picker>
-                      </View>
-                    </View>
+                      </TouchableOpacity>
+                    </TouchableOpacity>
                   </Modal>
                 </>
               ) : (
@@ -662,7 +670,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 34,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -690,7 +698,11 @@ const createStyles = (colors: any) => StyleSheet.create({
   iosPicker: {
     width: '100%',
     height: 216,
-    backgroundColor: colors.card,
+  },
+  iosPickerItem: {
+    fontSize: 18,
+    height: 216,
+    color: colors.text,
   },
   saveButton: {
     backgroundColor: colors.primary,
