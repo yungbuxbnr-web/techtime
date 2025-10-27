@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "techtime",
@@ -19,7 +20,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "NSFaceIDUsageDescription": "We use Face ID to securely authenticate you and protect your technician records."
       }
     },
     "android": {
@@ -29,7 +31,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.brcarszw.techtracer",
-      "permissions": [],
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -52,7 +57,13 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow TechTime to use Face ID to authenticate you and protect your technician records."
+        }
+      ]
     ],
     "scheme": "techtime",
     "experiments": {

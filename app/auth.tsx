@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
@@ -18,6 +18,7 @@ export default function AuthScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
+  const [hasAttemptedBiometric, setHasAttemptedBiometric] = useState(false);
 
   const handleBiometricAuth = useCallback(async () => {
     try {
@@ -26,7 +27,7 @@ export default function AuthScreen() {
       if (result.success) {
         const settings = await StorageService.getSettings();
         await StorageService.saveSettings({ ...settings, isAuthenticated: true });
-        showNotification('Biometric Authentication Successful', 'success');
+        showNotification('Authentication Successful', 'success');
         console.log('Biometric authentication successful');
         setTimeout(() => {
           router.replace('/dashboard');
@@ -51,9 +52,14 @@ export default function AuthScreen() {
         setBiometricTypes(types);
         console.log('Biometric authentication available:', types);
         
-        // Auto-trigger biometric if enabled
+        // Check if biometric is enabled in settings
         const settings = await StorageService.getSettings();
-        if (settings.biometricEnabled) {
+        const enabled = settings.biometricEnabled || false;
+        setBiometricEnabled(enabled);
+        
+        // Auto-trigger biometric if enabled and not yet attempted
+        if (enabled && !hasAttemptedBiometric) {
+          setHasAttemptedBiometric(true);
           setTimeout(() => {
             handleBiometricAuth();
           }, 500);
@@ -62,7 +68,7 @@ export default function AuthScreen() {
     } catch (error) {
       console.log('Error checking biometric availability:', error);
     }
-  }, [handleBiometricAuth]);
+  }, [handleBiometricAuth, hasAttemptedBiometric]);
 
   useEffect(() => {
     loadSettings();
@@ -74,7 +80,6 @@ export default function AuthScreen() {
     try {
       const settings = await StorageService.getSettings();
       setCorrectPin(settings.pin);
-      setBiometricEnabled(settings.biometricEnabled || false);
       console.log('Settings loaded, authentication required');
     } catch (error) {
       console.log('Error loading settings:', error);
