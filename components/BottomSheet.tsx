@@ -1,268 +1,145 @@
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  Button,
   Modal,
-  Animated,
+  StyleSheet,
   TouchableWithoutFeedback,
-  Dimensions
+  Animated,
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SimpleBottomSheetProps {
-  children?: React.ReactNode;
-  isVisible?: boolean;
-  onClose?: () => void;
+  isVisible: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  maxHeight?: number;
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Snap positions for the bottom sheet
-const SNAP_POINTS = {
-  HALF: SCREEN_HEIGHT * 0.5,
-  FULL: SCREEN_HEIGHT * 0.8,
-  CLOSED: SCREEN_HEIGHT,
-};
-
 const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
+  isVisible,
+  onClose,
   children,
-  isVisible = false,
-  onClose
+  maxHeight,
 }) => {
   const { colors } = useTheme();
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const gestureTranslateY = useRef(new Animated.Value(0)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const [currentSnapPoint, setCurrentSnapPoint] = useState(SNAP_POINTS.HALF);
-  const lastGestureY = useRef(0);
-  const startPositionY = useRef(0);
-
-  const handleBackdropPress = useCallback(() => {
-    onClose?.();
-  }, [onClose]);
-
-  const snapToPoint = useCallback((point: number) => {
-    setCurrentSnapPoint(point);
-    gestureTranslateY.setValue(0);
-    Animated.timing(translateY, {
-      toValue: SCREEN_HEIGHT - point,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [translateY, gestureTranslateY]);
-
-  // Determines the closest snap point based on velocity and position
-  const getClosestSnapPoint = useCallback((currentY: number, velocityY: number) => {
-    const currentPosition = SCREEN_HEIGHT - currentY;
-
-    if (velocityY > 1000) return SNAP_POINTS.CLOSED;
-    if (velocityY < -1000) return SNAP_POINTS.FULL;
-
-    const distances = [
-      { point: SNAP_POINTS.HALF, distance: Math.abs(currentPosition - SNAP_POINTS.HALF) },
-      { point: SNAP_POINTS.FULL, distance: Math.abs(currentPosition - SNAP_POINTS.FULL) },
-    ];
-
-    if (currentPosition < SNAP_POINTS.HALF * 0.5) {
-      return SNAP_POINTS.CLOSED;
-    }
-
-    distances.sort((a, b) => a.distance - b.distance);
-    return distances[0].point;
-  }, []);
-
-  // Handles pan gesture events with boundary clamping
-  const onGestureEvent = useCallback((event: any) => {
-    const { translationY } = event.nativeEvent;
-    lastGestureY.current = translationY;
-
-    const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
-    const intendedPosition = currentBasePosition + translationY;
-
-    const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
-    const maxPosition = SCREEN_HEIGHT;
-
-    const clampedPosition = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
-    const clampedTranslation = clampedPosition - currentBasePosition;
-
-    gestureTranslateY.setValue(clampedTranslation);
-  }, [currentSnapPoint, gestureTranslateY]);
-
-  // Handles gesture state changes (begin/end) for snapping behavior
-  const onHandlerStateChange = useCallback((event: any) => {
-    const { state, translationY, velocityY } = event.nativeEvent;
-
-    if (state === State.BEGAN) {
-      startPositionY.current = SCREEN_HEIGHT - currentSnapPoint;
-    } else if (state === State.END) {
-      const currentBasePosition = SCREEN_HEIGHT - currentSnapPoint;
-      const intendedPosition = currentBasePosition + translationY;
-
-      const minPosition = SCREEN_HEIGHT - SNAP_POINTS.FULL;
-      const maxPosition = SCREEN_HEIGHT;
-
-      const finalY = Math.max(minPosition, Math.min(maxPosition, intendedPosition));
-      const targetSnapPoint = getClosestSnapPoint(finalY, velocityY);
-
-      gestureTranslateY.setValue(0);
-
-      if (targetSnapPoint === SNAP_POINTS.CLOSED) {
-        onClose?.();
-      } else {
-        snapToPoint(targetSnapPoint);
-      }
-    }
-  }, [currentSnapPoint, gestureTranslateY, getClosestSnapPoint, onClose, snapToPoint]);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get('window').height;
+  const sheetHeight = maxHeight || screenHeight * 0.95;
 
   useEffect(() => {
     if (isVisible) {
-      setCurrentSnapPoint(SNAP_POINTS.HALF);
-      gestureTranslateY.setValue(0);
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: SCREEN_HEIGHT - SNAP_POINTS.HALF,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0.5,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8,
+      }).start();
     } else {
-      setCurrentSnapPoint(SNAP_POINTS.CLOSED);
-      gestureTranslateY.setValue(0);
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: SCREEN_HEIGHT,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [isVisible, translateY, backdropOpacity, gestureTranslateY]);
+  }, [isVisible, slideAnim]);
 
-  const styles = createStyles(colors);
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [sheetHeight, 0],
+  });
+
+  const backdropOpacity = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.5],
+  });
 
   return (
     <Modal
       visible={isVisible}
       transparent
       animationType="none"
+      onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={styles.container}>
-        <TouchableWithoutFeedback onPress={handleBackdropPress}>
+      <View style={styles.modalContainer}>
+        <TouchableWithoutFeedback onPress={onClose}>
           <Animated.View
             style={[
               styles.backdrop,
-              { opacity: backdropOpacity }
+              {
+                opacity: backdropOpacity,
+              },
             ]}
           />
         </TouchableWithoutFeedback>
 
-        <PanGestureHandler
-          onGestureEvent={onGestureEvent}
-          onHandlerStateChange={onHandlerStateChange}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <Animated.View
             style={[
-              styles.bottomSheet,
+              styles.sheetContainer,
               {
-                transform: [
-                  { translateY: Animated.add(translateY, gestureTranslateY) }
-                ],
+                backgroundColor: colors.background,
+                maxHeight: sheetHeight,
+                transform: [{ translateY }],
               },
             ]}
           >
-            <View style={styles.handle} />
+            <View style={[styles.handleContainer, { backgroundColor: colors.background }]}>
+              <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            </View>
 
             <View style={styles.contentContainer}>
-              {children || (
-                <View style={styles.defaultContent}>
-                  <Text style={styles.title}>Bottom Sheet 🎉</Text>
-                  <Text style={styles.description}>
-                    This is a custom bottom sheet implementation.
-                    Try dragging it up and down!
-                  </Text>
-                  <Button
-                    title="Close"
-                    onPress={onClose}
-                  />
-                </View>
-              )}
+              {children}
             </View>
           </Animated.View>
-        </PanGestureHandler>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
 };
 
-SimpleBottomSheet.displayName = 'SimpleBottomSheet';
-
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
+const styles = StyleSheet.create({
+  modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'black',
+    backgroundColor: '#000',
   },
-  bottomSheet: {
-    height: SNAP_POINTS.FULL,
-    backgroundColor: colors.background,
+  keyboardView: {
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.27,
-    shadowRadius: 4.65,
-    elevation: 6,
+    overflow: 'hidden',
+    boxShadow: '0px -4px 20px rgba(0, 0, 0, 0.25)',
+    elevation: 10,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.border,
     borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 8,
   },
   contentContainer: {
     flex: 1,
-    padding: 16,
-  },
-  defaultContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 20,
+    overflow: 'hidden',
   },
 });
 

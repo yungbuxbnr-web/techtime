@@ -1,6 +1,7 @@
 
 import * as LocalAuthentication from 'expo-local-authentication';
 import { StorageService } from './storage';
+import { Platform } from 'react-native';
 
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled';
 
@@ -28,7 +29,7 @@ export const BiometricService = {
         typeNames.push('Fingerprint');
       }
       if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-        typeNames.push('Face ID');
+        typeNames.push(Platform.OS === 'ios' ? 'Face ID' : 'Face Recognition');
       }
       if (types.includes(LocalAuthentication.AuthenticationType.IRIS)) {
         typeNames.push('Iris');
@@ -50,32 +51,58 @@ export const BiometricService = {
       if (!isAvailable) {
         return {
           success: false,
-          error: 'Biometric authentication is not available on this device'
+          error: 'Biometric authentication is not available on this device. Please ensure you have set up Face ID or Touch ID in your device settings.'
         };
       }
 
-      const result = await LocalAuthentication.authenticateAsync({
+      // iOS-specific configuration
+      const options: LocalAuthentication.LocalAuthenticationOptions = {
         promptMessage: promptMessage || 'Authenticate to access the app',
-        fallbackLabel: 'Use PIN instead',
         cancelLabel: 'Cancel',
         disableDeviceFallback: false,
-      });
+      };
+
+      // Add iOS-specific fallback label
+      if (Platform.OS === 'ios') {
+        options.fallbackLabel = 'Use PIN instead';
+      }
+
+      const result = await LocalAuthentication.authenticateAsync(options);
 
       if (result.success) {
         console.log('Biometric authentication successful');
         return { success: true };
       } else {
         console.log('Biometric authentication failed:', result.error);
+        
+        // Handle specific iOS error cases
+        let errorMessage = 'Authentication failed';
+        
+        if (result.error === 'user_cancel') {
+          errorMessage = 'Authentication cancelled by user';
+        } else if (result.error === 'system_cancel') {
+          errorMessage = 'Authentication cancelled by system';
+        } else if (result.error === 'lockout') {
+          errorMessage = 'Too many failed attempts. Please try again later or use your PIN.';
+        } else if (result.error === 'not_enrolled') {
+          errorMessage = 'No biometric authentication is enrolled. Please set up Face ID or Touch ID in your device settings.';
+        } else if (result.error === 'not_available') {
+          errorMessage = 'Biometric authentication is not available on this device.';
+        } else if (result.error) {
+          errorMessage = result.error;
+        }
+        
         return {
           success: false,
-          error: result.error || 'Authentication failed'
+          error: errorMessage
         };
       }
     } catch (error) {
       console.log('Error during biometric authentication:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: `Biometric authentication error: ${errorMessage}`
       };
     }
   },
@@ -97,9 +124,10 @@ export const BiometricService = {
       const isAvailable = await this.isAvailable();
       
       if (!isAvailable) {
+        const platform = Platform.OS === 'ios' ? 'Face ID or Touch ID' : 'fingerprint or face recognition';
         return {
           success: false,
-          message: 'Biometric authentication is not available on this device. Please ensure you have set up fingerprint or Face ID in your device settings.'
+          message: `Biometric authentication is not available on this device. Please ensure you have set up ${platform} in your device settings.`
         };
       }
 

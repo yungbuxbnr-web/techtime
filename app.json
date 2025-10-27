@@ -21,7 +21,9 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
-        "NSFaceIDUsageDescription": "We use Face ID to securely authenticate you and protect your technician records."
+        "NSFaceIDUsageDescription": "We use Face ID to securely authenticate you and protect your technician records. This ensures only you can access your sensitive job data.",
+        "NSPhotoLibraryUsageDescription": "We need access to save exported reports to your photo library.",
+        "NSPhotoLibraryAddUsageDescription": "We need access to save exported reports to your photo library."
       }
     },
     "android": {
@@ -61,7 +63,13 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow TechTime to use Face ID to authenticate you and protect your technician records."
+          "faceIDPermission": "Allow TechTime to use Face ID to authenticate you and protect your technician records. This ensures only you can access your sensitive job data."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
         }
       ]
     ],

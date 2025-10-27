@@ -72,8 +72,10 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const fileName = `techtracer-backup-${timestamp}.json`;
 
-      // Get saved backup directory (Android only)
-      const savedDirUri = await AsyncStorage.getItem('backup.dirUri');
+      // Get saved backup directory (Android only, iOS uses documentDirectory)
+      const savedDirUri = Platform.OS === 'android' 
+        ? await AsyncStorage.getItem('backup.dirUri')
+        : null;
 
       // Write JSON file
       const fileUri = await writeJsonToDirectory(savedDirUri, fileName, backupData);
@@ -83,7 +85,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
       await shareFile(fileUri);
 
       showNotification(
-        `Backup created successfully!\n\nJobs: ${backupData.jobs.length}\nTotal AWs: ${backupData.metadata.totalAWs}\n\nSelect Google Drive from the share menu to save your backup.`,
+        `✅ Backup created successfully!\n\n📊 Jobs: ${backupData.jobs.length}\n⏱️ Total AWs: ${backupData.metadata.totalAWs}\n\n${Platform.OS === 'ios' ? 'Select Google Drive from the share menu to save your backup.' : 'Choose where to save your backup.'}`,
         'success'
       );
 
@@ -91,7 +93,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
     } catch (error) {
       console.log('Error creating backup for Google Drive:', error);
       showNotification(
-        `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `❌ Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`,
         'error'
       );
     } finally {
@@ -151,11 +153,16 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({ onClose }) => {
             <Text style={styles.tipText}>
               - To restore, download the backup file and use &quot;Import from File (JSON)&quot; in Settings
             </Text>
+            {Platform.OS === 'ios' && (
+              <Text style={styles.tipText}>
+                - On iOS, backups are saved to the app&apos;s Documents folder first, then shared
+              </Text>
+            )}
           </View>
         </View>
 
         <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
+          style={[styles.button, styles.primaryButton, isLoading && styles.buttonDisabled]}
           onPress={handleBackupToGoogleDrive}
           disabled={isLoading}
         >
@@ -185,7 +192,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    maxHeight: screenHeight * 0.95,
+    height: screenHeight * 0.92,
   },
   header: {
     flexDirection: 'row',
@@ -217,7 +224,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
   infoSection: {
     marginBottom: 20,
@@ -235,7 +242,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
     marginBottom: 20,
   },
   instructionsBox: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.cardBackground || colors.card,
     padding: 16,
     borderRadius: 10,
     marginBottom: 16,
@@ -256,7 +263,7 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
     paddingLeft: 8,
   },
   tipsBox: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.cardBackground || colors.card,
     padding: 16,
     borderRadius: 10,
     marginBottom: 20,
@@ -290,6 +297,9 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
     elevation: 4,
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   buttonIcon: {
     fontSize: 24,
   },
@@ -299,12 +309,12 @@ const createStyles = (colors: any, screenHeight: number) => StyleSheet.create({
     fontWeight: '600',
   },
   noteSection: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.cardBackground || colors.card,
     padding: 16,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   noteTitle: {
     fontSize: 15,

@@ -40,8 +40,20 @@ export async function pickBackupDirectory(): Promise<string | null> {
       }
       return dirUri;
     } else {
-      // iOS: use documentDirectory (no picker needed)
-      const dirUri = FileSystem.documentDirectory || null;
+      // iOS: use documentDirectory (no picker needed, always available)
+      const dirUri = FileSystem.documentDirectory;
+      if (!dirUri) {
+        console.log('iOS documentDirectory not available');
+        return null;
+      }
+      
+      // Ensure the directory exists
+      const dirInfo = await FileSystem.getInfoAsync(dirUri);
+      if (!dirInfo.exists) {
+        console.log('Creating iOS documentDirectory');
+        await FileSystem.makeDirectoryAsync(dirUri, { intermediates: true });
+      }
+      
       console.log('iOS documentDirectory:', dirUri);
       return dirUri;
     }
@@ -77,8 +89,16 @@ export async function writeJsonToDirectory(
     const base = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!base) throw new Error('No writable directory available');
     
+    // Ensure directory exists
+    const dirInfo = await FileSystem.getInfoAsync(base);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(base, { intermediates: true });
+    }
+    
     const fileUri = base + fileName;
-    await FileSystem.writeAsStringAsync(fileUri, data);
+    await FileSystem.writeAsStringAsync(fileUri, data, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
     console.log('JSON file written successfully (iOS):', fileUri);
     return fileUri;
   } catch (error) {
@@ -89,12 +109,26 @@ export async function writeJsonToDirectory(
 
 export async function shareFile(fileUri: string): Promise<void> {
   try {
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, { mimeType: 'application/json' });
-      console.log('File shared successfully');
-    } else {
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (!isAvailable) {
       throw new Error('Sharing is not available on this device');
     }
+
+    // iOS-specific: Ensure file exists before sharing
+    if (Platform.OS === 'ios') {
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (!fileInfo.exists) {
+        throw new Error('File does not exist');
+      }
+      console.log('iOS file exists, size:', fileInfo.size);
+    }
+
+    await Sharing.shareAsync(fileUri, { 
+      mimeType: 'application/json',
+      dialogTitle: 'Save Backup File',
+      UTI: 'public.json', // iOS-specific Uniform Type Identifier
+    });
+    console.log('File shared successfully');
   } catch (error) {
     console.log('Error sharing file:', error);
     throw error;
@@ -104,17 +138,34 @@ export async function shareFile(fileUri: string): Promise<void> {
 export async function pickJsonFile(): Promise<string | null> {
   try {
     const res = await DocumentPicker.getDocumentAsync({
-      type: 'application/json',
+      type: ['application/json', 'text/plain', 'application/*'], // More flexible for iOS
       copyToCacheDirectory: true,
       multiple: false,
     });
+    
     if (res.canceled) {
       console.log('File picker canceled by user');
       return null;
     }
+    
     const uri = res.assets?.[0]?.uri;
+    if (!uri) {
+      console.log('No file URI returned');
+      return null;
+    }
+    
+    // iOS-specific: Verify file is accessible
+    if (Platform.OS === 'ios') {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        console.log('Selected file does not exist or is not accessible');
+        return null;
+      }
+      console.log('iOS file selected, size:', fileInfo.size);
+    }
+    
     console.log('JSON file picked:', uri);
-    return uri ?? null;
+    return uri;
   } catch (error) {
     console.log('Error picking JSON file:', error);
     return null;
@@ -123,12 +174,30 @@ export async function pickJsonFile(): Promise<string | null> {
 
 export async function readJsonFromUri<T = any>(uri: string): Promise<T> {
   try {
-    const content = await FileSystem.readAsStringAsync(uri);
+    // iOS-specific: Verify file exists before reading
+    if (Platform.OS === 'ios') {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        throw new Error('File does not exist or is not accessible');
+      }
+    }
+    
+    const content = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    
+    if (!content || content.trim().length === 0) {
+      throw new Error('File is empty');
+    }
+    
     const parsed = JSON.parse(content) as T;
     console.log('JSON file read successfully from URI');
     return parsed;
   } catch (error) {
     console.log('Error reading JSON from URI:', error);
+    if (error instanceof SyntaxError) {
+      throw new Error('Invalid JSON format in file');
+    }
     throw error;
   }
 }
@@ -247,6 +316,11 @@ export const StorageService = {
   // Backup directory URI management
   async getBackupDirectoryUri(): Promise<string | null> {
     try {
+      // iOS always uses documentDirectory
+      if (Platform.OS === 'ios') {
+        return FileSystem.documentDirectory || null;
+      }
+      // Android uses saved SAF URI
       return await AsyncStorage.getItem(BACKUP_DIRECTORY_URI_KEY);
     } catch (error) {
       console.log('Error getting backup directory URI:', error);
@@ -341,6 +415,7 @@ export const StorageService = {
           totalAWs: jobs.reduce((sum, job) => sum + job.awValue, 0),
           exportDate: new Date().toISOString(),
           appVersion: '1.0.0',
+          platform: Platform.OS,
         },
       };
     } catch (error) {

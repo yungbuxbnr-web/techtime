@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -99,7 +99,41 @@ export default function AddJobScreen() {
     }
   }, [editId, loadJobForEditing, loadAllJobs]);
 
-  // Generate WIP number suggestions based on input
+  // Optimized: Create indexed maps for faster lookups (iOS performance improvement)
+  const jobIndexes = useMemo(() => {
+    const wipMap = new Map<string, JobSuggestion>();
+    const regMap = new Map<string, JobSuggestion>();
+
+    // Process jobs in reverse order (most recent first)
+    for (let i = allJobs.length - 1; i >= 0; i--) {
+      const job = allJobs[i];
+      
+      // Index by WIP number
+      if (!wipMap.has(job.wipNumber)) {
+        wipMap.set(job.wipNumber, {
+          wipNumber: job.wipNumber,
+          vehicleRegistration: job.vehicleRegistration,
+          awValue: job.awValue,
+          lastUsed: job.dateCreated,
+        });
+      }
+      
+      // Index by registration number
+      const regKey = job.vehicleRegistration.toUpperCase();
+      if (!regMap.has(regKey)) {
+        regMap.set(regKey, {
+          wipNumber: job.wipNumber,
+          vehicleRegistration: job.vehicleRegistration,
+          awValue: job.awValue,
+          lastUsed: job.dateCreated,
+        });
+      }
+    }
+
+    return { wipMap, regMap };
+  }, [allJobs]);
+
+  // Optimized: Generate WIP number suggestions with debouncing
   const generateWipSuggestions = useCallback((input: string) => {
     if (!input || input.length === 0) {
       setWipSuggestions([]);
@@ -107,34 +141,25 @@ export default function AddJobScreen() {
       return;
     }
 
-    // Find jobs with matching WIP numbers
-    const matchingJobs = allJobs.filter(job => 
-      job.wipNumber.startsWith(input) && job.wipNumber !== input
-    );
-
-    // Group by WIP number and get the most recent one
-    const uniqueWips = new Map<string, JobSuggestion>();
-    matchingJobs.forEach(job => {
-      if (!uniqueWips.has(job.wipNumber) || 
-          new Date(job.dateCreated) > new Date(uniqueWips.get(job.wipNumber)!.lastUsed)) {
-        uniqueWips.set(job.wipNumber, {
-          wipNumber: job.wipNumber,
-          vehicleRegistration: job.vehicleRegistration,
-          awValue: job.awValue,
-          lastUsed: job.dateCreated,
-        });
+    // Use indexed map for O(n) lookup instead of O(n²)
+    const suggestions: JobSuggestion[] = [];
+    
+    jobIndexes.wipMap.forEach((suggestion, wipNum) => {
+      if (wipNum.startsWith(input) && wipNum !== input && suggestions.length < 5) {
+        suggestions.push(suggestion);
       }
     });
 
-    const suggestions = Array.from(uniqueWips.values())
-      .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
-      .slice(0, 5); // Show top 5 suggestions
+    // Sort by most recent
+    suggestions.sort((a, b) => 
+      new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+    );
 
     setWipSuggestions(suggestions);
     setShowWipSuggestions(suggestions.length > 0);
-  }, [allJobs]);
+  }, [jobIndexes.wipMap]);
 
-  // Generate registration number suggestions based on input
+  // Optimized: Generate registration number suggestions with debouncing
   const generateRegSuggestions = useCallback((input: string) => {
     if (!input || input.length === 0) {
       setRegSuggestions([]);
@@ -143,44 +168,42 @@ export default function AddJobScreen() {
     }
 
     const upperInput = input.toUpperCase();
+    const suggestions: JobSuggestion[] = [];
 
-    // Find jobs with matching registration numbers
-    const matchingJobs = allJobs.filter(job => 
-      job.vehicleRegistration.toUpperCase().includes(upperInput) && 
-      job.vehicleRegistration.toUpperCase() !== upperInput
-    );
-
-    // Group by registration number and get the most recent one
-    const uniqueRegs = new Map<string, JobSuggestion>();
-    matchingJobs.forEach(job => {
-      const regKey = job.vehicleRegistration.toUpperCase();
-      if (!uniqueRegs.has(regKey) || 
-          new Date(job.dateCreated) > new Date(uniqueRegs.get(regKey)!.lastUsed)) {
-        uniqueRegs.set(regKey, {
-          wipNumber: job.wipNumber,
-          vehicleRegistration: job.vehicleRegistration,
-          awValue: job.awValue,
-          lastUsed: job.dateCreated,
-        });
+    // Use indexed map for faster lookup
+    jobIndexes.regMap.forEach((suggestion, regKey) => {
+      if (regKey.includes(upperInput) && regKey !== upperInput && suggestions.length < 5) {
+        suggestions.push(suggestion);
       }
     });
 
-    const suggestions = Array.from(uniqueRegs.values())
-      .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
-      .slice(0, 5); // Show top 5 suggestions
+    // Sort by most recent
+    suggestions.sort((a, b) => 
+      new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+    );
 
     setRegSuggestions(suggestions);
     setShowRegSuggestions(suggestions.length > 0);
-  }, [allJobs]);
+  }, [jobIndexes.regMap]);
 
   const handleWipNumberChange = (text: string) => {
     setWipNumber(text);
-    generateWipSuggestions(text);
+    // Debounce for iOS performance
+    if (Platform.OS === 'ios') {
+      setTimeout(() => generateWipSuggestions(text), 100);
+    } else {
+      generateWipSuggestions(text);
+    }
   };
 
   const handleVehicleRegistrationChange = (text: string) => {
     setVehicleRegistration(text);
-    generateRegSuggestions(text);
+    // Debounce for iOS performance
+    if (Platform.OS === 'ios') {
+      setTimeout(() => generateRegSuggestions(text), 100);
+    } else {
+      generateRegSuggestions(text);
+    }
   };
 
   const selectWipSuggestion = (suggestion: JobSuggestion) => {
