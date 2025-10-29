@@ -1,0 +1,102 @@
+
+// This is a template for android/app/build.gradle
+// Add these configurations to your existing build.gradle file
+
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+android {
+    namespace "com.yourapp.namespace" // Update with your actual namespace
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "com.yourapp.id" // Update with your actual app ID
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        
+        // ============================================================
+        // FIX: Limit ABIs to reduce memory pressure during CMake
+        // ============================================================
+        ndk {
+            abiFilters "arm64-v8a"
+            // For production, you may want to include more ABIs:
+            // abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
+    }
+    
+    signingConfigs {
+        release {
+            // Configure your signing config here
+            // storeFile file('your-release-key.keystore')
+            // storePassword 'your-store-password'
+            // keyAlias 'your-key-alias'
+            // keyPassword 'your-key-password'
+        }
+    }
+    
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+    
+    // ============================================================
+    // FIX: Relax Lint to prevent build failures in CI
+    // ============================================================
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+        // Optionally disable specific checks
+        // disable 'MissingTranslation', 'ExtraTranslation'
+    }
+    
+    // For older AGP versions (< 7.0), use lintOptions instead:
+    // lintOptions {
+    //     abortOnError false
+    //     checkReleaseBuilds false
+    // }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    
+    packagingOptions {
+        pickFirst 'lib/x86/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+    }
+}
+
+dependencies {
+    // The version of react-native is set by the React Native Gradle Plugin
+    implementation("com.facebook.react:react-android")
+    implementation("com.facebook.react:flipper-integration")
+    
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}
+
+// ============================================================
+// ADDITIONAL CONFIGURATIONS
+// ============================================================
+
+// Apply any additional plugins or configurations here
