@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "techtime",
@@ -14,8 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.brcarszw.techtime",
-      "usesIcloudStorage": true,
+      "bundleIdentifier": "com.buxrug.techtime",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -66,12 +66,7 @@
           "faceIDPermission": "Allow TechTime to use Face ID to authenticate you and protect your technician records. This ensures only you can access your sensitive job data."
         }
       ],
-      [
-        "expo-document-picker",
-        {
-          "iCloudContainerEnvironment": "Production"
-        }
-      ]
+      "expo-document-picker"
     ],
     "scheme": "techtime",
     "experiments": {
