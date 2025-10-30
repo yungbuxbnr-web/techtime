@@ -6,8 +6,12 @@ export interface Job {
   awValue: number;
   notes?: string;
   dateCreated: string;
+  dateModified?: string;
   timeInMinutes: number; // Calculated from AWs (1 AW = 5 minutes)
+  vhcStatus?: VHCStatus; // Vehicle Health Check status
 }
+
+export type VHCStatus = 'green' | 'amber' | 'red' | null;
 
 export interface FormulaSettings {
   awToMinutes?: number; // 1 AW = X minutes (default 5)
@@ -97,4 +101,19 @@ export interface EditableJobData {
   vehicleRegistration: string;
   awValue: number;
   notes: string;
+}
+
+// VHC (Vehicle Health Check) related types
+export interface VHCColors {
+  green: string;
+  amber: string;
+  red: string;
+}
+
+export interface VHCSummary {
+  total: number;
+  green: number;
+  amber: number;
+  red: number;
+  notSet: number;
 }
