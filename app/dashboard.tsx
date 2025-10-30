@@ -163,6 +163,14 @@ export default function DashboardScreen() {
     setShowOptionsMenu(false);
   };
 
+  // Calculate efficiency color before creating styles
+  const efficiency = monthlyStats?.efficiency || 0;
+  const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
+  const utilizationPercentage = monthlyStats?.utilizationPercentage || 0;
+
+  // Create styles early so they're available for all render paths
+  const styles = createStyles(colors, efficiencyColor, isLandscape);
+
   if (!monthlyStats) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -172,12 +180,6 @@ export default function DashboardScreen() {
       </SafeAreaView>
     );
   }
-
-  const efficiency = monthlyStats.efficiency || 0;
-  const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
-  const utilizationPercentage = monthlyStats.utilizationPercentage || 0;
-
-  const styles = createStyles(colors, efficiencyColor, isLandscape);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
