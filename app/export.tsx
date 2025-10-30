@@ -93,25 +93,6 @@ export default function ExportScreen() {
     return months[month];
   }, []);
 
-  const getVhcColorValue = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
-    if (!color) return '#CCCCCC';
-    switch (color) {
-      case 'green':
-        return '#4CAF50';
-      case 'orange':
-        return '#FF9800';
-      case 'red':
-        return '#F44336';
-      default:
-        return '#CCCCCC';
-    }
-  };
-
-  const getVhcColorName = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
-    if (!color) return 'N/A';
-    return color.charAt(0).toUpperCase() + color.slice(1);
-  };
-
   const generateEfficiencyGraphSVG = useCallback((efficiency: number, soldHours: number, availableHours: number) => {
     const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
     const percentage = Math.min(efficiency, 100);
@@ -178,7 +159,7 @@ export default function ExportScreen() {
       new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
     );
 
-    // Create job rows with proper formatting including VHC
+    // Create job rows with proper formatting
     const jobRows = sortedJobs.map((job, index) => {
       const time = CalculationService.formatTime(job.awValue * 5);
       const jobDate = new Date(job.dateCreated).toLocaleDateString('en-GB', {
@@ -191,19 +172,10 @@ export default function ExportScreen() {
         minute: '2-digit'
       });
       
-      const vhcColor = getVhcColorValue(job.vhcColor);
-      const vhcName = getVhcColorName(job.vhcColor);
-      
       return `
         <tr style="border-bottom: 1px solid #e9ecef;">
           <td style="padding: 14px 12px; color: #1a73e8; font-weight: 700; font-size: 15px;">${job.wipNumber}</td>
           <td style="padding: 14px 12px; font-weight: 600; color: #333;">${job.vehicleRegistration}</td>
-          <td style="padding: 14px 12px; text-align: center;">
-            <div style="display: inline-flex; align-items: center; gap: 6px;">
-              <div style="width: 16px; height: 16px; border-radius: 50%; background-color: ${vhcColor}; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>
-              <span style="font-size: 12px; font-weight: 600; color: #555;">${vhcName}</span>
-            </div>
-          </td>
           <td style="padding: 14px 12px; color: #555; max-width: 200px; word-wrap: break-word;">${job.notes || 'Standard Service'}</td>
           <td style="padding: 14px 12px; text-align: center; font-weight: 700; color: #1a73e8; font-size: 16px;">${job.awValue}</td>
           <td style="padding: 14px 12px; text-align: center; font-weight: 600; color: #333;">${time}</td>
@@ -447,7 +419,7 @@ export default function ExportScreen() {
               letter-spacing: 1px;
               border-bottom: 3px solid #1557b0;
             }
-            th:nth-child(3), th:nth-child(5), th:nth-child(6), th:nth-child(7) {
+            th:nth-child(4), th:nth-child(5), th:nth-child(6) {
               text-align: center;
             }
             td {
@@ -616,7 +588,6 @@ export default function ExportScreen() {
                     <tr>
                       <th>WIP Number</th>
                       <th>Vehicle Reg</th>
-                      <th>VHC</th>
                       <th>Job Description</th>
                       <th>AWs</th>
                       <th>Time</th>
@@ -664,467 +635,7 @@ export default function ExportScreen() {
         </body>
       </html>
     `;
-  }, [generateEfficiencyGraphSVG, getVhcColorValue, getVhcColorName]);
-
-  const generateVhcListPDF = useCallback(async () => {
-    try {
-      // Filter jobs that have VHC colors
-      const vhcJobs = jobs.filter(job => job.vhcColor);
-      
-      if (vhcJobs.length === 0) {
-        showNotification('No jobs with VHC records found', 'error');
-        return;
-      }
-
-      showNotification('Generating VHC List PDF...', 'info');
-
-      // Sort by VHC color (red first, then orange, then green)
-      const sortedVhcJobs = vhcJobs.sort((a, b) => {
-        const colorOrder = { red: 0, orange: 1, green: 2 };
-        const aOrder = colorOrder[a.vhcColor || 'green'];
-        const bOrder = colorOrder[b.vhcColor || 'green'];
-        return aOrder - bOrder;
-      });
-
-      // Group by color
-      const redJobs = sortedVhcJobs.filter(j => j.vhcColor === 'red');
-      const orangeJobs = sortedVhcJobs.filter(j => j.vhcColor === 'orange');
-      const greenJobs = sortedVhcJobs.filter(j => j.vhcColor === 'green');
-
-      const currentDate = new Date().toLocaleDateString('en-GB', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
-      });
-
-      const currentTime = new Date().toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      const createJobRows = (jobsList: Job[], color: string) => {
-        return jobsList.map(job => {
-          const jobDate = new Date(job.dateCreated).toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          });
-          
-          return `
-            <tr style="border-bottom: 1px solid #e9ecef;">
-              <td style="padding: 16px 12px; color: #1a73e8; font-weight: 700; font-size: 16px;">${job.wipNumber}</td>
-              <td style="padding: 16px 12px; font-weight: 600; color: #333; font-size: 15px;">${job.vehicleRegistration}</td>
-              <td style="padding: 16px 12px; text-align: center;">
-                <div style="display: inline-flex; align-items: center; justify-content: center; width: 100%;">
-                  <div style="width: 24px; height: 24px; border-radius: 50%; background-color: ${getVhcColorValue(job.vhcColor)}; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>
-                </div>
-              </td>
-              <td style="padding: 16px 12px; text-align: center; font-size: 14px; color: #666;">${jobDate}</td>
-              <td style="padding: 16px 12px; color: #555; max-width: 250px; word-wrap: break-word; font-size: 14px;">${job.notes || 'No notes'}</td>
-            </tr>
-          `;
-        }).join('');
-      };
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <title>VHC List - Technician Records</title>
-            <style>
-              * {
-                box-sizing: border-box;
-              }
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                margin: 0;
-                padding: 30px;
-                background-color: #ffffff;
-                color: #333;
-                line-height: 1.5;
-                font-size: 14px;
-              }
-              .container {
-                max-width: 900px;
-                margin: 0 auto;
-                background: white;
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-                border: 1px solid #e8eaed;
-              }
-              .header {
-                background: linear-gradient(135deg, #F44336 0%, #FF9800 50%, #4CAF50 100%);
-                color: white;
-                padding: 48px 40px;
-                text-align: center;
-                position: relative;
-              }
-              .header::after {
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                height: 6px;
-                background: linear-gradient(90deg, #F44336 0%, #FF9800 50%, #4CAF50 100%);
-              }
-              .header h1 {
-                margin: 0 0 8px 0;
-                font-size: 36px;
-                font-weight: 700;
-                letter-spacing: -1px;
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-              }
-              .header h2 {
-                margin: 0 0 16px 0;
-                font-size: 20px;
-                font-weight: 400;
-                opacity: 0.95;
-                letter-spacing: 0.5px;
-              }
-              .header .date-time {
-                font-size: 14px;
-                opacity: 0.9;
-                margin: 0;
-              }
-              .summary {
-                padding: 40px;
-                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-                border-bottom: 1px solid #e8eaed;
-              }
-              .summary h3 {
-                margin: 0 0 32px 0;
-                font-size: 28px;
-                color: #1a73e8;
-                font-weight: 700;
-                text-align: center;
-                letter-spacing: -0.5px;
-              }
-              .summary-grid {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 24px;
-                margin-bottom: 32px;
-              }
-              .summary-item {
-                text-align: center;
-                background: white;
-                padding: 24px 16px;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                border: 1px solid #e8eaed;
-              }
-              .summary-number {
-                font-size: 42px;
-                font-weight: 800;
-                margin: 0 0 8px 0;
-                line-height: 1;
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-              }
-              .summary-label {
-                font-size: 13px;
-                color: #5f6368;
-                margin: 0;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                font-weight: 600;
-              }
-              .content {
-                padding: 40px;
-              }
-              .section {
-                margin-bottom: 48px;
-              }
-              .section-title {
-                font-size: 24px;
-                font-weight: 700;
-                margin: 0 0 24px 0;
-                text-align: center;
-                letter-spacing: -0.5px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 12px;
-              }
-              .section-title .color-indicator {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                border: 3px solid #fff;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-              }
-              .table-container {
-                overflow-x: auto;
-                border-radius: 12px;
-                border: 1px solid #e8eaed;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                margin-bottom: 32px;
-              }
-              table {
-                width: 100%;
-                border-collapse: collapse;
-                background: white;
-              }
-              th {
-                background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
-                color: white;
-                padding: 18px 12px;
-                text-align: left;
-                font-weight: 700;
-                font-size: 13px;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                border-bottom: 3px solid #1557b0;
-              }
-              th:nth-child(3), th:nth-child(4) {
-                text-align: center;
-              }
-              td {
-                font-size: 14px;
-                color: #333;
-                border-bottom: 1px solid #f1f3f4;
-              }
-              tr:nth-child(even) {
-                background-color: #fafbfc;
-              }
-              tr:hover {
-                background-color: #e8f0fe;
-                transition: background-color 0.2s ease;
-              }
-              .empty-section {
-                text-align: center;
-                padding: 32px;
-                color: #9aa0a6;
-                font-style: italic;
-                background: #f8f9fa;
-                border-radius: 8px;
-              }
-              .footer {
-                padding: 32px 40px;
-                background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-                border-top: 1px solid #e8eaed;
-                text-align: center;
-              }
-              .signature {
-                font-size: 20px;
-                font-weight: 700;
-                color: #1a73e8;
-                margin: 0 0 8px 0;
-                letter-spacing: -0.5px;
-              }
-              .app-version {
-                font-size: 12px;
-                color: #5f6368;
-                margin: 0 0 16px 0;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-              }
-              .disclaimer {
-                font-size: 11px;
-                color: #9aa0a6;
-                margin: 16px 0 0 0;
-                font-style: italic;
-                line-height: 1.4;
-              }
-              @media print {
-                body { 
-                  background: white; 
-                  padding: 20px;
-                }
-                .container { 
-                  box-shadow: none; 
-                  border: none;
-                }
-                tr:hover {
-                  background-color: inherit;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🚗 Vehicle Health Check List</h1>
-                <h2>Comprehensive VHC Status Report</h2>
-                <div class="date-time">Generated on ${currentDate} at ${currentTime}</div>
-              </div>
-              
-              <div class="summary">
-                <h3>📊 VHC Summary</h3>
-                <div class="summary-grid">
-                  <div class="summary-item">
-                    <div class="summary-number">${vhcJobs.length}</div>
-                    <div class="summary-label">Total VHC Records</div>
-                  </div>
-                  <div class="summary-item">
-                    <div class="summary-number" style="color: #F44336;">${redJobs.length}</div>
-                    <div class="summary-label">Urgent (Red)</div>
-                  </div>
-                  <div class="summary-item">
-                    <div class="summary-number" style="color: #FF9800;">${orangeJobs.length}</div>
-                    <div class="summary-label">Attention (Orange)</div>
-                  </div>
-                  <div class="summary-item">
-                    <div class="summary-number" style="color: #4CAF50;">${greenJobs.length}</div>
-                    <div class="summary-label">Good (Green)</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="content">
-                <!-- Red VHC Section -->
-                <div class="section">
-                  <div class="section-title">
-                    <div class="color-indicator" style="background-color: #F44336;"></div>
-                    <span style="color: #F44336;">Urgent - Red VHC (${redJobs.length})</span>
-                  </div>
-                  ${redJobs.length > 0 ? `
-                    <div class="table-container">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>WIP Number</th>
-                            <th>Vehicle Registration</th>
-                            <th>VHC Status</th>
-                            <th>Date</th>
-                            <th>Notes</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${createJobRows(redJobs, 'red')}
-                        </tbody>
-                      </table>
-                    </div>
-                  ` : '<div class="empty-section">No urgent (red) VHC records</div>'}
-                </div>
-
-                <!-- Orange VHC Section -->
-                <div class="section">
-                  <div class="section-title">
-                    <div class="color-indicator" style="background-color: #FF9800;"></div>
-                    <span style="color: #FF9800;">Needs Attention - Orange VHC (${orangeJobs.length})</span>
-                  </div>
-                  ${orangeJobs.length > 0 ? `
-                    <div class="table-container">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>WIP Number</th>
-                            <th>Vehicle Registration</th>
-                            <th>VHC Status</th>
-                            <th>Date</th>
-                            <th>Notes</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${createJobRows(orangeJobs, 'orange')}
-                        </tbody>
-                      </table>
-                    </div>
-                  ` : '<div class="empty-section">No orange VHC records</div>'}
-                </div>
-
-                <!-- Green VHC Section -->
-                <div class="section">
-                  <div class="section-title">
-                    <div class="color-indicator" style="background-color: #4CAF50;"></div>
-                    <span style="color: #4CAF50;">Good Condition - Green VHC (${greenJobs.length})</span>
-                  </div>
-                  ${greenJobs.length > 0 ? `
-                    <div class="table-container">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>WIP Number</th>
-                            <th>Vehicle Registration</th>
-                            <th>VHC Status</th>
-                            <th>Date</th>
-                            <th>Notes</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${createJobRows(greenJobs, 'green')}
-                        </tbody>
-                      </table>
-                    </div>
-                  ` : '<div class="empty-section">No green VHC records</div>'}
-                </div>
-              </div>
-              
-              <div class="footer">
-                <div class="signature">✍️ Digitally Signed by Buckston Rugge</div>
-                <div class="app-version">Technician Records App v1.0.0</div>
-                <div class="disclaimer">
-                  This VHC report contains vehicle health check status for all recorded jobs.<br/>
-                  Generated automatically by the Technician Records mobile application.
-                </div>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-
-      // Generate PDF
-      const { uri } = await Print.printToFileAsync({
-        html: htmlContent,
-        base64: false,
-        width: 612,
-        height: 792,
-        margins: {
-          left: 20,
-          top: 20,
-          right: 20,
-          bottom: 20,
-        },
-      });
-
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-      const fileName = `TechRecords_VHC_List_${timestamp}.pdf`;
-      
-      console.log('VHC List PDF generated at:', uri);
-
-      // Show options for what to do with the PDF
-      Alert.alert(
-        'VHC List PDF Generated! 🚗',
-        `VHC list with ${vhcJobs.length} records is ready. What would you like to do?`,
-        [
-          {
-            text: 'Share to Apps',
-            onPress: async () => {
-              try {
-                const isAvailable = await Sharing.isAvailableAsync();
-                if (isAvailable) {
-                  await Sharing.shareAsync(uri, {
-                    mimeType: 'application/pdf',
-                    dialogTitle: 'Export VHC List - Technician Records',
-                    UTI: 'com.adobe.pdf',
-                  });
-                  showNotification('VHC List PDF shared successfully! 📤', 'success');
-                } else {
-                  showNotification('Sharing not available on this platform', 'error');
-                }
-              } catch (error) {
-                console.log('Error sharing VHC List PDF:', error);
-                showNotification('Error sharing VHC List PDF', 'error');
-              }
-            }
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          }
-        ],
-        { cancelable: true }
-      );
-
-    } catch (error) {
-      console.log('Error generating VHC List PDF:', error);
-      showNotification('Error generating VHC List PDF. Please try again.', 'error');
-    }
-  }, [jobs, showNotification, getVhcColorValue]);
+  }, [generateEfficiencyGraphSVG]);
 
   const saveToBackupFolder = useCallback(async (pdfUri: string, fileName: string) => {
     try {
@@ -1226,7 +737,7 @@ export default function ExportScreen() {
         return;
       }
 
-      showNotification('Generating PDF with VHC data...', 'info');
+      showNotification('Generating PDF with efficiency graph...', 'info');
 
       const htmlContent = generateStylishPDFHTML(exportJobs, title, reportType, type);
       
@@ -1253,7 +764,7 @@ export default function ExportScreen() {
       // Show options for what to do with the PDF
       Alert.alert(
         'PDF Generated Successfully! 📄',
-        `${reportType} report with VHC data is ready. What would you like to do?`,
+        `${reportType} report with efficiency graph is ready. What would you like to do?`,
         [
           {
             text: 'Share to Apps',
@@ -1361,10 +872,6 @@ export default function ExportScreen() {
     return count;
   }, [jobs]);
 
-  const getVhcJobCount = useCallback(() => {
-    return jobs.filter(job => job.vhcColor).length;
-  }, [jobs]);
-
   const handleMonthChange = (direction: 'prev' | 'next') => {
     let newMonth = selectedMonth;
     let newYear = selectedYear;
@@ -1414,7 +921,7 @@ export default function ExportScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.description}>
-          Export your job records as stylish PDF reports with professional formatting, detailed tables, efficiency graphs, VHC status indicators, and comprehensive performance metrics.
+          Export your job records as stylish PDF reports with professional formatting, detailed tables, efficiency graphs, and comprehensive performance metrics calculated based on your data.
         </Text>
 
         {/* Permission Status */}
@@ -1438,23 +945,6 @@ export default function ExportScreen() {
               ? 'You can save PDFs directly to device storage, backup folder, or choose custom folders.'
               : 'Grant permission to save PDFs to device storage. You can still share to other apps and choose custom folders without permission.'
             }
-          </Text>
-        </View>
-
-        {/* VHC List Export Section */}
-        <View style={styles.vhcSection}>
-          <Text style={styles.sectionTitle}>🚗 VHC List Export</Text>
-          <Text style={styles.sectionDescription}>
-            Export a comprehensive list of all Vehicle Health Checks ({getVhcJobCount()} VHC records) organized by color status
-          </Text>
-          <TouchableOpacity
-            style={[styles.exportButton, styles.vhcButton]}
-            onPress={generateVhcListPDF}
-          >
-            <Text style={styles.exportButtonText}>📋 Generate VHC List PDF</Text>
-          </TouchableOpacity>
-          <Text style={styles.vhcHelperText}>
-            Includes WIP numbers, registration numbers, VHC color codes, dates, and notes grouped by urgency (Red → Orange → Green)
           </Text>
         </View>
 
@@ -1540,52 +1030,46 @@ export default function ExportScreen() {
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>✨ Enhanced PDF Features</Text>
           <Text style={styles.infoText}>
-            - 🎨 Professional styling with modern design and company branding
+            • 🎨 Professional styling with modern design and company branding
           </Text>
           <Text style={styles.infoText}>
-            - 📊 Comprehensive summary statistics with visual formatting
+            • 📊 Comprehensive summary statistics with visual formatting
           </Text>
           <Text style={styles.infoText}>
-            - 🚗 VHC (Vehicle Health Check) color indicators in all job reports
+            • 📈 Visual efficiency graph showing sold vs available hours
           </Text>
           <Text style={styles.infoText}>
-            - 📋 Dedicated VHC List export with color-coded organization
+            • ⚡ Performance metrics calculated based on actual data and time periods
           </Text>
           <Text style={styles.infoText}>
-            - 📈 Visual efficiency graph showing sold vs available hours
+            • 🎯 Utilization percentages: Daily (8.5h), Weekly (45h), Monthly (180h)
           </Text>
           <Text style={styles.infoText}>
-            - ⚡ Performance metrics calculated based on actual data and time periods
+            • 🔢 Efficiency calculations based on 12 AWs/hour target
           </Text>
           <Text style={styles.infoText}>
-            - 🎯 Utilization percentages: Daily (8.5h), Weekly (45h), Monthly (180h)
+            • 📋 Detailed job table with all information organized clearly
           </Text>
           <Text style={styles.infoText}>
-            - 🔢 Efficiency calculations based on 12 AWs/hour target
+            • 🔢 Complete totals section at the bottom of each report
           </Text>
           <Text style={styles.infoText}>
-            - 📋 Detailed job table with all information organized clearly
+            • 📤 Share to email, cloud storage, and other apps
           </Text>
           <Text style={styles.infoText}>
-            - 🔢 Complete totals section at the bottom of each report
+            • 💾 Save to backup folder for device migration
           </Text>
           <Text style={styles.infoText}>
-            - 📤 Share to email, cloud storage, and other apps
+            • 📁 Choose custom folder to save to on device storage
           </Text>
           <Text style={styles.infoText}>
-            - 💾 Save to backup folder for device migration
+            • 📱 Save directly to device storage (with permission)
           </Text>
           <Text style={styles.infoText}>
-            - 📁 Choose custom folder to save to on device storage
+            • 🔒 GDPR compliant (vehicle registrations only)
           </Text>
           <Text style={styles.infoText}>
-            - 📱 Save directly to device storage (with permission)
-          </Text>
-          <Text style={styles.infoText}>
-            - 🔒 GDPR compliant (vehicle registrations only)
-          </Text>
-          <Text style={styles.infoText}>
-            - ✍️ Digital signature by Buckston Rugge
+            • ✍️ Digital signature by Buckston Rugge
           </Text>
         </View>
       </ScrollView>
@@ -1675,23 +1159,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 16,
   },
-  vhcSection: {
-    marginBottom: 24,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-    elevation: 4,
-  },
-  vhcHelperText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 12,
-    lineHeight: 18,
-    fontStyle: 'italic',
-  },
   section: {
     marginBottom: 24,
     backgroundColor: colors.card,
@@ -1760,9 +1227,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   pdfButton: {
     backgroundColor: colors.primary,
-  },
-  vhcButton: {
-    backgroundColor: '#FF9800',
   },
   exportButtonText: {
     color: '#ffffff',

@@ -145,20 +145,6 @@ export default function JobRecordsScreen() {
     }
   };
 
-  const getVhcColorValue = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
-    if (!color) return 'transparent';
-    switch (color) {
-      case 'green':
-        return '#4CAF50';
-      case 'orange':
-        return '#FF9800';
-      case 'red':
-        return '#F44336';
-      default:
-        return 'transparent';
-    }
-  };
-
   const totalStats = filteredJobs.reduce(
     (totals, job) => ({
       jobs: totals.jobs + 1,
@@ -265,33 +251,10 @@ export default function JobRecordsScreen() {
           <View style={styles.jobsList}>
             {filteredJobs.map((job) => (
               <View key={job.id} style={styles.jobCard}>
-                {/* VHC Color Indicator */}
-                {job.vhcColor && (
-                  <View 
-                    style={[
-                      styles.vhcIndicator, 
-                      { backgroundColor: getVhcColorValue(job.vhcColor) }
-                    ]} 
-                  />
-                )}
-                
                 <View style={styles.jobHeader}>
                   <View style={styles.jobHeaderLeft}>
                     <Text style={styles.wipNumber}>WIP: {job.wipNumber}</Text>
                     <Text style={styles.regNumber}>{job.vehicleRegistration}</Text>
-                    {job.vhcColor && (
-                      <View style={styles.vhcBadge}>
-                        <View 
-                          style={[
-                            styles.vhcBadgeDot, 
-                            { backgroundColor: getVhcColorValue(job.vhcColor) }
-                          ]} 
-                        />
-                        <Text style={styles.vhcBadgeText}>
-                          VHC: {job.vhcColor.toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
                   </View>
                   <View style={styles.jobHeaderRight}>
                     <Text style={styles.awBadge}>{job.awValue} AWs</Text>
@@ -576,24 +539,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.border,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 2,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  vhcIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 6,
-    height: '100%',
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
-    paddingLeft: 8,
   },
   jobHeaderLeft: {
     flex: 1,
@@ -611,29 +562,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
-  },
-  vhcBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  vhcBadgeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  vhcBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-    textTransform: 'uppercase',
   },
   awBadge: {
     backgroundColor: colors.primaryLight,
@@ -646,7 +574,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   jobDetails: {
     gap: 8,
-    paddingLeft: 8,
   },
   detailRow: {
     flexDirection: 'row',

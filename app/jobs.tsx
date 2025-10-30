@@ -167,20 +167,6 @@ export default function JobsScreen() {
     filterJobsByMonth(jobs, currentMonth, currentYear);
   };
 
-  const getVhcColorValue = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
-    if (!color) return 'transparent';
-    switch (color) {
-      case 'green':
-        return '#4CAF50';
-      case 'orange':
-        return '#FF9800';
-      case 'red':
-        return '#F44336';
-      default:
-        return 'transparent';
-    }
-  };
-
   const monthlyTotals = filteredJobs.reduce(
     (totals, job) => ({
       jobs: totals.jobs + 1,
@@ -272,33 +258,8 @@ export default function JobsScreen() {
           <View style={styles.jobsList}>
             {filteredJobs.map((job) => (
               <View key={job.id} style={styles.jobCard}>
-                {/* VHC Color Indicator */}
-                {job.vhcColor && (
-                  <View 
-                    style={[
-                      styles.vhcIndicator, 
-                      { backgroundColor: getVhcColorValue(job.vhcColor) }
-                    ]} 
-                  />
-                )}
-                
                 <View style={styles.jobHeader}>
-                  <View style={styles.jobHeaderLeft}>
-                    <Text style={styles.wipNumber}>WIP: {job.wipNumber}</Text>
-                    {job.vhcColor && (
-                      <View style={styles.vhcBadge}>
-                        <View 
-                          style={[
-                            styles.vhcBadgeDot, 
-                            { backgroundColor: getVhcColorValue(job.vhcColor) }
-                          ]} 
-                        />
-                        <Text style={styles.vhcBadgeText}>
-                          VHC: {job.vhcColor.toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <Text style={styles.wipNumber}>WIP: {job.wipNumber}</Text>
                   <View style={styles.jobActions}>
                     <TouchableOpacity
                       onPress={() => handleEditJob(job)}
@@ -498,54 +459,17 @@ const createStyles = (colors: any, isLandscape: boolean) => StyleSheet.create({
     borderColor: colors.border,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 2,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  vhcIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 6,
-    height: '100%',
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: isLandscape ? 8 : 12,
-    paddingLeft: 8,
-  },
-  jobHeaderLeft: {
-    flex: 1,
   },
   wipNumber: {
     fontSize: isLandscape ? 16 : 18,
     fontWeight: '700',
     color: colors.primary,
-    marginBottom: 4,
-  },
-  vhcBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  vhcBadgeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  vhcBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text,
-    textTransform: 'uppercase',
   },
   jobActions: {
     flexDirection: 'row',
@@ -580,7 +504,6 @@ const createStyles = (colors: any, isLandscape: boolean) => StyleSheet.create({
   },
   jobDetails: {
     gap: isLandscape ? 6 : 8,
-    paddingLeft: 8,
   },
   detailRow: {
     flexDirection: 'row',

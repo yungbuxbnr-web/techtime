@@ -6,9 +6,7 @@ export interface Job {
   awValue: number;
   notes?: string;
   dateCreated: string;
-  dateModified?: string;
   timeInMinutes: number; // Calculated from AWs (1 AW = 5 minutes)
-  vhcColor?: 'green' | 'orange' | 'red' | null; // Vehicle Health Check color
 }
 
 export interface FormulaSettings {
@@ -29,7 +27,6 @@ export interface AppSettings {
   theme?: 'light' | 'dark'; // Theme preference
   biometricEnabled?: boolean; // Biometric login enabled
   formulas?: FormulaSettings; // Custom formula settings
-  technicianName?: string; // Technician name (default "Buckston Rugge")
 }
 
 export interface MonthlyStats {

@@ -24,7 +24,6 @@ export default function AddJobScreen() {
   const [vehicleRegistration, setVehicleRegistration] = useState('');
   const [awValue, setAwValue] = useState(1);
   const [notes, setNotes] = useState('');
-  const [vhcColor, setVhcColor] = useState<'green' | 'orange' | 'red' | null>(null);
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isEditing, setIsEditing] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
@@ -81,7 +80,6 @@ export default function AddJobScreen() {
         setVehicleRegistration(jobToEdit.vehicleRegistration);
         setAwValue(jobToEdit.awValue);
         setNotes(jobToEdit.notes || '');
-        setVhcColor(jobToEdit.vhcColor || null);
         console.log('Loaded job for editing:', jobToEdit.wipNumber);
       } else {
         showNotification('Job not found', 'error');
@@ -227,28 +225,6 @@ export default function AddJobScreen() {
     console.log('Selected registration suggestion:', suggestion.vehicleRegistration);
   };
 
-  const handleVhcColorSelect = (color: 'green' | 'orange' | 'red') => {
-    if (vhcColor === color) {
-      // Deselect if already selected
-      setVhcColor(null);
-      console.log('VHC color deselected');
-    } else {
-      setVhcColor(color);
-      console.log('VHC color selected:', color);
-    }
-  };
-
-  const getVhcColorValue = (color: 'green' | 'orange' | 'red'): string => {
-    switch (color) {
-      case 'green':
-        return '#4CAF50';
-      case 'orange':
-        return '#FF9800';
-      case 'red':
-        return '#F44336';
-    }
-  };
-
   const validateForm = () => {
     if (!wipNumber.trim()) {
       showNotification('Please enter a WIP number', 'error');
@@ -293,7 +269,6 @@ export default function AddJobScreen() {
           awValue,
           timeInMinutes,
           notes: notes.trim(),
-          vhcColor: vhcColor,
           // Keep original dateCreated, but update dateModified
           dateModified: new Date().toISOString(),
         };
@@ -310,7 +285,6 @@ export default function AddJobScreen() {
           awValue,
           timeInMinutes,
           notes: notes.trim(),
-          vhcColor: vhcColor,
           dateCreated: new Date().toISOString(),
         };
 
@@ -325,7 +299,6 @@ export default function AddJobScreen() {
         setVehicleRegistration('');
         setAwValue(1);
         setNotes('');
-        setVhcColor(null);
         router.back();
       }, 1500);
 
@@ -546,55 +519,6 @@ export default function AddJobScreen() {
               </Text>
             </View>
 
-            {/* VHC Section */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vehicle Health Check (Optional)</Text>
-              <Text style={styles.helperText}>Select a color to indicate vehicle condition</Text>
-              <View style={styles.vhcContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.vhcButton,
-                    { backgroundColor: getVhcColorValue('green') },
-                    vhcColor === 'green' && styles.vhcButtonSelected
-                  ]}
-                  onPress={() => handleVhcColorSelect('green')}
-                >
-                  <Text style={styles.vhcButtonText}>
-                    {vhcColor === 'green' ? '✓' : ''} Green
-                  </Text>
-                  <Text style={styles.vhcButtonSubtext}>Good Condition</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.vhcButton,
-                    { backgroundColor: getVhcColorValue('orange') },
-                    vhcColor === 'orange' && styles.vhcButtonSelected
-                  ]}
-                  onPress={() => handleVhcColorSelect('orange')}
-                >
-                  <Text style={styles.vhcButtonText}>
-                    {vhcColor === 'orange' ? '✓' : ''} Orange
-                  </Text>
-                  <Text style={styles.vhcButtonSubtext}>Needs Attention</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.vhcButton,
-                    { backgroundColor: getVhcColorValue('red') },
-                    vhcColor === 'red' && styles.vhcButtonSelected
-                  ]}
-                  onPress={() => handleVhcColorSelect('red')}
-                >
-                  <Text style={styles.vhcButtonText}>
-                    {vhcColor === 'red' ? '✓' : ''} Red
-                  </Text>
-                  <Text style={styles.vhcButtonSubtext}>Urgent</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Notes (Optional)</Text>
               <TextInput
@@ -779,41 +703,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 18,
     height: 216,
     color: colors.text,
-  },
-  vhcContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  vhcButton: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 80,
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  vhcButtonSelected: {
-    borderColor: '#ffffff',
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.3)',
-    elevation: 8,
-  },
-  vhcButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  vhcButtonSubtext: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '500',
-    opacity: 0.9,
-    textAlign: 'center',
   },
   saveButton: {
     backgroundColor: colors.primary,
