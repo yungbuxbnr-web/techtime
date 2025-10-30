@@ -101,6 +101,20 @@ export default function StatisticsScreen() {
     return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getVhcColorValue = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
+    if (!color) return 'transparent';
+    switch (color) {
+      case 'green':
+        return '#4CAF50';
+      case 'orange':
+        return '#FF9800';
+      case 'red':
+        return '#F44336';
+      default:
+        return 'transparent';
+    }
+  };
+
   // Calculate current month statistics
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -298,8 +312,33 @@ export default function StatisticsScreen() {
                 ]}
                 onPress={() => toggleJobSelection(job.id)}
               >
+                {/* VHC Color Indicator */}
+                {job.vhcColor && (
+                  <View 
+                    style={[
+                      styles.vhcIndicator, 
+                      { backgroundColor: getVhcColorValue(job.vhcColor) }
+                    ]} 
+                  />
+                )}
+                
                 <View style={styles.jobHeader}>
-                  <Text style={styles.jobWip}>WIP: {job.wipNumber}</Text>
+                  <View style={styles.jobHeaderLeft}>
+                    <Text style={styles.jobWip}>WIP: {job.wipNumber}</Text>
+                    {job.vhcColor && (
+                      <View style={styles.vhcBadge}>
+                        <View 
+                          style={[
+                            styles.vhcBadgeDot, 
+                            { backgroundColor: getVhcColorValue(job.vhcColor) }
+                          ]} 
+                        />
+                        <Text style={styles.vhcBadgeText}>
+                          VHC: {job.vhcColor.toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.jobAw}>{job.awValue} AWs</Text>
                 </View>
                 <Text style={styles.jobReg}>{job.vehicleRegistration}</Text>
@@ -561,21 +600,59 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
     elevation: 3,
     borderWidth: 1,
     borderColor: colors.border,
+    position: 'relative',
+    overflow: 'hidden',
   },
   jobCardSelected: {
     borderColor: colors.primary,
     borderWidth: 2,
   },
+  vhcIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 6,
+    height: '100%',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
+    paddingLeft: 8,
+  },
+  jobHeaderLeft: {
+    flex: 1,
   },
   jobWip: {
     fontSize: isLandscape ? 14 : 16,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 4,
+  },
+  vhcBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  vhcBadgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  vhcBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text,
+    textTransform: 'uppercase',
   },
   jobAw: {
     fontSize: isLandscape ? 12 : 14,
@@ -586,11 +663,13 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
     fontSize: isLandscape ? 12 : 14,
     color: colors.textSecondary,
     marginBottom: 8,
+    paddingLeft: 8,
   },
   jobFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingLeft: 8,
   },
   jobDate: {
     fontSize: isLandscape ? 11 : 12,

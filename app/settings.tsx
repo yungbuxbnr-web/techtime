@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [targetHours, setTargetHours] = useState('180');
+  const [technicianName, setTechnicianName] = useState('Buckston Rugge');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
   const [isImportInProgress, setIsImportInProgress] = useState(false);
@@ -63,6 +64,7 @@ export default function SettingsScreen() {
       setNewPin(settingsData.pin);
       setConfirmPin(settingsData.pin);
       setTargetHours(String(settingsData.targetHours || 180));
+      setTechnicianName(settingsData.technicianName || 'Buckston Rugge');
       console.log('Settings and jobs loaded successfully');
     } catch (error) {
       console.log('Error loading data:', error);
@@ -164,6 +166,24 @@ export default function SettingsScreen() {
       showNotification('Error updating target hours', 'error');
     }
   }, [targetHours, settings, showNotification]);
+
+  const handleUpdateTechnicianName = useCallback(async () => {
+    if (!technicianName || technicianName.trim().length === 0) {
+      showNotification('Please enter a valid name', 'error');
+      return;
+    }
+
+    try {
+      const updatedSettings = { ...settings, technicianName: technicianName.trim() };
+      await StorageService.saveSettings(updatedSettings);
+      setSettings(updatedSettings);
+      showNotification(`Technician name updated to ${technicianName.trim()}`, 'success');
+      console.log('Technician name updated successfully:', technicianName.trim());
+    } catch (error) {
+      console.log('Error updating technician name:', error);
+      showNotification('Error updating technician name', 'error');
+    }
+  }, [technicianName, settings, showNotification]);
 
   const handleLogAbsence = useCallback(async () => {
     const currentMonth = new Date().getMonth();
@@ -593,6 +613,37 @@ export default function SettingsScreen() {
 
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         
+        {/* Technician Name Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>👤 Technician Information</Text>
+          <Text style={styles.sectionDescription}>
+            Update your name as it appears throughout the app and on exported reports.
+          </Text>
+          
+          <Text style={styles.label}>Technician Name</Text>
+          <TextInput
+            style={styles.input}
+            value={technicianName}
+            onChangeText={setTechnicianName}
+            placeholder="Enter your name"
+            placeholderTextColor={colors.textSecondary}
+            maxLength={50}
+          />
+          
+          <View style={styles.targetInfo}>
+            <Text style={styles.infoText}>
+              💡 Current name: {settings.technicianName || 'Buckston Rugge'}
+            </Text>
+            <Text style={styles.infoText}>
+              📄 This name appears on the dashboard and all exported reports
+            </Text>
+          </View>
+          
+          <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdateTechnicianName}>
+            <Text style={styles.buttonText}>🔄 Update Technician Name</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Theme Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎨 Appearance</Text>

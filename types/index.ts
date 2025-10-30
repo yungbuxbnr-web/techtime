@@ -29,6 +29,7 @@ export interface AppSettings {
   theme?: 'light' | 'dark'; // Theme preference
   biometricEnabled?: boolean; // Biometric login enabled
   formulas?: FormulaSettings; // Custom formula settings
+  technicianName?: string; // Technician name (default "Buckston Rugge")
 }
 
 export interface MonthlyStats {
