@@ -15,6 +15,7 @@ import GoogleDriveBackup from '../components/GoogleDriveBackup';
 import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
 import SimpleBottomSheet from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
+import { LocalBackupService } from '../services/backup/local';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
@@ -27,6 +28,7 @@ export default function SettingsScreen() {
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [isShareInProgress, setIsShareInProgress] = useState(false);
+  const [isJsonShareInProgress, setIsJsonShareInProgress] = useState(false);
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -520,6 +522,30 @@ export default function SettingsScreen() {
       setIsShareInProgress(false);
     }
   }, [isShareInProgress, showNotification]);
+
+  const handleCreateJsonBackup = useCallback(async () => {
+    if (isJsonShareInProgress) return;
+    
+    setIsJsonShareInProgress(true);
+    showNotification('Creating JSON backup for sharing...', 'info');
+
+    try {
+      const result = await LocalBackupService.createAndShareJsonBackup();
+      
+      if (result.success) {
+        showNotification(result.message, 'success');
+        console.log('JSON backup created and shared successfully');
+      } else {
+        showNotification(result.message, 'error');
+        console.log('JSON backup failed:', result.message);
+      }
+    } catch (error) {
+      console.log('Error creating JSON backup:', error);
+      showNotification('Unexpected error creating JSON backup', 'error');
+    } finally {
+      setIsJsonShareInProgress(false);
+    }
+  }, [isJsonShareInProgress, showNotification]);
 
   const handleToggleBiometric = useCallback(async () => {
     try {
@@ -1081,6 +1107,16 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.button, styles.jsonBackupButton, isJsonShareInProgress && styles.buttonDisabled]}
+            onPress={handleCreateJsonBackup}
+            disabled={isJsonShareInProgress}
+          >
+            <Text style={styles.buttonText}>
+              {isJsonShareInProgress ? '⏳ Creating...' : '📋 Create JSON Backup for Sharing'}
+            </Text>
+          </TouchableOpacity>
+
           <View style={styles.backupInfo}>
             <Text style={styles.infoTitle}>📁 Backup & Import Information</Text>
             <Text style={styles.infoText}>
@@ -1097,6 +1133,9 @@ export default function SettingsScreen() {
             </Text>
             <Text style={styles.infoText}>
               - Share Backup: Transfer to another device via any sharing method
+            </Text>
+            <Text style={styles.infoText}>
+              - Create JSON Backup: Quick JSON export for sharing to any app
             </Text>
             <Text style={styles.infoText}>
               - Use &quot;Setup Backup Folder&quot; to ensure proper permissions
@@ -1574,6 +1613,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   shareButton: {
     backgroundColor: '#28a745',
+  },
+  jsonBackupButton: {
+    backgroundColor: '#20c997',
   },
   metricsButton: {
     backgroundColor: '#6f42c1',
