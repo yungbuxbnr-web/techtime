@@ -394,6 +394,109 @@ export const LocalBackupService = {
   },
 
   /**
+   * Create JSON backup and share to apps
+   * This is a simplified function that creates a backup and immediately shares it
+   */
+  async createAndShareJsonBackup(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('=== CREATING AND SHARING JSON BACKUP ===');
+      
+      // Check if sharing is available
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        return {
+          success: false,
+          message: 'Sharing is not available on this device'
+        };
+      }
+      
+      // Get all app data
+      const jobs = await StorageService.getJobs();
+      const settings = await StorageService.getSettings();
+      
+      const timestamp = new Date().toISOString();
+      const timestampForFile = timestamp.replace(/[:.]/g, '-').split('.')[0];
+      
+      const backupData: BackupData = {
+        version: '1.0.0',
+        timestamp,
+        jobs,
+        settings: {
+          ...settings,
+          isAuthenticated: false
+        },
+        metadata: {
+          totalJobs: jobs.length,
+          totalAWs: jobs.reduce((sum, job) => sum + job.awValue, 0),
+          exportDate: timestamp,
+          appVersion: '1.0.0'
+        }
+      };
+      
+      // Create temporary file in cache directory
+      const cacheDir = FileSystem.cacheDirectory;
+      if (!cacheDir) {
+        return {
+          success: false,
+          message: 'Cache directory not available'
+        };
+      }
+      
+      const jsonFileName = `techtime-backup-${timestampForFile}.json`;
+      const jsonPath = `${cacheDir}${jsonFileName}`;
+      
+      // Write JSON to cache
+      await FileSystem.writeAsStringAsync(
+        jsonPath,
+        JSON.stringify(backupData, null, 2),
+        { encoding: UTF8 }
+      );
+      
+      console.log('✓ JSON backup created in cache:', jsonPath);
+      
+      // Share the file
+      await Sharing.shareAsync(jsonPath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Share TechTime Backup',
+        UTI: 'public.json'
+      });
+      
+      console.log('✓ Backup shared successfully');
+      
+      // Clean up cache file after a delay (optional)
+      setTimeout(async () => {
+        try {
+          await FileSystem.deleteAsync(jsonPath, { idempotent: true });
+          console.log('✓ Cache file cleaned up');
+        } catch (error) {
+          console.log('Error cleaning up cache file:', error);
+        }
+      }, 5000);
+      
+      return {
+        success: true,
+        message: `✅ Backup created and shared successfully!\n\n📄 File: ${jsonFileName}\n📊 Jobs: ${jobs.length}\n⏱️ Total AWs: ${backupData.metadata.totalAWs}\n\nYou can now save it to any app (Drive, Dropbox, Email, etc.)`
+      };
+      
+    } catch (error) {
+      console.log('Error creating and sharing backup:', error);
+      
+      // Check if user cancelled
+      if (error instanceof Error && error.message.toLowerCase().includes('cancel')) {
+        return {
+          success: false,
+          message: 'Sharing cancelled'
+        };
+      }
+      
+      return {
+        success: false,
+        message: `Failed to create and share backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  },
+
+  /**
    * Import local backup
    */
   async importLocalBackup(): Promise<{ success: boolean; message: string; data?: BackupData }> {
