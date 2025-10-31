@@ -9,15 +9,21 @@ import { BackupData } from '../../utils/backupService';
 import { StorageService } from '../../utils/storage';
 import { Job } from '../../types';
 
-// Storage Access Framework (Android only)
-const { StorageAccessFramework } = FileSystem;
-const DOC_DIR = FileSystem.documentDirectory!;
-
+// Type-safe access to FileSystem properties
+const DOC_DIR = (FileSystem as any).documentDirectory as string;
 const BACKUP_FOLDER = 'backups';
 const SAF_URI_KEY = 'saf_backup_uri';
 
 // Safe encoding type with fallback
-const UTF8 = (FileSystem.EncodingType?.UTF8 ?? 'utf8') as any;
+const UTF8 = ((FileSystem as any).EncodingType?.UTF8 ?? 'utf8') as any;
+
+// Storage Access Framework helper (Android only)
+const getStorageAccessFramework = () => {
+  if (Platform.OS === 'android') {
+    return (FileSystem as any).StorageAccessFramework;
+  }
+  return null;
+};
 
 export interface LocalBackupResult {
   success: boolean;
@@ -35,9 +41,15 @@ export const LocalBackupService = {
       if (Platform.OS === 'android') {
         console.log('[Android] Requesting SAF directory permissions...');
         
-        /* eslint-disable import/namespace */
-        const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
-        /* eslint-enable import/namespace */
+        const SAF = getStorageAccessFramework();
+        if (!SAF) {
+          return {
+            success: false,
+            message: 'Storage Access Framework not available'
+          };
+        }
+        
+        const permissions = await SAF.requestDirectoryPermissionsAsync();
         
         if (!permissions.granted) {
           return {
@@ -398,20 +410,21 @@ export const LocalBackupService = {
           console.log('[Android] Using SAF to pick file...');
           
           try {
-            /* eslint-disable import/namespace */
-            // List files in SAF directory
-            const files = await StorageAccessFramework.readDirectoryAsync(safUri);
-            /* eslint-enable import/namespace */
-            const jsonFiles = files.filter(f => f.endsWith('.json'));
-            
-            if (jsonFiles.length === 0) {
-              console.log('[Android] No JSON files in SAF directory, falling back to DocumentPicker');
-            } else {
-              // For simplicity, use the most recent file
-              // In a real implementation, you'd show a picker UI
-              const latestFile = jsonFiles.sort().reverse()[0];
-              fileUri = `${safUri}/${latestFile}`;
-              console.log('[Android] Selected file from SAF:', fileUri);
+            const SAF = getStorageAccessFramework();
+            if (SAF) {
+              // List files in SAF directory
+              const files = await SAF.readDirectoryAsync(safUri);
+              const jsonFiles = files.filter((f: string) => f.endsWith('.json'));
+              
+              if (jsonFiles.length === 0) {
+                console.log('[Android] No JSON files in SAF directory, falling back to DocumentPicker');
+              } else {
+                // For simplicity, use the most recent file
+                // In a real implementation, you'd show a picker UI
+                const latestFile = jsonFiles.sort().reverse()[0];
+                fileUri = `${safUri}/${latestFile}`;
+                console.log('[Android] Selected file from SAF:', fileUri);
+              }
             }
           } catch (safError) {
             console.log('[Android] SAF error, falling back to DocumentPicker:', safError);
