@@ -40,6 +40,10 @@ export default function AddJobScreen() {
   const wipRef = useRef<TextInput>(null);
   const vehicleRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
+  
+  // Debounce timers for suggestions
+  const wipDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const regDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   const checkAuth = async () => {
     try {
@@ -180,102 +184,170 @@ export default function AddJobScreen() {
     return { wipMap, regMap, combinationMap };
   }, [allJobs]);
 
-  // Enhanced: Generate WIP number suggestions with smart sorting
+  // Enhanced: Generate WIP number suggestions with smart sorting - ONLY when user types
   const generateWipSuggestions = useCallback((input: string) => {
-    if (!input || input.length === 0) {
-      // Show top 5 most frequent WIP numbers when field is focused but empty
-      const topWips = Array.from(jobIndexes.wipMap.values())
-        .sort((a, b) => {
-          // Sort by frequency first, then by recency
-          if (b.frequency !== a.frequency) {
-            return b.frequency - a.frequency;
-          }
-          return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
-        })
-        .slice(0, 5);
-      
-      setWipSuggestions(topWips);
-      setShowWipSuggestions(topWips.length > 0);
+    // Clear any existing timer
+    if (wipDebounceTimer.current) {
+      clearTimeout(wipDebounceTimer.current);
+    }
+
+    // Don't show suggestions if input is empty or only whitespace
+    if (!input || input.trim().length === 0) {
+      setWipSuggestions([]);
+      setShowWipSuggestions(false);
       return;
     }
 
-    const suggestions: JobSuggestion[] = [];
-    
-    jobIndexes.wipMap.forEach((suggestion, wipNum) => {
-      if (wipNum.startsWith(input) && wipNum !== input) {
-        suggestions.push(suggestion);
-      }
-    });
-
-    // Smart sorting: prioritize by frequency and recency
-    suggestions.sort((a, b) => {
-      // Exact match prefix gets highest priority
-      const aExactness = a.wipNumber.startsWith(input) ? 1 : 0;
-      const bExactness = b.wipNumber.startsWith(input) ? 1 : 0;
-      if (aExactness !== bExactness) return bExactness - aExactness;
+    // Debounce: wait 300ms after user stops typing
+    wipDebounceTimer.current = setTimeout(() => {
+      console.log('Generating WIP suggestions for:', input);
+      const suggestions: JobSuggestion[] = [];
       
-      // Then by frequency (repeat jobs)
-      if (b.frequency !== a.frequency) {
-        return b.frequency - a.frequency;
+      // First, check for exact combination match (repeat job)
+      const exactMatches: JobSuggestion[] = [];
+      jobIndexes.combinationMap.forEach((suggestion, key) => {
+        const [wip] = key.split('|');
+        if (wip === input) {
+          exactMatches.push(suggestion);
+        }
+      });
+
+      // If we have exact matches, prioritize them
+      if (exactMatches.length > 0) {
+        exactMatches.sort((a, b) => {
+          // Sort by frequency first (repeat jobs)
+          if (b.frequency !== a.frequency) {
+            return b.frequency - a.frequency;
+          }
+          // Then by recency
+          return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+        });
+        suggestions.push(...exactMatches);
       }
+
+      // Then add prefix matches
+      jobIndexes.wipMap.forEach((suggestion, wipNum) => {
+        if (wipNum.startsWith(input) && wipNum !== input) {
+          suggestions.push(suggestion);
+        }
+      });
+
+      // Smart sorting for prefix matches
+      suggestions.sort((a, b) => {
+        // Exact match gets highest priority
+        const aExact = a.wipNumber === input ? 1 : 0;
+        const bExact = b.wipNumber === input ? 1 : 0;
+        if (aExact !== bExact) return bExact - aExact;
+        
+        // Then by frequency (repeat jobs)
+        if (b.frequency !== a.frequency) {
+          return b.frequency - a.frequency;
+        }
+        
+        // Finally by recency
+        return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+      });
+
+      const topSuggestions = suggestions.slice(0, 5);
+      setWipSuggestions(topSuggestions);
+      setShowWipSuggestions(topSuggestions.length > 0);
       
-      // Finally by recency
-      return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
-    });
+      if (topSuggestions.length > 0) {
+        console.log(`Found ${topSuggestions.length} WIP suggestions, top frequency: ${topSuggestions[0].frequency}x`);
+      }
+    }, 300); // 300ms debounce delay
+  }, [jobIndexes.wipMap, jobIndexes.combinationMap]);
 
-    const topSuggestions = suggestions.slice(0, 5);
-    setWipSuggestions(topSuggestions);
-    setShowWipSuggestions(topSuggestions.length > 0);
-  }, [jobIndexes.wipMap]);
-
-  // Enhanced: Generate registration number suggestions with smart sorting
+  // Enhanced: Generate registration number suggestions with smart sorting - ONLY when user types
   const generateRegSuggestions = useCallback((input: string) => {
-    if (!input || input.length === 0) {
-      // Show top 5 most frequent registrations when field is focused but empty
-      const topRegs = Array.from(jobIndexes.regMap.values())
-        .sort((a, b) => {
-          // Sort by frequency first, then by recency
-          if (b.frequency !== a.frequency) {
-            return b.frequency - a.frequency;
-          }
-          return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
-        })
-        .slice(0, 5);
-      
-      setRegSuggestions(topRegs);
-      setShowRegSuggestions(topRegs.length > 0);
+    // Clear any existing timer
+    if (regDebounceTimer.current) {
+      clearTimeout(regDebounceTimer.current);
+    }
+
+    // Don't show suggestions if input is empty or only whitespace
+    if (!input || input.trim().length === 0) {
+      setRegSuggestions([]);
+      setShowRegSuggestions(false);
       return;
     }
 
-    const upperInput = input.toUpperCase();
-    const suggestions: JobSuggestion[] = [];
+    // Debounce: wait 300ms after user stops typing
+    regDebounceTimer.current = setTimeout(() => {
+      console.log('Generating registration suggestions for:', input);
+      const upperInput = input.toUpperCase();
+      const suggestions: JobSuggestion[] = [];
 
-    jobIndexes.regMap.forEach((suggestion, regKey) => {
-      if (regKey.includes(upperInput) && regKey !== upperInput) {
-        suggestions.push(suggestion);
+      // Check for exact matches first (repeat customer)
+      const exactMatches: JobSuggestion[] = [];
+      jobIndexes.regMap.forEach((suggestion, regKey) => {
+        if (regKey === upperInput) {
+          exactMatches.push(suggestion);
+        }
+      });
+
+      // If we have exact matches, prioritize them
+      if (exactMatches.length > 0) {
+        exactMatches.sort((a, b) => {
+          // Sort by frequency first (repeat customers)
+          if (b.frequency !== a.frequency) {
+            return b.frequency - a.frequency;
+          }
+          // Then by recency
+          return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+        });
+        suggestions.push(...exactMatches);
       }
-    });
 
-    // Smart sorting: prioritize by frequency and recency
-    suggestions.sort((a, b) => {
-      // Starts with input gets priority
-      const aStarts = a.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
-      const bStarts = b.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
-      if (aStarts !== bStarts) return bStarts - aStarts;
+      // Then add partial matches
+      jobIndexes.regMap.forEach((suggestion, regKey) => {
+        if (regKey.includes(upperInput) && regKey !== upperInput) {
+          suggestions.push(suggestion);
+        }
+      });
+
+      // Smart sorting for partial matches
+      suggestions.sort((a, b) => {
+        // Exact match gets priority
+        const aExact = a.vehicleRegistration.toUpperCase() === upperInput ? 1 : 0;
+        const bExact = b.vehicleRegistration.toUpperCase() === upperInput ? 1 : 0;
+        if (aExact !== bExact) return bExact - aExact;
+
+        // Starts with input gets priority
+        const aStarts = a.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
+        const bStarts = b.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
+        if (aStarts !== bStarts) return bStarts - aStarts;
+        
+        // Then by frequency (repeat customers)
+        if (b.frequency !== a.frequency) {
+          return b.frequency - a.frequency;
+        }
+        
+        // Finally by recency
+        return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+      });
+
+      const topSuggestions = suggestions.slice(0, 5);
+      setRegSuggestions(topSuggestions);
+      setShowRegSuggestions(topSuggestions.length > 0);
       
-      // Then by frequency (repeat customers)
-      if (b.frequency !== a.frequency) {
-        return b.frequency - a.frequency;
+      if (topSuggestions.length > 0) {
+        console.log(`Found ${topSuggestions.length} registration suggestions, top frequency: ${topSuggestions[0].frequency}x`);
       }
-      
-      // Finally by recency
-      return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
-    });
-
-    const topSuggestions = suggestions.slice(0, 5);
-    setRegSuggestions(topSuggestions);
-    setShowRegSuggestions(topSuggestions.length > 0);
+    }, 300); // 300ms debounce delay
   }, [jobIndexes.regMap]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (wipDebounceTimer.current) {
+        clearTimeout(wipDebounceTimer.current);
+      }
+      if (regDebounceTimer.current) {
+        clearTimeout(regDebounceTimer.current);
+      }
+    };
+  }, []);
 
   const handleWipNumberChange = (text: string) => {
     setWipNumber(text);
@@ -488,8 +560,10 @@ export default function AddJobScreen() {
                 maxLength={5}
                 returnKeyType="next"
                 onSubmitEditing={() => vehicleRef.current?.focus()}
-                onFocus={() => generateWipSuggestions(wipNumber)}
-                onBlur={() => setTimeout(() => setShowWipSuggestions(false), 200)}
+                onBlur={() => {
+                  // Delay hiding to allow tap on suggestion
+                  setTimeout(() => setShowWipSuggestions(false), 200);
+                }}
               />
               <Text style={styles.helperText}>Must be exactly 5 digits</Text>
             </View>
@@ -506,8 +580,10 @@ export default function AddJobScreen() {
                 autoCapitalize="characters"
                 returnKeyType="next"
                 onSubmitEditing={() => notesRef.current?.focus()}
-                onFocus={() => generateRegSuggestions(vehicleRegistration)}
-                onBlur={() => setTimeout(() => setShowRegSuggestions(false), 200)}
+                onBlur={() => {
+                  // Delay hiding to allow tap on suggestion
+                  setTimeout(() => setShowRegSuggestions(false), 200);
+                }}
               />
             </View>
 
@@ -691,9 +767,17 @@ export default function AddJobScreen() {
         >
           <View style={styles.suggestionsModalContent}>
             <View style={styles.suggestionsContainer}>
-              <Text style={styles.suggestionsHeader}>
-                {wipNumber ? 'Matching Jobs' : 'Recent Jobs'}
-              </Text>
+              <View style={styles.suggestionsHeaderContainer}>
+                <Text style={styles.suggestionsHeader}>
+                  Matching Jobs from Records
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setShowWipSuggestions(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
               <ScrollView 
                 style={styles.suggestionsList}
                 keyboardShouldPersistTaps="handled"
@@ -711,7 +795,9 @@ export default function AddJobScreen() {
                           <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
                           {suggestion.frequency > 1 && (
                             <View style={styles.frequencyBadge}>
-                              <Text style={styles.frequencyText}>{suggestion.frequency}x</Text>
+                              <Text style={styles.frequencyText}>
+                                {suggestion.frequency}x REPEAT
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -747,9 +833,17 @@ export default function AddJobScreen() {
         >
           <View style={styles.suggestionsModalContent}>
             <View style={styles.suggestionsContainer}>
-              <Text style={styles.suggestionsHeader}>
-                {vehicleRegistration ? 'Matching Vehicles' : 'Recent Vehicles'}
-              </Text>
+              <View style={styles.suggestionsHeaderContainer}>
+                <Text style={styles.suggestionsHeader}>
+                  Matching Vehicles from Records
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setShowRegSuggestions(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
               <ScrollView 
                 style={styles.suggestionsList}
                 keyboardShouldPersistTaps="handled"
@@ -767,7 +861,9 @@ export default function AddJobScreen() {
                           <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
                           {suggestion.frequency > 1 && (
                             <View style={styles.frequencyBadge}>
-                              <Text style={styles.frequencyText}>{suggestion.frequency}x</Text>
+                              <Text style={styles.frequencyText}>
+                                {suggestion.frequency}x REPEAT
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -1001,7 +1097,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   // Suggestions Modal Styles - Guaranteed to be on top
   suggestionsModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -1013,22 +1109,42 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   suggestionsContainer: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.25)',
-    elevation: 10,
+    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)',
+    elevation: 15,
   },
-  suggestionsHeader: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  suggestionsHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.backgroundAlt,
+  },
+  suggestionsHeader: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    backgroundColor: colors.backgroundAlt,
+    flex: 1,
+  },
+  closeButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
   suggestionsList: {
     maxHeight: 320,
@@ -1084,14 +1200,15 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   frequencyBadge: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 12,
     marginLeft: 8,
   },
   frequencyText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.3,
   },
 });
