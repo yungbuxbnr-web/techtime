@@ -11,6 +11,7 @@ import { Job } from '../../types';
 
 // Type-safe access to FileSystem properties
 const DOC_DIR = (FileSystem as any).documentDirectory as string;
+const CACHE_DIR = (FileSystem as any).cacheDirectory as string;
 const BACKUP_FOLDER = 'backups';
 const SAF_URI_KEY = 'saf_backup_uri';
 
@@ -434,8 +435,7 @@ export const LocalBackupService = {
       };
       
       // Create temporary file in cache directory
-      const cacheDir = FileSystem.cacheDirectory;
-      if (!cacheDir) {
+      if (!CACHE_DIR) {
         return {
           success: false,
           message: 'Cache directory not available'
@@ -443,7 +443,7 @@ export const LocalBackupService = {
       }
       
       const jsonFileName = `techtime-backup-${timestampForFile}.json`;
-      const jsonPath = `${cacheDir}${jsonFileName}`;
+      const jsonPath = `${CACHE_DIR}${jsonFileName}`;
       
       // Write JSON to cache
       await FileSystem.writeAsStringAsync(
