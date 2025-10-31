@@ -15,6 +15,8 @@ interface JobSuggestion {
   vehicleRegistration: string;
   awValue: number;
   lastUsed: string;
+  frequency: number; // How many times this combination has been used
+  totalAWs: number; // Total AWs for this combination
 }
 
 export default function AddJobScreen() {
@@ -102,111 +104,187 @@ export default function AddJobScreen() {
     }
   }, [editId, loadJobForEditing, loadAllJobs]);
 
-  // Optimized: Create indexed maps for faster lookups (iOS performance improvement)
+  // Enhanced: Create indexed maps with frequency tracking
   const jobIndexes = useMemo(() => {
     const wipMap = new Map<string, JobSuggestion>();
     const regMap = new Map<string, JobSuggestion>();
+    const combinationMap = new Map<string, JobSuggestion>(); // Track WIP+Reg combinations
 
-    // Process jobs in reverse order (most recent first)
-    for (let i = allJobs.length - 1; i >= 0; i--) {
-      const job = allJobs[i];
+    // Process all jobs to build frequency data
+    allJobs.forEach(job => {
+      const combinationKey = `${job.wipNumber}|${job.vehicleRegistration.toUpperCase()}`;
       
-      // Index by WIP number
-      if (!wipMap.has(job.wipNumber)) {
+      // Track WIP number frequency
+      if (wipMap.has(job.wipNumber)) {
+        const existing = wipMap.get(job.wipNumber)!;
+        existing.frequency += 1;
+        existing.totalAWs += job.awValue;
+        if (new Date(job.dateCreated) > new Date(existing.lastUsed)) {
+          existing.lastUsed = job.dateCreated;
+          existing.awValue = job.awValue; // Use most recent AW value
+        }
+      } else {
         wipMap.set(job.wipNumber, {
           wipNumber: job.wipNumber,
           vehicleRegistration: job.vehicleRegistration,
           awValue: job.awValue,
           lastUsed: job.dateCreated,
+          frequency: 1,
+          totalAWs: job.awValue,
         });
       }
       
-      // Index by registration number
+      // Track registration number frequency
       const regKey = job.vehicleRegistration.toUpperCase();
-      if (!regMap.has(regKey)) {
+      if (regMap.has(regKey)) {
+        const existing = regMap.get(regKey)!;
+        existing.frequency += 1;
+        existing.totalAWs += job.awValue;
+        if (new Date(job.dateCreated) > new Date(existing.lastUsed)) {
+          existing.lastUsed = job.dateCreated;
+          existing.wipNumber = job.wipNumber; // Use most recent WIP
+          existing.awValue = job.awValue;
+        }
+      } else {
         regMap.set(regKey, {
           wipNumber: job.wipNumber,
           vehicleRegistration: job.vehicleRegistration,
           awValue: job.awValue,
           lastUsed: job.dateCreated,
+          frequency: 1,
+          totalAWs: job.awValue,
         });
       }
-    }
 
-    return { wipMap, regMap };
+      // Track exact combinations
+      if (combinationMap.has(combinationKey)) {
+        const existing = combinationMap.get(combinationKey)!;
+        existing.frequency += 1;
+        existing.totalAWs += job.awValue;
+        if (new Date(job.dateCreated) > new Date(existing.lastUsed)) {
+          existing.lastUsed = job.dateCreated;
+          existing.awValue = job.awValue;
+        }
+      } else {
+        combinationMap.set(combinationKey, {
+          wipNumber: job.wipNumber,
+          vehicleRegistration: job.vehicleRegistration,
+          awValue: job.awValue,
+          lastUsed: job.dateCreated,
+          frequency: 1,
+          totalAWs: job.awValue,
+        });
+      }
+    });
+
+    return { wipMap, regMap, combinationMap };
   }, [allJobs]);
 
-  // Optimized: Generate WIP number suggestions with debouncing
+  // Enhanced: Generate WIP number suggestions with smart sorting
   const generateWipSuggestions = useCallback((input: string) => {
     if (!input || input.length === 0) {
-      setWipSuggestions([]);
-      setShowWipSuggestions(false);
+      // Show top 5 most frequent WIP numbers when field is focused but empty
+      const topWips = Array.from(jobIndexes.wipMap.values())
+        .sort((a, b) => {
+          // Sort by frequency first, then by recency
+          if (b.frequency !== a.frequency) {
+            return b.frequency - a.frequency;
+          }
+          return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+        })
+        .slice(0, 5);
+      
+      setWipSuggestions(topWips);
+      setShowWipSuggestions(topWips.length > 0);
       return;
     }
 
-    // Use indexed map for O(n) lookup instead of O(n²)
     const suggestions: JobSuggestion[] = [];
     
     jobIndexes.wipMap.forEach((suggestion, wipNum) => {
-      if (wipNum.startsWith(input) && wipNum !== input && suggestions.length < 5) {
+      if (wipNum.startsWith(input) && wipNum !== input) {
         suggestions.push(suggestion);
       }
     });
 
-    // Sort by most recent
-    suggestions.sort((a, b) => 
-      new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
-    );
+    // Smart sorting: prioritize by frequency and recency
+    suggestions.sort((a, b) => {
+      // Exact match prefix gets highest priority
+      const aExactness = a.wipNumber.startsWith(input) ? 1 : 0;
+      const bExactness = b.wipNumber.startsWith(input) ? 1 : 0;
+      if (aExactness !== bExactness) return bExactness - aExactness;
+      
+      // Then by frequency (repeat jobs)
+      if (b.frequency !== a.frequency) {
+        return b.frequency - a.frequency;
+      }
+      
+      // Finally by recency
+      return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+    });
 
-    setWipSuggestions(suggestions);
-    setShowWipSuggestions(suggestions.length > 0);
+    const topSuggestions = suggestions.slice(0, 5);
+    setWipSuggestions(topSuggestions);
+    setShowWipSuggestions(topSuggestions.length > 0);
   }, [jobIndexes.wipMap]);
 
-  // Optimized: Generate registration number suggestions with debouncing
+  // Enhanced: Generate registration number suggestions with smart sorting
   const generateRegSuggestions = useCallback((input: string) => {
     if (!input || input.length === 0) {
-      setRegSuggestions([]);
-      setShowRegSuggestions(false);
+      // Show top 5 most frequent registrations when field is focused but empty
+      const topRegs = Array.from(jobIndexes.regMap.values())
+        .sort((a, b) => {
+          // Sort by frequency first, then by recency
+          if (b.frequency !== a.frequency) {
+            return b.frequency - a.frequency;
+          }
+          return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+        })
+        .slice(0, 5);
+      
+      setRegSuggestions(topRegs);
+      setShowRegSuggestions(topRegs.length > 0);
       return;
     }
 
     const upperInput = input.toUpperCase();
     const suggestions: JobSuggestion[] = [];
 
-    // Use indexed map for faster lookup
     jobIndexes.regMap.forEach((suggestion, regKey) => {
-      if (regKey.includes(upperInput) && regKey !== upperInput && suggestions.length < 5) {
+      if (regKey.includes(upperInput) && regKey !== upperInput) {
         suggestions.push(suggestion);
       }
     });
 
-    // Sort by most recent
-    suggestions.sort((a, b) => 
-      new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
-    );
+    // Smart sorting: prioritize by frequency and recency
+    suggestions.sort((a, b) => {
+      // Starts with input gets priority
+      const aStarts = a.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
+      const bStarts = b.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
+      if (aStarts !== bStarts) return bStarts - aStarts;
+      
+      // Then by frequency (repeat customers)
+      if (b.frequency !== a.frequency) {
+        return b.frequency - a.frequency;
+      }
+      
+      // Finally by recency
+      return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+    });
 
-    setRegSuggestions(suggestions);
-    setShowRegSuggestions(suggestions.length > 0);
+    const topSuggestions = suggestions.slice(0, 5);
+    setRegSuggestions(topSuggestions);
+    setShowRegSuggestions(topSuggestions.length > 0);
   }, [jobIndexes.regMap]);
 
   const handleWipNumberChange = (text: string) => {
     setWipNumber(text);
-    // Debounce for iOS performance
-    if (Platform.OS === 'ios') {
-      setTimeout(() => generateWipSuggestions(text), 100);
-    } else {
-      generateWipSuggestions(text);
-    }
+    generateWipSuggestions(text);
   };
 
   const handleVehicleRegistrationChange = (text: string) => {
     setVehicleRegistration(text);
-    // Debounce for iOS performance
-    if (Platform.OS === 'ios') {
-      setTimeout(() => generateRegSuggestions(text), 100);
-    } else {
-      generateRegSuggestions(text);
-    }
+    generateRegSuggestions(text);
   };
 
   const selectWipSuggestion = (suggestion: JobSuggestion) => {
@@ -214,8 +292,12 @@ export default function AddJobScreen() {
     setVehicleRegistration(suggestion.vehicleRegistration);
     setAwValue(suggestion.awValue);
     setShowWipSuggestions(false);
-    showNotification('Previous job details loaded', 'info');
-    console.log('Selected WIP suggestion:', suggestion.wipNumber);
+    
+    const message = suggestion.frequency > 1 
+      ? `Loaded repeat job (${suggestion.frequency}x previously)`
+      : 'Previous job details loaded';
+    showNotification(message, 'info');
+    console.log('Selected WIP suggestion:', suggestion.wipNumber, 'Frequency:', suggestion.frequency);
   };
 
   const selectRegSuggestion = (suggestion: JobSuggestion) => {
@@ -223,13 +305,16 @@ export default function AddJobScreen() {
     setVehicleRegistration(suggestion.vehicleRegistration);
     setAwValue(suggestion.awValue);
     setShowRegSuggestions(false);
-    showNotification('Previous job details loaded', 'info');
-    console.log('Selected registration suggestion:', suggestion.vehicleRegistration);
+    
+    const message = suggestion.frequency > 1 
+      ? `Loaded repeat customer (${suggestion.frequency}x previously)`
+      : 'Previous job details loaded';
+    showNotification(message, 'info');
+    console.log('Selected registration suggestion:', suggestion.vehicleRegistration, 'Frequency:', suggestion.frequency);
   };
 
   const handleVhcColorSelect = (color: 'green' | 'orange' | 'red') => {
     if (vhcColor === color) {
-      // Deselect if already selected
       setVhcColor(null);
       console.log('VHC color deselected');
     } else {
@@ -285,7 +370,6 @@ export default function AddJobScreen() {
       const timeInMinutes = awValue * 5;
       
       if (isEditing && editingJob) {
-        // Update existing job
         const updatedJob: Job = {
           ...editingJob,
           wipNumber: wipNumber.trim(),
@@ -294,7 +378,6 @@ export default function AddJobScreen() {
           timeInMinutes,
           notes: notes.trim(),
           vhcColor: vhcColor,
-          // Keep original dateCreated, but update dateModified
           dateModified: new Date().toISOString(),
         };
 
@@ -302,7 +385,6 @@ export default function AddJobScreen() {
         showNotification('Job updated successfully!', 'success');
         console.log('Job updated:', updatedJob.wipNumber);
       } else {
-        // Create new job
         const newJob: Job = {
           id: Date.now().toString(),
           wipNumber: wipNumber.trim(),
@@ -315,11 +397,21 @@ export default function AddJobScreen() {
         };
 
         await StorageService.saveJob(newJob);
-        showNotification('Job saved successfully!', 'success');
-        console.log('New job saved:', newJob.wipNumber);
+        
+        // Check if this is a repeat job
+        const combinationKey = `${newJob.wipNumber}|${newJob.vehicleRegistration}`;
+        const isRepeat = jobIndexes.combinationMap.has(combinationKey);
+        
+        if (isRepeat) {
+          const frequency = jobIndexes.combinationMap.get(combinationKey)!.frequency + 1;
+          showNotification(`Repeat job saved! (${frequency}x total)`, 'success');
+        } else {
+          showNotification('Job saved successfully!', 'success');
+        }
+        
+        console.log('New job saved:', newJob.wipNumber, 'Is repeat:', isRepeat);
       }
 
-      // Clear form after successful save
       setTimeout(() => {
         setWipNumber('');
         setVehicleRegistration('');
@@ -401,7 +493,9 @@ export default function AddJobScreen() {
               />
               {showWipSuggestions && wipSuggestions.length > 0 && (
                 <View style={styles.suggestionsContainer}>
-                  <Text style={styles.suggestionsHeader}>Previous Jobs</Text>
+                  <Text style={styles.suggestionsHeader}>
+                    {wipNumber ? 'Matching Jobs' : 'Recent Jobs'}
+                  </Text>
                   {wipSuggestions.map((suggestion, index) => (
                     <TouchableOpacity
                       key={index}
@@ -410,12 +504,22 @@ export default function AddJobScreen() {
                     >
                       <View style={styles.suggestionContent}>
                         <View style={styles.suggestionMain}>
-                          <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
+                          <View style={styles.suggestionTopRow}>
+                            <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
+                            {suggestion.frequency > 1 && (
+                              <View style={styles.frequencyBadge}>
+                                <Text style={styles.frequencyText}>{suggestion.frequency}x</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
                         </View>
                         <View style={styles.suggestionDetails}>
                           <Text style={styles.suggestionAw}>{suggestion.awValue} AW{suggestion.awValue !== 1 ? 's' : ''}</Text>
                           <Text style={styles.suggestionDate}>{formatDate(suggestion.lastUsed)}</Text>
+                          {suggestion.frequency > 1 && (
+                            <Text style={styles.suggestionTotal}>Total: {suggestion.totalAWs} AWs</Text>
+                          )}
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -442,7 +546,9 @@ export default function AddJobScreen() {
               />
               {showRegSuggestions && regSuggestions.length > 0 && (
                 <View style={styles.suggestionsContainer}>
-                  <Text style={styles.suggestionsHeader}>Previous Vehicles</Text>
+                  <Text style={styles.suggestionsHeader}>
+                    {vehicleRegistration ? 'Matching Vehicles' : 'Recent Vehicles'}
+                  </Text>
                   {regSuggestions.map((suggestion, index) => (
                     <TouchableOpacity
                       key={index}
@@ -451,12 +557,22 @@ export default function AddJobScreen() {
                     >
                       <View style={styles.suggestionContent}>
                         <View style={styles.suggestionMain}>
-                          <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
+                          <View style={styles.suggestionTopRow}>
+                            <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
+                            {suggestion.frequency > 1 && (
+                              <View style={styles.frequencyBadge}>
+                                <Text style={styles.frequencyText}>{suggestion.frequency}x</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
                         </View>
                         <View style={styles.suggestionDetails}>
                           <Text style={styles.suggestionAw}>{suggestion.awValue} AW{suggestion.awValue !== 1 ? 's' : ''}</Text>
                           <Text style={styles.suggestionDate}>{formatDate(suggestion.lastUsed)}</Text>
+                          {suggestion.frequency > 1 && (
+                            <Text style={styles.suggestionTotal}>Total: {suggestion.totalAWs} AWs</Text>
+                          )}
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -546,7 +662,6 @@ export default function AddJobScreen() {
               </Text>
             </View>
 
-            {/* VHC Section */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Vehicle Health Check (Optional)</Text>
               <Text style={styles.helperText}>Select a color to indicate vehicle condition</Text>
@@ -852,7 +967,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    maxHeight: 250,
+    maxHeight: 280,
     zIndex: 1000,
     elevation: 5,
     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
@@ -882,11 +997,15 @@ const createStyles = (colors: any) => StyleSheet.create({
   suggestionMain: {
     flex: 1,
   },
+  suggestionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   suggestionWip: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
   },
   suggestionReg: {
     fontSize: 14,
@@ -905,5 +1024,23 @@ const createStyles = (colors: any) => StyleSheet.create({
   suggestionDate: {
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  suggestionTotal: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  frequencyBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  frequencyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });
