@@ -547,6 +547,7 @@ export default function AddJobScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.form}>
+            {/* WIP Number Input with Dropdown Suggestions */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>WIP Number *</Text>
               <TextInput
@@ -560,14 +561,68 @@ export default function AddJobScreen() {
                 maxLength={5}
                 returnKeyType="next"
                 onSubmitEditing={() => vehicleRef.current?.focus()}
+                onFocus={() => {
+                  if (wipNumber.trim().length > 0) {
+                    generateWipSuggestions(wipNumber);
+                  }
+                }}
                 onBlur={() => {
                   // Delay hiding to allow tap on suggestion
                   setTimeout(() => setShowWipSuggestions(false), 200);
                 }}
               />
               <Text style={styles.helperText}>Must be exactly 5 digits</Text>
+              
+              {/* WIP Suggestions Dropdown - appears directly below input */}
+              {showWipSuggestions && wipSuggestions.length > 0 && (
+                <View style={styles.suggestionsDropdown}>
+                  <View style={styles.suggestionsHeader}>
+                    <Text style={styles.suggestionsHeaderText}>
+                      Matching Jobs from Records
+                    </Text>
+                  </View>
+                  <ScrollView 
+                    style={styles.suggestionsScrollView}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                  >
+                    {wipSuggestions.map((suggestion, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.suggestionItem,
+                          index === wipSuggestions.length - 1 && styles.suggestionItemLast
+                        ]}
+                        onPress={() => selectWipSuggestion(suggestion)}
+                      >
+                        <View style={styles.suggestionContent}>
+                          <View style={styles.suggestionMain}>
+                            <View style={styles.suggestionTopRow}>
+                              <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
+                              {suggestion.frequency > 1 && (
+                                <View style={styles.frequencyBadge}>
+                                  <Text style={styles.frequencyText}>
+                                    {suggestion.frequency}x
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
+                          </View>
+                          <View style={styles.suggestionDetails}>
+                            <Text style={styles.suggestionAw}>{suggestion.awValue} AW{suggestion.awValue !== 1 ? 's' : ''}</Text>
+                            <Text style={styles.suggestionDate}>{formatDate(suggestion.lastUsed)}</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
+            {/* Vehicle Registration Input with Dropdown Suggestions */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Vehicle Registration *</Text>
               <TextInput
@@ -580,11 +635,64 @@ export default function AddJobScreen() {
                 autoCapitalize="characters"
                 returnKeyType="next"
                 onSubmitEditing={() => notesRef.current?.focus()}
+                onFocus={() => {
+                  if (vehicleRegistration.trim().length > 0) {
+                    generateRegSuggestions(vehicleRegistration);
+                  }
+                }}
                 onBlur={() => {
                   // Delay hiding to allow tap on suggestion
                   setTimeout(() => setShowRegSuggestions(false), 200);
                 }}
               />
+              
+              {/* Registration Suggestions Dropdown - appears directly below input */}
+              {showRegSuggestions && regSuggestions.length > 0 && (
+                <View style={styles.suggestionsDropdown}>
+                  <View style={styles.suggestionsHeader}>
+                    <Text style={styles.suggestionsHeaderText}>
+                      Matching Vehicles from Records
+                    </Text>
+                  </View>
+                  <ScrollView 
+                    style={styles.suggestionsScrollView}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                  >
+                    {regSuggestions.map((suggestion, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.suggestionItem,
+                          index === regSuggestions.length - 1 && styles.suggestionItemLast
+                        ]}
+                        onPress={() => selectRegSuggestion(suggestion)}
+                      >
+                        <View style={styles.suggestionContent}>
+                          <View style={styles.suggestionMain}>
+                            <View style={styles.suggestionTopRow}>
+                              <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
+                              {suggestion.frequency > 1 && (
+                                <View style={styles.frequencyBadge}>
+                                  <Text style={styles.frequencyText}>
+                                    {suggestion.frequency}x
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
+                          </View>
+                          <View style={styles.suggestionDetails}>
+                            <Text style={styles.suggestionAw}>{suggestion.awValue} AW{suggestion.awValue !== 1 ? 's' : ''}</Text>
+                            <Text style={styles.suggestionDate}>{formatDate(suggestion.lastUsed)}</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -752,138 +860,6 @@ export default function AddJobScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* WIP Suggestions Modal - Always on top */}
-      <Modal
-        visible={showWipSuggestions && wipSuggestions.length > 0}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowWipSuggestions(false)}
-      >
-        <TouchableOpacity 
-          style={styles.suggestionsModalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowWipSuggestions(false)}
-        >
-          <View style={styles.suggestionsModalContent}>
-            <View style={styles.suggestionsContainer}>
-              <View style={styles.suggestionsHeaderContainer}>
-                <Text style={styles.suggestionsHeader}>
-                  Matching Jobs from Records
-                </Text>
-                <TouchableOpacity 
-                  onPress={() => setShowWipSuggestions(false)}
-                  style={styles.closeButton}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView 
-                style={styles.suggestionsList}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {wipSuggestions.map((suggestion, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.suggestionItem}
-                    onPress={() => selectWipSuggestion(suggestion)}
-                  >
-                    <View style={styles.suggestionContent}>
-                      <View style={styles.suggestionMain}>
-                        <View style={styles.suggestionTopRow}>
-                          <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
-                          {suggestion.frequency > 1 && (
-                            <View style={styles.frequencyBadge}>
-                              <Text style={styles.frequencyText}>
-                                {suggestion.frequency}x REPEAT
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
-                      </View>
-                      <View style={styles.suggestionDetails}>
-                        <Text style={styles.suggestionAw}>{suggestion.awValue} AW{suggestion.awValue !== 1 ? 's' : ''}</Text>
-                        <Text style={styles.suggestionDate}>{formatDate(suggestion.lastUsed)}</Text>
-                        {suggestion.frequency > 1 && (
-                          <Text style={styles.suggestionTotal}>Total: {suggestion.totalAWs} AWs</Text>
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Registration Suggestions Modal - Always on top */}
-      <Modal
-        visible={showRegSuggestions && regSuggestions.length > 0}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowRegSuggestions(false)}
-      >
-        <TouchableOpacity 
-          style={styles.suggestionsModalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowRegSuggestions(false)}
-        >
-          <View style={styles.suggestionsModalContent}>
-            <View style={styles.suggestionsContainer}>
-              <View style={styles.suggestionsHeaderContainer}>
-                <Text style={styles.suggestionsHeader}>
-                  Matching Vehicles from Records
-                </Text>
-                <TouchableOpacity 
-                  onPress={() => setShowRegSuggestions(false)}
-                  style={styles.closeButton}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView 
-                style={styles.suggestionsList}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {regSuggestions.map((suggestion, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.suggestionItem}
-                    onPress={() => selectRegSuggestion(suggestion)}
-                  >
-                    <View style={styles.suggestionContent}>
-                      <View style={styles.suggestionMain}>
-                        <View style={styles.suggestionTopRow}>
-                          <Text style={styles.suggestionReg}>{suggestion.vehicleRegistration}</Text>
-                          {suggestion.frequency > 1 && (
-                            <View style={styles.frequencyBadge}>
-                              <Text style={styles.frequencyText}>
-                                {suggestion.frequency}x REPEAT
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.suggestionWip}>WIP: {suggestion.wipNumber}</Text>
-                      </View>
-                      <View style={styles.suggestionDetails}>
-                        <Text style={styles.suggestionAw}>{suggestion.awValue} AW{suggestion.awValue !== 1 ? 's' : ''}</Text>
-                        <Text style={styles.suggestionDate}>{formatDate(suggestion.lastUsed)}</Text>
-                        {suggestion.frequency > 1 && (
-                          <Text style={styles.suggestionTotal}>Total: {suggestion.totalAWs} AWs</Text>
-                        )}
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -929,6 +905,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 24,
+    position: 'relative',
   },
   label: {
     fontSize: 16,
@@ -1094,67 +1071,48 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Suggestions Modal Styles - Guaranteed to be on top
-  suggestionsModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  suggestionsModalContent: {
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '70%',
-  },
-  suggestionsContainer: {
+  // Suggestions Dropdown Styles - appears below input
+  suggestionsDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     backgroundColor: colors.card,
-    borderRadius: 16,
-    overflow: 'hidden',
-    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)',
-    elevation: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 280,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 8,
+    zIndex: 1000,
   },
-  suggestionsHeaderContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  suggestionsHeader: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.backgroundAlt,
   },
-  suggestionsHeader: {
-    fontSize: 13,
+  suggestionsHeaderText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    flex: 1,
   },
-  closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  closeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  suggestionsList: {
-    maxHeight: 320,
+  suggestionsScrollView: {
+    maxHeight: 240,
   },
   suggestionItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.card,
+  },
+  suggestionItemLast: {
+    borderBottomWidth: 0,
   },
   suggestionContent: {
     flexDirection: 'row',
@@ -1170,43 +1128,38 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginBottom: 4,
   },
   suggestionWip: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },
   suggestionReg: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: colors.primary,
   },
   suggestionDetails: {
     alignItems: 'flex-end',
+    marginLeft: 8,
   },
   suggestionAw: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     color: colors.text,
     marginBottom: 2,
   },
   suggestionDate: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  suggestionTotal: {
     fontSize: 10,
     color: colors.textSecondary,
-    marginTop: 2,
-    fontStyle: 'italic',
   },
   frequencyBadge: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
   },
   frequencyText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     color: '#ffffff',
     letterSpacing: 0.3,
