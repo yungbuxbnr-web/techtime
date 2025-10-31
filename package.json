@@ -18,7 +18,8 @@
     "prebuild:ios": "expo prebuild -p ios --clean",
     "submit:android": "eas submit --platform android",
     "submit:ios": "eas submit --platform ios",
-    "lint": "eslint ."
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
@@ -90,8 +91,10 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~10.0.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "globals": "^15.14.0",
     "typescript": "^5.8.3",
     "webpack-cli": "^6.0.1"

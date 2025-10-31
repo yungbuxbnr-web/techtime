@@ -1,19 +1,23 @@
 
+import { Platform, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackupData } from '../../utils/backupService';
 import { StorageService } from '../../utils/storage';
 import { Job } from '../../types';
 
+// Storage Access Framework (Android only)
+const { StorageAccessFramework } = FileSystem;
+const DOC_DIR = FileSystem.documentDirectory!;
+
 const BACKUP_FOLDER = 'backups';
 const SAF_URI_KEY = 'saf_backup_uri';
 
-// Storage Access Framework (Android only)
-const SAF = Platform.OS === 'android' ? FileSystem.StorageAccessFramework : null;
+// Safe encoding type with fallback
+const UTF8 = (FileSystem.EncodingType?.UTF8 ?? 'utf8') as any;
 
 export interface LocalBackupResult {
   success: boolean;
@@ -28,10 +32,12 @@ export const LocalBackupService = {
    */
   async setupBackupFolder(): Promise<{ success: boolean; message: string; uri?: string }> {
     try {
-      if (Platform.OS === 'android' && SAF) {
+      if (Platform.OS === 'android') {
         console.log('[Android] Requesting SAF directory permissions...');
         
-        const permissions = await SAF.requestDirectoryPermissionsAsync();
+        /* eslint-disable import/namespace */
+        const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+        /* eslint-enable import/namespace */
         
         if (!permissions.granted) {
           return {
@@ -63,7 +69,7 @@ export const LocalBackupService = {
         return {
           success: true,
           message: '📱 iOS Backup Information\n\niOS doesn\'t allow permanent external folder access. Backups are saved to:\n\n📁 On My iPhone › TechTime › Documents › backups\n\nWhen exporting, you\'ll be prompted to choose a location each time (Files, iCloud Drive, etc.).',
-          uri: FileSystem.documentDirectory || undefined
+          uri: DOC_DIR
         };
       }
     } catch (error) {
@@ -96,12 +102,7 @@ export const LocalBackupService = {
    */
   async ensureBackupDirectory(): Promise<{ success: boolean; path: string | null }> {
     try {
-      const baseDir = FileSystem.documentDirectory;
-      if (!baseDir) {
-        return { success: false, path: null };
-      }
-      
-      const backupDir = `${baseDir}${BACKUP_FOLDER}/`;
+      const backupDir = `${DOC_DIR}${BACKUP_FOLDER}/`;
       const dirInfo = await FileSystem.getInfoAsync(backupDir);
       
       if (!dirInfo.exists) {
@@ -132,6 +133,15 @@ export const LocalBackupService = {
       }
       jobsByMonth[monthKey].push(job);
     });
+    
+    const getVhcColorValue = (vhcColor?: 'green' | 'orange' | 'red' | null): string => {
+      switch (vhcColor) {
+        case 'green': return '#22c55e';
+        case 'orange': return '#f59e0b';
+        case 'red': return '#ef4444';
+        default: return '#9ca3af';
+      }
+    };
     
     // Generate HTML for PDF
     const html = `
@@ -332,7 +342,7 @@ export const LocalBackupService = {
       await FileSystem.writeAsStringAsync(
         jsonPath,
         JSON.stringify(backupData, null, 2),
-        { encoding: FileSystem.EncodingType.UTF8 }
+        { encoding: UTF8 }
       );
       
       console.log('✓ JSON backup created:', jsonPath);
@@ -384,12 +394,14 @@ export const LocalBackupService = {
         // Android: Try SAF first, then fallback to DocumentPicker
         const safUri = await this.getSafUri();
         
-        if (safUri && SAF) {
+        if (safUri) {
           console.log('[Android] Using SAF to pick file...');
           
           try {
+            /* eslint-disable import/namespace */
             // List files in SAF directory
-            const files = await SAF.readDirectoryAsync(safUri);
+            const files = await StorageAccessFramework.readDirectoryAsync(safUri);
+            /* eslint-enable import/namespace */
             const jsonFiles = files.filter(f => f.endsWith('.json'));
             
             if (jsonFiles.length === 0) {
@@ -440,7 +452,7 @@ export const LocalBackupService = {
       
       // Read and parse JSON
       const content = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.UTF8
+        encoding: UTF8
       });
       
       const backupData: BackupData = JSON.parse(content);
@@ -526,7 +538,7 @@ export const LocalBackupService = {
       
       // For JSON, import/merge
       const content = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.UTF8
+        encoding: UTF8
       });
       
       const backupData: BackupData = JSON.parse(content);

@@ -1,16 +1,18 @@
 
 // https://docs.expo.dev/guides/using-eslint/
 module.exports = {
+  root: true,
   extends: [
     'expo',
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
-    'plugin:react/jsx-runtime'
+    'plugin:react/jsx-runtime',
+    'plugin:react-hooks/recommended',
+    'plugin:import/typescript'
   ],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'react', 'import'],
-  root: true,
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module',
@@ -18,9 +20,17 @@ module.exports = {
       jsx: true
     }
   },
-  ignorePatterns: ['/dist/*', '/public/*'],
+  ignorePatterns: ['/dist/*', '/public/*', '/babel-plugins/*'],
   env: {
     browser: true,
+  },
+  settings: {
+    'import/resolver': {
+      typescript: {},
+      node: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx']
+      }
+    }
   },
   rules: {
     '@typescript-eslint/no-unused-vars': 'off',
@@ -35,20 +45,14 @@ module.exports = {
     'prefer-const': 'off',
     'react/prop-types': 1,
     'no-case-declarations': 'off',
-    'no-empty': 'off'
+    'no-empty': 'off',
+    'react/display-name': 'off'
   },
   overrides: [
     {
       files: ['metro.config.js'],
       rules: {
         '@typescript-eslint/no-var-requires': 'off'
-      }
-    },
-    {
-      // Disable import/namespace for expo-file-system due to SDK 54 type issues
-      files: ['utils/backupService.ts', 'utils/pdfImportService.ts', 'utils/storage.ts'],
-      rules: {
-        'import/namespace': 'off'
       }
     }
   ]

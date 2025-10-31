@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -22,6 +22,29 @@ export default function ExportScreen() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState<boolean>(false);
+
+  // Memoize stable helper functions
+  const getVhcColorValue = useCallback((color: 'green' | 'orange' | 'red' | null | undefined): string => {
+    switch (color) {
+      case 'green': return '#4CAF50';
+      case 'orange': return '#FF9800';
+      case 'red': return '#F44336';
+      default: return '#CCCCCC';
+    }
+  }, []);
+
+  const getVhcColorName = useCallback((color: 'green' | 'orange' | 'red' | null | undefined): string => {
+    if (!color) return 'N/A';
+    return color.charAt(0).toUpperCase() + color.slice(1);
+  }, []);
+
+  const getMonthName = useCallback((month: number) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month];
+  }, []);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -84,33 +107,6 @@ export default function ExportScreen() {
   const hideNotification = useCallback(() => {
     setNotification(prev => ({ ...prev, visible: false }));
   }, []);
-
-  const getMonthName = useCallback((month: number) => {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month];
-  }, []);
-
-  const getVhcColorValue = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
-    if (!color) return '#CCCCCC';
-    switch (color) {
-      case 'green':
-        return '#4CAF50';
-      case 'orange':
-        return '#FF9800';
-      case 'red':
-        return '#F44336';
-      default:
-        return '#CCCCCC';
-    }
-  };
-
-  const getVhcColorName = (color: 'green' | 'orange' | 'red' | null | undefined): string => {
-    if (!color) return 'N/A';
-    return color.charAt(0).toUpperCase() + color.slice(1);
-  };
 
   const generateEfficiencyGraphSVG = useCallback((efficiency: number, soldHours: number, availableHours: number) => {
     const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
@@ -179,7 +175,7 @@ export default function ExportScreen() {
     );
 
     // Create job rows with proper formatting including VHC
-    const jobRows = sortedJobs.map((job, index) => {
+    const jobRows = sortedJobs.map((job) => {
       const time = CalculationService.formatTime(job.awValue * 5);
       const jobDate = new Date(job.dateCreated).toLocaleDateString('en-GB', {
         day: '2-digit',
