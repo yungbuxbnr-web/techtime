@@ -1,39 +1,76 @@
+
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
 
+# Git
 .git/
-.expo/
 
+# Expo
+.expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
 
+# Native builds
+android/
+ios/
+
+# Build outputs
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.hprof
 
+# Metro
 .metro-health-check*
 
+# Debug
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
+# OS
 .DS_Store
 *.pem
+Thumbs.db
 
+# Environment
+.env
 .env*.local
 
+# TypeScript
 *.tsbuildinfo
 
+# Natively
 .natively/
 
-android/
-ios/
-
+# Deployment
 netlify.toml
 .netlify/
 
+# Lock files
 pnpm-lock.yaml
 package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.hotreload
+chat_history.json

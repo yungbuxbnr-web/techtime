@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "techtime",
@@ -6,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
       "resizeMode": "contain",
@@ -16,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.buxrug.techtime",
       "buildNumber": "1",
+      "deploymentTarget": "13.4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIFileSharingEnabled": true,
@@ -31,7 +33,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.techtracer",
+      "package": "com.buxrug.techtime",
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT"

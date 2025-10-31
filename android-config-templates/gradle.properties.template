@@ -8,15 +8,23 @@
 # For more details on how to configure your build environment visit
 # http://www.gradle.org/docs/current/userguide/build_environment.html
 
-# Specifies the JVM arguments used for the daemon process.
-# The setting is particularly useful for tweaking memory settings.
-# Default value: -Xmx1024m -XX:MaxPermSize=256m
-# org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+# ============================================================================
+# MEMORY CONFIGURATION - FIX METASPACE OOM ERRORS
+# ============================================================================
 
-# When configured, Gradle will run in incubating parallel mode.
-# This option should only be used with decoupled projects. More details, visit
-# http://www.gradle.org/docs/current/userguide/multi_project_builds.html#sec:decoupled_projects
-# org.gradle.parallel=true
+# Increase JVM memory for Gradle daemon
+# Adjust -Xmx4g to -Xmx3g or -Xmx2g if system has limited RAM
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
+
+# Increase Kotlin daemon memory
+kotlin.daemon.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1024m
+
+# Enable incremental compilation for Kotlin
+kotlin.incremental=true
+
+# ============================================================================
+# ANDROID CONFIGURATION
+# ============================================================================
 
 # AndroidX package structure to make it clearer which packages are bundled with the
 # Android operating system, and which are packaged with your app's APK
@@ -26,8 +34,31 @@ android.useAndroidX=true
 # Automatically convert third-party libraries to use AndroidX
 android.enableJetifier=true
 
-# Version of flipper SDK to use with React Native
-FLIPPER_VERSION=0.125.0
+# Use non-transitive R classes for faster builds
+android.nonTransitiveRClass=true
+
+# ============================================================================
+# GRADLE OPTIMIZATION
+# ============================================================================
+
+# Limit maximum number of worker processes
+org.gradle.workers.max=2
+
+# Enable Gradle caching for faster builds
+org.gradle.caching=true
+
+# Disable file system watching to avoid lock issues
+org.gradle.vfs.watch=false
+
+# Disable Gradle daemon in CI environments (uncomment if needed)
+# org.gradle.daemon=false
+
+# Disable parallel builds to reduce resource usage (uncomment if needed)
+# org.gradle.parallel=false
+
+# ============================================================================
+# REACT NATIVE CONFIGURATION
+# ============================================================================
 
 # Use this property to specify which architecture you want to build.
 # You can also override it from the CLI using
@@ -46,47 +77,18 @@ newArchEnabled=false
 hermesEnabled=true
 
 # ============================================================================
-# GRADLE LOCK ERROR FIX - OPTIMIZED FOR CI/CD AND CONTAINERS
+# KSP (Kotlin Symbol Processing) CONFIGURATION
 # ============================================================================
 
-# Disable Gradle daemon to prevent lock contention
-org.gradle.daemon=false
-
-# Disable parallel builds to reduce resource usage and lock contention
-org.gradle.parallel=false
-
-# Limit maximum number of worker processes
-org.gradle.workers.max=2
-
-# Disable file system watching to avoid lock issues
-org.gradle.vfs.watch=false
-
-# Enable Gradle caching for faster builds
-org.gradle.caching=true
-
-# ============================================================================
-# MEMORY CONFIGURATION - FIX METASPACE OOM ERRORS
-# ============================================================================
-
-# Increase JVM memory for Gradle and Kotlin daemon
-# Adjust -Xmx4g to -Xmx3g or -Xmx2g if system has limited RAM
-org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 -Dkotlin.daemon.jvm.options=-Xmx2g,-XX:MaxMetaspaceSize=1024m
-
-# Enable incremental compilation for Kotlin
-kotlin.incremental=true
-
-# Enable incremental processing for KSP (Kotlin Symbol Processing)
+# Enable incremental processing for KSP
 ksp.incremental=true
 
 # ============================================================================
 # ADDITIONAL OPTIMIZATIONS
 # ============================================================================
 
-# Enable configuration cache (Gradle 6.5+)
+# Enable configuration cache (Gradle 6.5+) - Experimental
 # org.gradle.configuration-cache=true
-
-# Enable build cache
-org.gradle.caching=true
 
 # Increase daemon idle timeout (milliseconds)
 org.gradle.daemon.idletimeout=3600000

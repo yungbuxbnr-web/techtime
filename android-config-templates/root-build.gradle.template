@@ -8,16 +8,35 @@ buildscript {
         compileSdkVersion = 34
         targetSdkVersion = 34
         ndkVersion = "26.1.10909125"
+        
+        // ============================================================
+        // Updated Kotlin version for better stability
+        // ============================================================
         kotlinVersion = "1.9.24"
+        
+        // ============================================================
+        // Android Gradle Plugin 8.5+ for stability
+        // ============================================================
+        androidGradlePluginVersion = "8.5.2"
+        
+        // ============================================================
+        // KSP version (if using KSP-based libraries)
+        // ============================================================
+        kspVersion = "1.9.24-1.0.20"
     }
+    
     repositories {
         google()
         mavenCentral()
     }
+    
     dependencies {
-        classpath("com.android.tools.build:gradle:8.3.0")
+        classpath("com.android.tools.build:gradle:$androidGradlePluginVersion")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        
+        // KSP plugin (if using Room or other KSP-based libraries)
+        // classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")
     }
 }
 
@@ -39,9 +58,16 @@ allprojects {
 // ============================================================
 // FIX: Configure Java 17 Toolchain
 // ============================================================
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
     }
 }
 
