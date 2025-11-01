@@ -17,6 +17,12 @@ prepare_react_native_project!
 # ============================================================
 use_frameworks! :linkage => :static
 
+# ============================================================
+# Enable Hermes and New Architecture
+# ============================================================
+$RN_HERMES_ENABLED = true
+ENV['RCT_NEW_ARCH_ENABLED'] = '1'
+
 target 'techtime' do
   config = use_native_modules!
 
@@ -24,7 +30,7 @@ target 'techtime' do
     :path => config[:reactNativePath],
     # Hermes is now enabled by default. Disable by setting this flag to false.
     :hermes_enabled => true,
-    :fabric_enabled => false,
+    :fabric_enabled => true,
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )

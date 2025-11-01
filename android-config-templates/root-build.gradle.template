@@ -5,38 +5,25 @@ buildscript {
     ext {
         buildToolsVersion = "34.0.0"
         minSdkVersion = 23
-        compileSdkVersion = 34
-        targetSdkVersion = 34
-        ndkVersion = "26.1.10909125"
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.1.10909125"
         
-        // ============================================================
-        // Updated Kotlin version for better stability
-        // ============================================================
-        kotlinVersion = "1.9.24"
+        // Kotlin version
+        kotlinVersion = "2.1.0"
         
-        // ============================================================
-        // Android Gradle Plugin 8.5+ for stability
-        // ============================================================
-        androidGradlePluginVersion = "8.5.2"
-        
-        // ============================================================
-        // KSP version (if using KSP-based libraries)
-        // ============================================================
-        kspVersion = "1.9.24-1.0.20"
+        // AGP version
+        agpVersion = "8.5.0"
     }
-    
     repositories {
         google()
         mavenCentral()
     }
-    
     dependencies {
-        classpath("com.android.tools.build:gradle:$androidGradlePluginVersion")
-        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("com.android.tools.build:gradle:$agpVersion")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-        
-        // KSP plugin (if using Room or other KSP-based libraries)
-        // classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
     }
 }
 
@@ -56,24 +43,10 @@ allprojects {
 }
 
 // ============================================================
-// FIX: Configure Java 17 Toolchain
+// Ensure NODE_ENV is set for all projects
 // ============================================================
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty("android")) {
-            android {
-                compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_17
-                    targetCompatibility JavaVersion.VERSION_17
-                }
-            }
-        }
+allprojects {
+    tasks.configureEach {
+        it.environment("NODE_ENV", System.getenv("NODE_ENV") ?: "production")
     }
-}
-
-// ============================================================
-// CLEANUP TASK
-// ============================================================
-tasks.register('clean', Delete) {
-    delete rootProject.buildDir
 }

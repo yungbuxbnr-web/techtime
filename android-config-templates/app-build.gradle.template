@@ -9,14 +9,21 @@ apply plugin: "com.facebook.react"
 // KSP plugin (if using Room or other KSP-based libraries)
 // apply plugin: "com.google.devtools.ksp"
 
+// ============================================================
+// FIX: Ensure NODE_ENV is set for all tasks
+// ============================================================
+tasks.configureEach {
+    it.environment("NODE_ENV", "production")
+}
+
 android {
     namespace "com.buxrug.techtime"
-    compileSdk 34
+    compileSdk 36
     
     defaultConfig {
         applicationId "com.buxrug.techtime"
         minSdk 23
-        targetSdk 34
+        targetSdk 36
         versionCode 1
         versionName "1.0"
         
@@ -108,9 +115,9 @@ android {
     }
     
     // ============================================================
-    // NDK Configuration
+    // NDK Configuration - Updated to NDK 27.1
     // ============================================================
-    ndkVersion "26.1.10909125"
+    ndkVersion "27.1.10909125"
 }
 
 // ============================================================
@@ -134,9 +141,12 @@ dependencies {
 }
 
 // ============================================================
-// React Native Configuration
+// React Native Configuration - Enable New Architecture
 // ============================================================
 react {
     // Enable Hermes
     enableHermes = true
+    
+    // Enable New Architecture
+    newArchEnabled = project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
 }
