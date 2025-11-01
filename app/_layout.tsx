@@ -2,20 +2,23 @@
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StorageService } from '../utils/storage';
 import { ThemeProvider } from '../contexts/ThemeContext';
 
 export default function RootLayout() {
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
+    // Initialize app asynchronously without blocking render
     initializeApp();
   }, []);
 
   const initializeApp = async () => {
     try {
-      console.log('[RootLayout] Initializing app...');
+      console.log('[RootLayout] Starting app initialization...');
       
       // Set up global error logging first
       setupErrorLogging();
@@ -25,10 +28,12 @@ export default function RootLayout() {
       await resetAuthentication();
       console.log('[RootLayout] Authentication reset complete');
 
+      setIsInitialized(true);
       console.log('[RootLayout] App initialized successfully');
     } catch (error: any) {
       console.log('[RootLayout] Error initializing app:', error);
       // Don't block app loading on initialization errors
+      setIsInitialized(true);
     }
   };
 
@@ -43,6 +48,7 @@ export default function RootLayout() {
     }
   };
 
+  // Render immediately - don't wait for initialization
   return (
     <SafeAreaProvider>
       <ThemeProvider>

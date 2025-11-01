@@ -1,21 +1,38 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
-import { Redirect } from 'expo-router';
+import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function IndexScreen() {
   const { colors } = useTheme();
-  const [isReady, setIsReady] = useState(false);
-  const [hasName, setHasName] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    checkInitialSetup();
+    console.log('[Index] Component mounted, starting initialization');
+    
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.log('[Index] Timeout reached (3s), forcing navigation to auth');
+      if (isChecking) {
+        setIsChecking(false);
+        router.replace('/auth');
+      }
+    }, 3000);
+
+    // Start initialization
+    initializeApp()
+      .finally(() => {
+        clearTimeout(timeout);
+      });
+
+    return () => {
+      clearTimeout(timeout);
+    };
   }, []);
 
-  const checkInitialSetup = async () => {
+  const initializeApp = async () => {
     try {
       console.log('[Index] Checking initial setup...');
       
@@ -25,66 +42,54 @@ export default function IndexScreen() {
       
       if (!technicianName) {
         // No name set, redirect to name setup
-        console.log('[Index] No technician name set, redirecting to set-name');
-        setHasName(false);
-        setIsAuthenticated(false);
-        setIsReady(true);
+        console.log('[Index] Redirecting to /set-name');
+        setIsChecking(false);
+        router.replace('/set-name');
         return;
       }
 
       // Name is set, check authentication
-      setHasName(true);
       const settings = await StorageService.getSettings();
       console.log('[Index] Authentication status:', settings.isAuthenticated);
-      setIsAuthenticated(settings.isAuthenticated || false);
-      setIsReady(true);
-    } catch (error: any) {
-      console.log('[Index] Error checking initial setup:', error);
       
-      // Default to showing auth screen on error
-      setHasName(true);
-      setIsAuthenticated(false);
-      setIsReady(true);
+      if (settings.isAuthenticated) {
+        console.log('[Index] Redirecting to /dashboard');
+        setIsChecking(false);
+        router.replace('/dashboard');
+      } else {
+        console.log('[Index] Redirecting to /auth');
+        setIsChecking(false);
+        router.replace('/auth');
+      }
+    } catch (error: any) {
+      console.log('[Index] Error during initialization:', error);
+      // On error, default to auth screen
+      setIsChecking(false);
+      router.replace('/auth');
     }
   };
 
   // Show loading indicator while checking
-  if (!isReady) {
-    console.log('[Index] Loading initial setup...');
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>
-          Loading TechTrace...
-        </Text>
-      </View>
-    );
-  }
-
-  // If no name is set, go to name setup screen
-  if (!hasName) {
-    console.log('[Index] Redirecting to name setup screen');
-    return <Redirect href="/set-name" />;
-  }
-
-  // If authenticated, go to dashboard, otherwise show PIN screen
-  if (isAuthenticated) {
-    console.log('[Index] User authenticated, redirecting to dashboard');
-    return <Redirect href="/dashboard" />;
-  } else {
-    console.log('[Index] User not authenticated, showing PIN screen');
-    return <Redirect href="/auth" />;
-  }
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.text, { color: colors.text }]}>
+        Loading TechTrace...
+      </Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
+  container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
-  loadingText: {
+  text: {
     marginTop: 16,
     fontSize: 16,
+    fontWeight: '500',
   },
 });

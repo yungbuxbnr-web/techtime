@@ -25,14 +25,15 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const loadTheme = async () => {
     try {
-      console.log('[ThemeProvider] Loading theme...');
+      console.log('[ThemeProvider] Loading theme from storage...');
       const settings = await StorageService.getSettings();
       const savedTheme = settings.theme || 'light';
+      
+      console.log('[ThemeProvider] Theme loaded:', savedTheme);
       setThemeState(savedTheme);
       setColors(savedTheme === 'dark' ? darkColors : lightColors);
-      console.log('[ThemeProvider] Theme loaded:', savedTheme);
     } catch (error) {
-      console.log('[ThemeProvider] Error loading theme, using default:', error);
+      console.log('[ThemeProvider] Error loading theme, using default light theme:', error);
       // Default to light theme on error
       setThemeState('light');
       setColors(lightColors);
@@ -41,12 +42,13 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const setTheme = async (newTheme: Theme) => {
     try {
+      console.log('[ThemeProvider] Setting theme to:', newTheme);
       setThemeState(newTheme);
       setColors(newTheme === 'dark' ? darkColors : lightColors);
       
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, theme: newTheme });
-      console.log('[ThemeProvider] Theme updated to:', newTheme);
+      console.log('[ThemeProvider] Theme saved successfully');
     } catch (error) {
       console.log('[ThemeProvider] Error setting theme:', error);
     }
@@ -57,7 +59,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     await setTheme(newTheme);
   };
 
-  // Render immediately with default theme - no loading screen
+  // Render immediately with default theme - theme will update once loaded
   return (
     <ThemeContext.Provider value={{ theme, colors, toggleTheme, setTheme }}>
       {children}
