@@ -17,6 +17,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('light');
   const [colors, setColors] = useState(lightColors);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load theme from storage on mount - non-blocking
   useEffect(() => {
@@ -37,6 +38,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       // Default to light theme on error
       setThemeState('light');
       setColors(lightColors);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -70,7 +73,18 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    // Return default theme instead of throwing error to prevent crashes
+    console.log('[useTheme] Warning: useTheme called outside ThemeProvider, using default theme');
+    return {
+      theme: 'light' as Theme,
+      colors: lightColors,
+      toggleTheme: async () => {
+        console.log('[useTheme] toggleTheme called outside provider');
+      },
+      setTheme: async () => {
+        console.log('[useTheme] setTheme called outside provider');
+      },
+    };
   }
   return context;
 };

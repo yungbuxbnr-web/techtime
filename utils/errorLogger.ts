@@ -1,7 +1,7 @@
 
 // Global error logging for runtime errors
 
-import { Platform } from "react-native";
+import { Platform } from 'react-native';
 
 // Simple debouncing to prevent duplicate errors
 const recentErrors: { [key: string]: boolean } = {};
@@ -43,9 +43,12 @@ const sendErrorToParent = (level: string, message: string, data: any) => {
 
 export const setupErrorLogging = () => {
   try {
+    console.log('[ErrorLogger] Initializing error logging...');
+    
     // Capture unhandled errors in web environment
     if (typeof window !== 'undefined') {
       // Override window.onerror to catch JavaScript errors
+      const originalOnError = window.onerror;
       window.onerror = (message, source, lineno, colno, error) => {
         const sourceFile = source ? source.split('/').pop() : 'unknown';
         const errorData = {
@@ -59,6 +62,11 @@ export const setupErrorLogging = () => {
 
         console.log('Runtime error:', errorData);
         sendErrorToParent('error', 'JavaScript Runtime Error', errorData);
+        
+        // Call original handler if it exists
+        if (originalOnError) {
+          return originalOnError(message, source, lineno, colno, error);
+        }
         return false; // Don't prevent default error handling
       };
       

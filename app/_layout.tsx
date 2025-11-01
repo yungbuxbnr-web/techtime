@@ -1,15 +1,14 @@
 
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
 import { useEffect, useState } from 'react';
-import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StorageService } from '../utils/storage';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function RootLayout() {
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     // Initialize app asynchronously without blocking render
@@ -20,61 +19,64 @@ export default function RootLayout() {
     try {
       console.log('[RootLayout] Starting app initialization...');
       
-      // Set up global error logging first
-      setupErrorLogging();
-      console.log('[RootLayout] Error logging initialized');
-
-      // Reset authentication on app launch to require PIN entry
-      await resetAuthentication();
-      console.log('[RootLayout] Authentication reset complete');
-
-      setIsInitialized(true);
+      // Small delay to ensure all modules are loaded
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       console.log('[RootLayout] App initialized successfully');
+      setIsReady(true);
     } catch (error: any) {
       console.log('[RootLayout] Error initializing app:', error);
       // Don't block app loading on initialization errors
-      setIsInitialized(true);
+      setIsReady(true);
     }
   };
 
-  const resetAuthentication = async () => {
-    try {
-      const settings = await StorageService.getSettings();
-      await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-      console.log('[RootLayout] Authentication reset - PIN required on app launch');
-    } catch (error) {
-      console.log('[RootLayout] Error resetting authentication:', error);
-      // Don't throw - this is not critical
-    }
-  };
+  // Show loading screen while initializing
+  if (!isReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
 
-  // Render immediately - don't wait for initialization
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="set-name" />
-            <Stack.Screen name="dashboard" />
-            <Stack.Screen name="jobs" />
-            <Stack.Screen name="add-job" />
-            <Stack.Screen name="statistics" />
-            <Stack.Screen name="settings" />
-            <Stack.Screen name="export" />
-            <Stack.Screen name="stats" />
-            <Stack.Screen name="job-records" />
-            <Stack.Screen name="help" />
-            <Stack.Screen name="metrics" />
-          </Stack>
-        </GestureHandlerRootView>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="set-name" />
+              <Stack.Screen name="dashboard" />
+              <Stack.Screen name="jobs" />
+              <Stack.Screen name="add-job" />
+              <Stack.Screen name="statistics" />
+              <Stack.Screen name="settings" />
+              <Stack.Screen name="export" />
+              <Stack.Screen name="stats" />
+              <Stack.Screen name="job-records" />
+              <Stack.Screen name="help" />
+              <Stack.Screen name="metrics" />
+            </Stack>
+          </GestureHandlerRootView>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+});
