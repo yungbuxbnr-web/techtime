@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -37,12 +37,17 @@ export default function CameraModal({
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
+  // Memoize the permission request function
+  const handleRequestPermission = useCallback(async () => {
+    if (visible && !permission?.granted) {
+      await requestPermission();
+    }
+  }, [visible, permission, requestPermission]);
+
   // Request permission when modal opens
   useEffect(() => {
-    if (visible && !permission?.granted) {
-      requestPermission();
-    }
-  }, [visible, permission]);
+    handleRequestPermission();
+  }, [handleRequestPermission]);
 
   const handleCapture = async () => {
     if (!cameraRef.current || isProcessing) {

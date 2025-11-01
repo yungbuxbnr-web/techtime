@@ -2,6 +2,9 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 
+// Safe UTF-8 encoding fallback for cross-SDK compatibility
+const UTF8 = (FileSystem.EncodingType?.UTF8 ?? 'utf8') as any;
+
 // OCR Provider types
 export type OCRProvider = 'vision' | 'tesseract' | 'mock';
 
@@ -54,7 +57,7 @@ async function performVisionOCR(imageUri: string, apiKey: string, timeout: numbe
   try {
     // Read image as base64
     const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: UTF8,
     });
     
     console.log('[OCR] Image encoded, size:', base64Image.length, 'chars');

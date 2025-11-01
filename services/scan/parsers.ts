@@ -20,10 +20,12 @@ const LEGACY_VRM_PATTERNS = [
 ];
 
 // WIP number pattern: WIP No: 12345 or WIP: 12345 or WIP 12345
-const WIP_PATTERN = /\b(?:WIP\s*(?:No\.?|#|:)?\s*)([A-Z0-9\-]{3,})\b/gi;
+// Fixed: moved hyphen to start of character class to avoid escape
+const WIP_PATTERN = /\b(?:WIP\s*(?:No\.?|#|:)?\s*)([-A-Z0-9]{3,})\b/gi;
 
 // Job number pattern: Job No: 12345 or Job: 12345 or Job 12345
-const JOB_PATTERN = /\b(?:Job\s*(?:No\.?|#|:)\s*)([A-Z0-9\-]{3,})\b/gi;
+// Fixed: moved hyphen to start of character class to avoid escape
+const JOB_PATTERN = /\b(?:Job\s*(?:No\.?|#|:)\s*)([-A-Z0-9]{3,})\b/gi;
 
 // Normalize VRM: remove spaces, convert to uppercase, handle ambiguous characters
 export function normalizeVRM(vrm: string): string {
