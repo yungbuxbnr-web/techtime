@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StorageService } from '../utils/storage';
 import { lightColors, darkColors } from '../styles/commonStyles';
 
@@ -15,24 +14,16 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_LOAD_TIMEOUT = 3000; // 3 seconds max for theme loading
-
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('light');
   const [colors, setColors] = useState(lightColors);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Load theme from storage on mount
+  // Load theme from storage on mount - non-blocking
   useEffect(() => {
     loadTheme();
   }, []);
 
   const loadTheme = async () => {
-    const timeoutId = setTimeout(() => {
-      console.log('[ThemeProvider] Theme loading timeout - using default light theme');
-      setIsLoading(false);
-    }, THEME_LOAD_TIMEOUT);
-
     try {
       console.log('[ThemeProvider] Loading theme...');
       const settings = await StorageService.getSettings();
@@ -41,13 +32,10 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       setColors(savedTheme === 'dark' ? darkColors : lightColors);
       console.log('[ThemeProvider] Theme loaded:', savedTheme);
     } catch (error) {
-      console.log('[ThemeProvider] Error loading theme:', error);
-      // Default to light theme
+      console.log('[ThemeProvider] Error loading theme, using default:', error);
+      // Default to light theme on error
       setThemeState('light');
       setColors(lightColors);
-    } finally {
-      clearTimeout(timeoutId);
-      setIsLoading(false);
     }
   };
 
@@ -69,16 +57,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     await setTheme(newTheme);
   };
 
-  // Show loading indicator while theme is loading
-  if (isLoading) {
-    console.log('[ThemeProvider] Rendering loading indicator...');
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={lightColors.primary} />
-      </View>
-    );
-  }
-
+  // Render immediately with default theme - no loading screen
   return (
     <ThemeContext.Provider value={{ theme, colors, toggleTheme, setTheme }}>
       {children}
@@ -93,12 +72,3 @@ export const useTheme = () => {
   }
   return context;
 };
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-  },
-});
