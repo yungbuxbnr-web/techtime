@@ -51,8 +51,8 @@ jobs:
         working-directory: android
         run: |
           ./gradlew :app:bundleRelease \
-            -Dkotlin.daemon.jvm.options="-Xmx3g -XX:MaxMetaspaceSize=1024m" \
-            -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC"
+            -Dkotlin.daemon.jvm.options=-Xmx3g \
+            --no-parallel
       
       - name: Upload AAB
         uses: actions/upload-artifact@v3
@@ -79,8 +79,8 @@ android-build:
     - ./gradlew clean
     - |
       ./gradlew :app:bundleRelease \
-        -Dkotlin.daemon.jvm.options="-Xmx3g -XX:MaxMetaspaceSize=1024m" \
-        -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC"
+        -Dkotlin.daemon.jvm.options=-Xmx3g \
+        --no-parallel
   
   artifacts:
     paths:
@@ -137,10 +137,10 @@ cd android
 # Clean
 ./gradlew clean
 
-# Build with memory optimizations
+# Build with memory optimizations and no parallelism
 ./gradlew :app:bundleRelease \
-  -Dkotlin.daemon.jvm.options="-Xmx3g -XX:MaxMetaspaceSize=1024m" \
-  -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC"
+  -Dkotlin.daemon.jvm.options=-Xmx3g \
+  --no-parallel
 
 echo "✅ Build complete!"
 echo "📦 AAB: android/app/build/outputs/bundle/release/app-release.aab"
@@ -172,8 +172,8 @@ WORKDIR /app/android
 RUN ./gradlew --stop
 RUN ./gradlew clean
 RUN ./gradlew :app:bundleRelease \
-    -Dkotlin.daemon.jvm.options="-Xmx3g -XX:MaxMetaspaceSize=1024m" \
-    -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC"
+    -Dkotlin.daemon.jvm.options=-Xmx3g \
+    --no-parallel
 
 # Output location
 RUN echo "AAB: /app/android/app/build/outputs/bundle/release/app-release.aab"
@@ -217,9 +217,9 @@ If CI still runs out of memory:
    org.gradle.parallel=false
    ```
 
-3. **Skip lint task**:
+3. **Skip lint task** (already disabled via lintOptions, but can be explicit):
    ```bash
-   ./gradlew :app:bundleRelease -x lintVitalRelease
+   ./gradlew :app:bundleRelease -x lintVitalRelease --no-parallel
    ```
 
 ### Slow CI Builds
@@ -273,3 +273,10 @@ Build is successful when:
 4. ✅ AAB file is generated
 5. ✅ AAB size is reasonable (typically 20-50MB)
 6. ✅ Build completes in reasonable time (< 30 minutes)
+
+## Key Changes from Previous Version
+
+- **Added `--no-parallel` flag** to all build commands to minimize parallelism
+- **Simplified Kotlin daemon options** to `-Dkotlin.daemon.jvm.options=-Xmx3g`
+- **Removed explicit Gradle JVM args** from command line (now handled by gradle.properties)
+- **Set `org.gradle.workers.max=1`** in gradle.properties for maximum stability

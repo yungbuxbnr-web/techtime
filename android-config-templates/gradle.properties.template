@@ -29,8 +29,8 @@ kotlin.incremental=true
 # GRADLE OPTIMIZATION - TAME PARALLELISM
 # ============================================================================
 
-# Limit maximum number of worker processes to 2 (reduce to 1 if still OOM)
-org.gradle.workers.max=2
+# Limit maximum number of worker processes to 1 to prevent OOM
+org.gradle.workers.max=1
 
 # Enable Gradle caching for faster builds
 org.gradle.caching=true
