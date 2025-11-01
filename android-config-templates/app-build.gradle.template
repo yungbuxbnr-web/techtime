@@ -70,20 +70,17 @@ android {
     }
     
     // ============================================================
-    // FIX: Disable LintVital to prevent build failures and reduce memory pressure
+    // FIX: Lint configuration to prevent OOM on release builds
     // This prevents lintVitalAnalyzeRelease from failing the build
     // ============================================================
-    lintOptions {
-        checkReleaseBuilds false
-        abortOnError false
-        disable 'MissingTranslation', 'ExtraTranslation'
-    }
-    
-    // For newer AGP versions (>= 7.0), also use lint block:
     lint {
         abortOnError false
         checkReleaseBuilds false
-        disable 'MissingTranslation', 'ExtraTranslation'
+        warningsAsErrors false
+        htmlReport true
+        xmlReport true
+        // If a baseline exists:
+        // baseline file("lint-baseline.xml")
     }
     
     // ============================================================

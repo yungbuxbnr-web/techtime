@@ -9,40 +9,40 @@
 # http://www.gradle.org/docs/current/userguide/build_environment.html
 
 # ============================================================================
-# MEMORY CONFIGURATION - FIX METASPACE OOM ERRORS
+# MEMORY CONFIGURATION & STABILITY - FIX METASPACE OOM ERRORS
 # ============================================================================
 
-# Increase JVM memory for Gradle daemon to 6GB with 2GB Metaspace
-# This fixes Metaspace OOM in :expo-updates:kspReleaseKotlin and lintVitalAnalyzeRelease
-org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC
+# Enable Gradle daemon for faster builds
+org.gradle.daemon=true
 
-# Increase Kotlin daemon memory to 3GB with 1GB Metaspace
-kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m
+# Enable parallel execution of tasks
+org.gradle.parallel=true
+
+# Enable configure on demand
+org.gradle.configureondemand=true
+
+# Limit maximum number of worker processes to 2 to prevent OOM
+org.gradle.workers.max=2
+
+# Increase JVM memory for Gradle daemon to 4GB with 1GB Metaspace
+# This fixes Metaspace OOM in :expo-updates:kspReleaseKotlin and lintVitalAnalyzeRelease
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC
 
 # Enable incremental compilation for Kotlin
 kotlin.incremental=true
 
-# Use in-process Kotlin compiler execution strategy
--Dkotlin.compiler.execution.strategy=in-process
+# Increase Kotlin daemon memory to 2GB with 1GB Metaspace
+kotlin.daemon.jvm.options=-Xmx2g,-XX:MaxMetaspaceSize=1024m
 
 # ============================================================================
-# GRADLE OPTIMIZATION - TAME PARALLELISM
+# KSP (Kotlin Symbol Processing) CONFIGURATION
 # ============================================================================
 
-# Limit maximum number of worker processes to 1 to prevent OOM
-org.gradle.workers.max=1
+# Enable incremental processing for KSP
+ksp.incremental=true
 
-# Enable Gradle caching for faster builds
-org.gradle.caching=true
-
-# Disable file system watching to avoid lock issues
-org.gradle.vfs.watch=false
-
-# Disable Gradle daemon in CI environments (uncomment if needed)
-# org.gradle.daemon=false
-
-# Disable parallel builds to reduce resource usage (uncomment if needed)
-# org.gradle.parallel=false
+# Use KSP2 for better performance
+ksp.useKSP2=true
 
 # ============================================================================
 # ANDROID CONFIGURATION
@@ -80,21 +80,18 @@ newArchEnabled=true
 hermesEnabled=true
 
 # ============================================================================
-# KSP (Kotlin Symbol Processing) CONFIGURATION
+# KOTLIN STDLIB CONFIGURATION
 # ============================================================================
 
-# Enable incremental processing for KSP
-ksp.incremental=true
-
-# Disable KSP incremental logging to reduce overhead
-ksp.incremental.log=false
+# Force a single stdlib to avoid duplicate dependencies
+kotlin.stdlib.default.dependency=false
 
 # ============================================================================
 # ADDITIONAL OPTIMIZATIONS
 # ============================================================================
 
-# Enable configuration cache (Gradle 6.5+) - Experimental
-# org.gradle.configuration-cache=true
+# Enable Gradle caching for faster builds
+org.gradle.caching=true
 
 # Increase daemon idle timeout (milliseconds)
 org.gradle.daemon.idletimeout=3600000
