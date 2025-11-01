@@ -1,7 +1,7 @@
 
 import { Stack, useGlobalSearchParams } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
+import { Platform, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,36 +14,51 @@ export default function RootLayout() {
   const actualInsets = useSafeAreaInsets();
   const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Set up global error logging
-    setupErrorLogging();
+    initializeApp();
+  }, [emulate]);
 
-    // Reset authentication on app launch to require PIN entry
-    resetAuthentication();
+  const initializeApp = async () => {
+    try {
+      console.log('[RootLayout] Initializing app...');
+      
+      // Set up global error logging
+      setupErrorLogging();
 
-    if (Platform.OS === 'web') {
-      // If there's a new emulate parameter, store it
-      if (emulate) {
-        localStorage.setItem(STORAGE_KEY, emulate);
-        setStoredEmulate(emulate);
-      } else {
-        // If no emulate parameter, try to get from localStorage
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setStoredEmulate(stored);
+      // Reset authentication on app launch to require PIN entry
+      await resetAuthentication();
+
+      if (Platform.OS === 'web') {
+        // If there's a new emulate parameter, store it
+        if (emulate) {
+          localStorage.setItem(STORAGE_KEY, emulate);
+          setStoredEmulate(emulate);
+        } else {
+          // If no emulate parameter, try to get from localStorage
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            setStoredEmulate(stored);
+          }
         }
       }
+
+      console.log('[RootLayout] App initialized successfully');
+    } catch (error) {
+      console.log('[RootLayout] Error initializing app:', error);
+    } finally {
+      setIsReady(true);
     }
-  }, [emulate]);
+  };
 
   const resetAuthentication = async () => {
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-      console.log('Authentication reset - PIN required on app launch');
+      console.log('[RootLayout] Authentication reset - PIN required on app launch');
     } catch (error) {
-      console.log('Error resetting authentication:', error);
+      console.log('[RootLayout] Error resetting authentication:', error);
     }
   };
 
@@ -60,6 +75,16 @@ export default function RootLayout() {
     insetsToUse = deviceToEmulate ? simulatedInsets[deviceToEmulate as keyof typeof simulatedInsets] || actualInsets : actualInsets;
   }
 
+  // Show loading indicator while initializing
+  if (!isReady) {
+    console.log('[RootLayout] Rendering loading indicator...');
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
@@ -72,6 +97,7 @@ export default function RootLayout() {
           >
             <Stack.Screen name="index" />
             <Stack.Screen name="auth" />
+            <Stack.Screen name="set-name" />
             <Stack.Screen name="dashboard" />
             <Stack.Screen name="jobs" />
             <Stack.Screen name="add-job" />
@@ -79,9 +105,21 @@ export default function RootLayout() {
             <Stack.Screen name="settings" />
             <Stack.Screen name="export" />
             <Stack.Screen name="stats" />
+            <Stack.Screen name="job-records" />
+            <Stack.Screen name="help" />
+            <Stack.Screen name="metrics" />
           </Stack>
         </GestureHandlerRootView>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+});

@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { StorageService } from '../utils/storage';
 import { lightColors, darkColors } from '../styles/commonStyles';
 
@@ -26,13 +27,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const loadTheme = async () => {
     try {
+      console.log('[ThemeProvider] Loading theme...');
       const settings = await StorageService.getSettings();
       const savedTheme = settings.theme || 'light';
       setThemeState(savedTheme);
       setColors(savedTheme === 'dark' ? darkColors : lightColors);
-      console.log('Theme loaded:', savedTheme);
+      console.log('[ThemeProvider] Theme loaded:', savedTheme);
     } catch (error) {
-      console.log('Error loading theme:', error);
+      console.log('[ThemeProvider] Error loading theme:', error);
       // Default to light theme
       setThemeState('light');
       setColors(lightColors);
@@ -48,9 +50,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, theme: newTheme });
-      console.log('Theme updated to:', newTheme);
+      console.log('[ThemeProvider] Theme updated to:', newTheme);
     } catch (error) {
-      console.log('Error setting theme:', error);
+      console.log('[ThemeProvider] Error setting theme:', error);
     }
   };
 
@@ -59,9 +61,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     await setTheme(newTheme);
   };
 
-  // Don't render children until theme is loaded
+  // Show loading indicator while theme is loading
   if (isLoading) {
-    return null;
+    console.log('[ThemeProvider] Rendering loading indicator...');
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={lightColors.primary} />
+      </View>
+    );
   }
 
   return (
@@ -78,3 +85,12 @@ export const useTheme = () => {
   }
   return context;
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+});
