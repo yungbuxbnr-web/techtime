@@ -1,5 +1,6 @@
 
 import * as FileSystem from 'expo-file-system';
+import { documentDirectory as ExpoDocumentDirectory, cacheDirectory as ExpoCacheDirectory } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
@@ -13,6 +14,14 @@ const BACKUP_FILE_NAME = 'backup.json';
 // UTF-8 encoding helper - no EncodingType reference
 type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
 const UTF8: FsUtf = 'utf8';
+
+// Robust getters that work across SDKs/typings
+const DOC_DIR: string = (ExpoDocumentDirectory ?? (FileSystem as any).documentDirectory) as string;
+const CACHE_DIR: string = (ExpoCacheDirectory ?? (FileSystem as any).cacheDirectory) as string;
+
+if (!DOC_DIR) {
+  throw new Error('FileSystem.documentDirectory unavailable');
+}
 
 export interface BackupData {
   version: string;
@@ -32,17 +41,15 @@ const getDocumentDirectory = (): string | null => {
   try {
     if (Platform.OS === 'ios') {
       // iOS: Always use documentDirectory (backed up to iCloud if enabled)
-      const docDir = FileSystem.documentDirectory;
-      if (docDir) {
-        console.log('[iOS] Document directory:', docDir);
-        return docDir;
+      if (DOC_DIR) {
+        console.log('[iOS] Document directory:', DOC_DIR);
+        return DOC_DIR;
       }
     } else {
       // Android: Use documentDirectory
-      const docDir = FileSystem.documentDirectory;
-      if (docDir) {
-        console.log('[Android] Document directory:', docDir);
-        return docDir;
+      if (DOC_DIR) {
+        console.log('[Android] Document directory:', DOC_DIR);
+        return DOC_DIR;
       }
     }
     console.log('Document directory not available');
@@ -56,10 +63,9 @@ const getDocumentDirectory = (): string | null => {
 // iOS-optimized: Get cache directory as fallback
 const getCacheDirectory = (): string | null => {
   try {
-    const cacheDir = FileSystem.cacheDirectory;
-    if (cacheDir) {
-      console.log('Cache directory:', cacheDir);
-      return cacheDir;
+    if (CACHE_DIR) {
+      console.log('Cache directory:', CACHE_DIR);
+      return CACHE_DIR;
     }
     console.log('Cache directory not available');
     return null;
