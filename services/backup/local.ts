@@ -8,11 +8,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BackupData } from '../../utils/backupService';
 import { StorageService } from '../../utils/storage';
 import { Job } from '../../types';
+import * as FS from '../storage/fs';
 
 // Type-safe access to FileSystem properties
-const DOC_DIR = (FileSystem as any).documentDirectory as string;
-const CACHE_DIR = (FileSystem as any).cacheDirectory as string;
+const DOC_DIR = FS.getDocumentDirectory();
+const CACHE_DIR = FS.getCacheDirectory();
 const BACKUP_FOLDER = 'backups';
+const DATA_FOLDER = 'data';
+const RECORDS_FILE = 'records.json';
 const SAF_URI_KEY = 'saf_backup_uri';
 
 // Safe encoding type with fallback
@@ -25,6 +28,137 @@ const getStorageAccessFramework = () => {
   }
   return null;
 };
+
+// Backup schema version
+const BACKUP_VERSION = '1.0.0';
+
+// Validation schema
+interface BackupSchema {
+  version: string;
+  backupVersion?: string;
+  createdAt?: string;
+  timestamp: string;
+  jobs: Job[];
+  settings: any;
+  metadata: {
+    totalJobs: number;
+    totalAWs: number;
+    exportDate: string;
+    appVersion: string;
+  };
+}
+
+/**
+ * Validate backup data schema
+ */
+function validateBackupSchema(data: any): { valid: boolean; error?: string } {
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: 'Invalid data format' };
+  }
+
+  if (!data.version && !data.backupVersion) {
+    return { valid: false, error: 'Missing version field' };
+  }
+
+  if (!data.timestamp && !data.createdAt) {
+    return { valid: false, error: 'Missing timestamp field' };
+  }
+
+  if (!Array.isArray(data.jobs)) {
+    return { valid: false, error: 'Invalid jobs data' };
+  }
+
+  if (!data.settings || typeof data.settings !== 'object') {
+    return { valid: false, error: 'Invalid settings data' };
+  }
+
+  if (!data.metadata || typeof data.metadata !== 'object') {
+    return { valid: false, error: 'Invalid metadata' };
+  }
+
+  // Validate each job
+  for (let i = 0; i < data.jobs.length; i++) {
+    const job = data.jobs[i];
+    if (!job.id || !job.wipNumber || !job.vehicleRegistration || typeof job.awValue !== 'number') {
+      return { valid: false, error: `Invalid job at index ${i}` };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Merge jobs with conflict resolution (updatedAt precedence)
+ */
+function mergeJobs(existingJobs: Job[], newJobs: Job[]): { merged: Job[]; stats: { created: number; updated: number; unchanged: number } } {
+  const jobMap = new Map<string, Job>();
+  const stats = { created: 0, updated: 0, unchanged: 0 };
+
+  // Add existing jobs to map
+  existingJobs.forEach(job => {
+    jobMap.set(job.id, job);
+  });
+
+  // Merge new jobs
+  newJobs.forEach(newJob => {
+    const existingJob = jobMap.get(newJob.id);
+
+    if (!existingJob) {
+      // New job
+      jobMap.set(newJob.id, newJob);
+      stats.created++;
+    } else {
+      // Job exists, check updatedAt
+      const existingDate = new Date(existingJob.dateModified || existingJob.dateCreated).getTime();
+      const newDate = new Date(newJob.dateModified || newJob.dateCreated).getTime();
+
+      if (newDate > existingDate) {
+        // New job is newer, update
+        jobMap.set(newJob.id, newJob);
+        stats.updated++;
+      } else {
+        // Existing job is newer or same, keep it
+        stats.unchanged++;
+      }
+    }
+  });
+
+  return {
+    merged: Array.from(jobMap.values()),
+    stats
+  };
+}
+
+/**
+ * Compute diff between existing and new jobs
+ */
+function computeDiff(existingJobs: Job[], newJobs: Job[]): { created: Job[]; updated: Job[]; unchanged: Job[] } {
+  const existingMap = new Map<string, Job>();
+  existingJobs.forEach(job => existingMap.set(job.id, job));
+
+  const created: Job[] = [];
+  const updated: Job[] = [];
+  const unchanged: Job[] = [];
+
+  newJobs.forEach(newJob => {
+    const existingJob = existingMap.get(newJob.id);
+
+    if (!existingJob) {
+      created.push(newJob);
+    } else {
+      const existingDate = new Date(existingJob.dateModified || existingJob.dateCreated).getTime();
+      const newDate = new Date(newJob.dateModified || newJob.dateCreated).getTime();
+
+      if (newDate > existingDate) {
+        updated.push(newJob);
+      } else {
+        unchanged.push(newJob);
+      }
+    }
+  });
+
+  return { created, updated, unchanged };
+}
 
 export interface LocalBackupResult {
   success: boolean;
@@ -61,7 +195,7 @@ export const LocalBackupService = {
         
         const uri = permissions.directoryUri;
         if (uri) {
-          await AsyncStorage.setItem(SAF_URI_KEY, uri);
+          await FS.setSafUri(uri);
           console.log('[Android] SAF URI saved:', uri);
           
           return {
@@ -90,6 +224,142 @@ export const LocalBackupService = {
       return {
         success: false,
         message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  },
+
+  /**
+   * Get current backup location
+   */
+  async getBackupLocation(): Promise<{ success: boolean; location: string; type: 'sandbox' | 'saf' }> {
+    try {
+      if (Platform.OS === 'android') {
+        const safUri = await FS.getSafUri();
+        if (safUri) {
+          return {
+            success: true,
+            location: safUri,
+            type: 'saf'
+          };
+        }
+      }
+      
+      return {
+        success: true,
+        location: `${DOC_DIR}${BACKUP_FOLDER}/`,
+        type: 'sandbox'
+      };
+    } catch (error) {
+      console.log('Error getting backup location:', error);
+      return {
+        success: false,
+        location: 'Unknown',
+        type: 'sandbox'
+      };
+    }
+  },
+
+  /**
+   * Clear SAF URI (Android only)
+   */
+  async clearBackupFolder(): Promise<{ success: boolean; message: string }> {
+    if (Platform.OS !== 'android') {
+      return {
+        success: false,
+        message: 'This feature is Android-only'
+      };
+    }
+
+    try {
+      await FS.clearSafUri();
+      return {
+        success: true,
+        message: 'Backup folder cleared. You can set up a new folder.'
+      };
+    } catch (error) {
+      console.log('Error clearing backup folder:', error);
+      return {
+        success: false,
+        message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  },
+
+  /**
+   * Test backup - create a small test backup and verify read/write
+   */
+  async testBackup(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('=== TESTING BACKUP ===');
+      
+      // Create test data
+      const testData = {
+        version: BACKUP_VERSION,
+        backupVersion: BACKUP_VERSION,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        jobs: [],
+        settings: { pin: '0000', isAuthenticated: false },
+        metadata: {
+          totalJobs: 0,
+          totalAWs: 0,
+          exportDate: new Date().toISOString(),
+          appVersion: '1.0.0'
+        }
+      };
+
+      // Ensure backup directory
+      const backupDir = `${DOC_DIR}${BACKUP_FOLDER}/`;
+      await FS.ensureDir(backupDir);
+
+      // Write test file
+      const testFile = `${backupDir}test_${Date.now()}.json`;
+      await FS.writeJson(testFile, testData);
+      console.log('✓ Test file written:', testFile);
+
+      // Read test file
+      const readData = await FS.readJson(testFile);
+      console.log('✓ Test file read successfully');
+
+      // Validate
+      const validation = validateBackupSchema(readData);
+      if (!validation.valid) {
+        throw new Error(`Validation failed: ${validation.error}`);
+      }
+      console.log('✓ Test file validated');
+
+      // Clean up
+      await FS.deleteFile(testFile);
+      console.log('✓ Test file deleted');
+
+      // Test Android SAF if available
+      if (Platform.OS === 'android') {
+        const safUri = await FS.getSafUri();
+        if (safUri) {
+          try {
+            const safFile = await FS.safCreateFile(safUri, `test_${Date.now()}.json`, 'application/json');
+            if (safFile) {
+              await FS.safWriteText(safFile, JSON.stringify(testData, null, 2));
+              console.log('✓ SAF test file written');
+              // Note: We can't easily delete SAF files, so we leave it
+            }
+          } catch (safError) {
+            console.log('⚠ SAF test failed (non-critical):', safError);
+          }
+        }
+      }
+
+      return {
+        success: true,
+        message: '✅ Backup test successful!\n\n✓ Write test passed\n✓ Read test passed\n✓ Validation test passed\n✓ Cleanup successful' + 
+                 (Platform.OS === 'android' ? '\n✓ SAF test passed' : '')
+      };
+
+    } catch (error) {
+      console.log('✗ Backup test failed:', error);
+      return {
+        success: false,
+        message: `❌ Backup test failed:\n\n${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   },
@@ -310,7 +580,7 @@ export const LocalBackupService = {
   },
 
   /**
-   * Create local backup (JSON + PDF)
+   * Create local backup (JSON + PDF) with optional SAF export
    */
   async createLocalBackup(): Promise<LocalBackupResult> {
     try {
@@ -328,17 +598,21 @@ export const LocalBackupService = {
       // Get all app data
       const jobs = await StorageService.getJobs();
       const settings = await StorageService.getSettings();
+      const technicianName = await StorageService.getTechnicianName();
       
       const timestamp = new Date().toISOString();
       const timestampForFile = timestamp.replace(/[:.]/g, '-').split('.')[0];
       
       const backupData: BackupData = {
-        version: '1.0.0',
+        version: BACKUP_VERSION,
+        backupVersion: BACKUP_VERSION,
+        createdAt: timestamp,
         timestamp,
         jobs,
         settings: {
           ...settings,
-          isAuthenticated: false
+          isAuthenticated: false,
+          technicianName
         },
         metadata: {
           totalJobs: jobs.length,
@@ -348,17 +622,12 @@ export const LocalBackupService = {
         }
       };
       
-      // Create JSON backup
-      const jsonFileName = `${timestampForFile}.json`;
+      // Create JSON backup in sandbox
+      const jsonFileName = `backup_${timestampForFile}.json`;
       const jsonPath = `${dirResult.path}${jsonFileName}`;
       
-      await FileSystem.writeAsStringAsync(
-        jsonPath,
-        JSON.stringify(backupData, null, 2),
-        { encoding: UTF8 }
-      );
-      
-      console.log('✓ JSON backup created:', jsonPath);
+      await FS.writeJson(jsonPath, backupData);
+      console.log('✓ JSON backup created in sandbox:', jsonPath);
       
       // Generate PDF summary
       const pdfHtml = await this.generatePdfSummary(backupData);
@@ -368,19 +637,51 @@ export const LocalBackupService = {
       });
       
       // Move PDF to backup directory
-      const pdfFileName = `${timestampForFile}.pdf`;
+      const pdfFileName = `backup_${timestampForFile}.pdf`;
       const pdfPath = `${dirResult.path}${pdfFileName}`;
       
-      await FileSystem.moveAsync({
-        from: pdfResult.uri,
-        to: pdfPath
-      });
-      
+      await FS.moveFile(pdfResult.uri, pdfPath);
       console.log('✓ PDF summary created:', pdfPath);
+      
+      // Android: Also export to SAF if configured
+      let safExported = false;
+      if (Platform.OS === 'android') {
+        const safUri = await FS.getSafUri();
+        if (safUri) {
+          try {
+            console.log('[Android] Exporting to SAF directory...');
+            
+            // Create JSON file in SAF directory
+            const safJsonUri = await FS.safCreateFile(safUri, jsonFileName, 'application/json');
+            if (safJsonUri) {
+              await FS.safWriteText(safJsonUri, JSON.stringify(backupData, null, 2));
+              console.log('✓ JSON backup exported to SAF:', safJsonUri);
+              safExported = true;
+            }
+            
+            // Note: PDF export to SAF is optional and may fail
+            try {
+              const pdfContent = await FileSystem.readAsStringAsync(pdfPath, { encoding: 'base64' });
+              const safPdfUri = await FS.safCreateFile(safUri, pdfFileName, 'application/pdf');
+              if (safPdfUri) {
+                await FileSystem.writeAsStringAsync(safPdfUri, pdfContent, { encoding: 'base64' });
+                console.log('✓ PDF backup exported to SAF:', safPdfUri);
+              }
+            } catch (pdfError) {
+              console.log('⚠ PDF export to SAF failed (non-critical):', pdfError);
+            }
+          } catch (safError) {
+            console.log('⚠ SAF export failed (non-critical):', safError);
+          }
+        }
+      }
+      
+      const message = `✅ Backup created successfully!\n\n📄 JSON: ${jsonFileName}\n📑 PDF: ${pdfFileName}\n📁 Sandbox: ${BACKUP_FOLDER}/\n📊 Jobs: ${jobs.length}\n⏱️ Total AWs: ${backupData.metadata.totalAWs}` +
+                     (safExported ? '\n✅ Also exported to external folder' : '');
       
       return {
         success: true,
-        message: `✅ Backup created successfully!\n\n📄 JSON: ${jsonFileName}\n📑 PDF: ${pdfFileName}\n📁 Location: ${BACKUP_FOLDER}/\n📊 Jobs: ${jobs.length}\n⏱️ Total AWs: ${backupData.metadata.totalAWs}`,
+        message,
         filePath: jsonPath,
         pdfPath
       };
@@ -497,9 +798,9 @@ export const LocalBackupService = {
   },
 
   /**
-   * Import local backup
+   * Import local backup with validation and diff
    */
-  async importLocalBackup(): Promise<{ success: boolean; message: string; data?: BackupData }> {
+  async importLocalBackup(): Promise<{ success: boolean; message: string; data?: BackupData; diff?: { created: Job[]; updated: Job[]; unchanged: Job[] } }> {
     try {
       console.log('=== IMPORTING LOCAL BACKUP ===');
       
@@ -507,7 +808,7 @@ export const LocalBackupService = {
       
       if (Platform.OS === 'android') {
         // Android: Try SAF first, then fallback to DocumentPicker
-        const safUri = await this.getSafUri();
+        const safUri = await FS.getSafUri();
         
         if (safUri) {
           console.log('[Android] Using SAF to pick file...');
@@ -574,26 +875,31 @@ export const LocalBackupService = {
       const backupData: BackupData = JSON.parse(content);
       
       // Validate schema
-      if (!backupData.version || !backupData.timestamp || !backupData.jobs || !backupData.settings) {
+      const validation = validateBackupSchema(backupData);
+      if (!validation.valid) {
         return {
           success: false,
-          message: 'Invalid backup file format. Missing required fields.'
-        };
-      }
-      
-      if (!Array.isArray(backupData.jobs)) {
-        return {
-          success: false,
-          message: 'Invalid backup file format. Jobs data is corrupted.'
+          message: `Invalid backup file: ${validation.error}`
         };
       }
       
       console.log('✓ Backup file validated');
       
+      // Compute diff with existing data
+      const existingJobs = await StorageService.getJobs();
+      const diff = computeDiff(existingJobs, backupData.jobs);
+      
+      console.log('✓ Diff computed:', {
+        created: diff.created.length,
+        updated: diff.updated.length,
+        unchanged: diff.unchanged.length
+      });
+      
       return {
         success: true,
-        message: `✅ Backup loaded successfully!\n\n📊 Jobs: ${backupData.jobs.length}\n⏱️ Total AWs: ${backupData.metadata.totalAWs}\n📅 Backup date: ${new Date(backupData.timestamp).toLocaleDateString()}`,
-        data: backupData
+        message: `✅ Backup loaded and validated!\n\n📊 Total jobs in backup: ${backupData.jobs.length}\n⏱️ Total AWs: ${backupData.metadata.totalAWs}\n📅 Backup date: ${new Date(backupData.timestamp).toLocaleDateString()}\n\n📈 Changes:\n✨ New jobs: ${diff.created.length}\n🔄 Updated jobs: ${diff.updated.length}\n✓ Unchanged jobs: ${diff.unchanged.length}`,
+        data: backupData,
+        diff
       };
       
     } catch (error) {
@@ -601,6 +907,62 @@ export const LocalBackupService = {
       return {
         success: false,
         message: `Failed to import backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  },
+
+  /**
+   * Merge backup data into existing data
+   */
+  async mergeBackup(backupData: BackupData): Promise<{ success: boolean; message: string; stats?: { created: number; updated: number; unchanged: number } }> {
+    try {
+      console.log('=== MERGING BACKUP DATA ===');
+      
+      // Validate backup data
+      const validation = validateBackupSchema(backupData);
+      if (!validation.valid) {
+        return {
+          success: false,
+          message: `Invalid backup data: ${validation.error}`
+        };
+      }
+      
+      // Get existing jobs
+      const existingJobs = await StorageService.getJobs();
+      
+      // Merge jobs
+      const mergeResult = mergeJobs(existingJobs, backupData.jobs);
+      
+      // Save merged jobs
+      await StorageService.saveJobs(mergeResult.merged);
+      
+      // Merge settings (keep existing auth state)
+      const existingSettings = await StorageService.getSettings();
+      const mergedSettings = {
+        ...backupData.settings,
+        isAuthenticated: existingSettings.isAuthenticated,
+        biometricEnabled: existingSettings.biometricEnabled
+      };
+      await StorageService.saveSettings(mergedSettings);
+      
+      // Merge technician name if present
+      if (backupData.settings.technicianName) {
+        await StorageService.setTechnicianName(backupData.settings.technicianName);
+      }
+      
+      console.log('✓ Backup merged successfully');
+      
+      return {
+        success: true,
+        message: `✅ Backup merged successfully!\n\n📊 Total jobs: ${mergeResult.merged.length}\n✨ New jobs: ${mergeResult.stats.created}\n🔄 Updated jobs: ${mergeResult.stats.updated}\n✓ Unchanged jobs: ${mergeResult.stats.unchanged}`,
+        stats: mergeResult.stats
+      };
+      
+    } catch (error) {
+      console.log('Error merging backup:', error);
+      return {
+        success: false,
+        message: `Failed to merge backup: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   },

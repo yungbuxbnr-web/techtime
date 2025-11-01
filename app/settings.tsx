@@ -32,6 +32,8 @@ export default function SettingsScreen() {
   const [isImportInProgress, setIsImportInProgress] = useState(false);
   const [isShareInProgress, setIsShareInProgress] = useState(false);
   const [isJsonShareInProgress, setIsJsonShareInProgress] = useState(false);
+  const [isTestingBackup, setIsTestingBackup] = useState(false);
+  const [backupLocation, setBackupLocation] = useState<string>('Loading...');
   const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
   const [showImportTally, setShowImportTally] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -108,7 +110,24 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkAuthAndLoadData();
     checkBiometricAvailability();
+    loadBackupLocation();
   }, [checkAuthAndLoadData]);
+
+  const loadBackupLocation = async () => {
+    try {
+      const location = await LocalBackupService.getBackupLocation();
+      if (location.success) {
+        if (location.type === 'saf') {
+          setBackupLocation(`External: ${location.location.substring(0, 50)}...`);
+        } else {
+          setBackupLocation('Sandbox: Documents/backups/');
+        }
+      }
+    } catch (error) {
+      console.log('Error loading backup location:', error);
+      setBackupLocation('Unknown');
+    }
+  };
 
   const checkBiometricAvailability = async () => {
     try {
@@ -346,25 +365,74 @@ export default function SettingsScreen() {
     showNotification('Setting up backup folder...', 'info');
 
     try {
-      const uri = await pickBackupDir();
+      const result = await LocalBackupService.setupBackupFolder();
       
-      if (uri) {
-        await StorageService.saveBackupDirectoryUri(uri);
-        showNotification(
-          Platform.OS === 'android' 
-            ? '✅ Backup folder selected successfully!\n\nYou can now create backups to this location.' 
-            : '✅ Backup folder configured!\n\nBackups will be saved to app Documents folder.',
-          'success'
-        );
-        console.log('Backup directory URI saved:', uri);
+      if (result.success) {
+        showNotification(result.message, 'success');
+        await loadBackupLocation();
       } else {
-        showNotification('No folder selected. Please try again.', 'error');
+        showNotification(result.message, 'error');
       }
     } catch (error) {
       console.log('Error setting up backup folder:', error);
       showNotification('Error setting up backup folder', 'error');
     }
   }, [showNotification]);
+
+  const handleClearBackupFolder = useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      showNotification('This feature is Android-only', 'info');
+      return;
+    }
+
+    Alert.alert(
+      'Clear Backup Folder',
+      'This will remove the external backup folder configuration. You can set up a new folder afterwards.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await LocalBackupService.clearBackupFolder();
+              if (result.success) {
+                showNotification(result.message, 'success');
+                await loadBackupLocation();
+              } else {
+                showNotification(result.message, 'error');
+              }
+            } catch (error) {
+              console.log('Error clearing backup folder:', error);
+              showNotification('Error clearing backup folder', 'error');
+            }
+          }
+        }
+      ]
+    );
+  }, [showNotification]);
+
+  const handleTestBackup = useCallback(async () => {
+    if (isTestingBackup) return;
+
+    setIsTestingBackup(true);
+    showNotification('Running backup test...', 'info');
+
+    try {
+      const result = await LocalBackupService.testBackup();
+      
+      if (result.success) {
+        showNotification(result.message, 'success');
+      } else {
+        showNotification(result.message, 'error');
+      }
+    } catch (error) {
+      console.log('Error testing backup:', error);
+      showNotification('Unexpected error during backup test', 'error');
+    } finally {
+      setIsTestingBackup(false);
+    }
+  }, [isTestingBackup, showNotification]);
 
   const handleCreateBackup = useCallback(async () => {
     if (isBackupInProgress) return;
@@ -1124,6 +1192,12 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Create backups for device migration and restore data from previous backups.
           </Text>
+
+          {/* Current Backup Location */}
+          <View style={styles.backupLocationBox}>
+            <Text style={styles.backupLocationLabel}>📍 Current Backup Location:</Text>
+            <Text style={styles.backupLocationText}>{backupLocation}</Text>
+          </View>
           
           <TouchableOpacity
             style={[styles.button, styles.googleDriveButton]}
@@ -1144,6 +1218,25 @@ export default function SettingsScreen() {
             onPress={handleEnsureBackupFolder}
           >
             <Text style={styles.buttonText}>📁 Setup Backup Folder</Text>
+          </TouchableOpacity>
+
+          {Platform.OS === 'android' && (
+            <TouchableOpacity
+              style={[styles.button, styles.clearButton]}
+              onPress={handleClearBackupFolder}
+            >
+              <Text style={styles.buttonText}>🗑️ Clear Backup Folder</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.button, styles.testButton, isTestingBackup && styles.buttonDisabled]}
+            onPress={handleTestBackup}
+            disabled={isTestingBackup}
+          >
+            <Text style={styles.buttonText}>
+              {isTestingBackup ? '⏳ Testing...' : '🧪 Test Backup'}
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -1199,16 +1292,21 @@ export default function SettingsScreen() {
           <View style={styles.backupInfo}>
             <Text style={styles.infoTitle}>📁 Backup & Import Information</Text>
             <Text style={styles.infoText}>
-              - Local backups: Documents/techtrace/
+              - Local backups: Sandbox (Documents/backups/)
             </Text>
+            {Platform.OS === 'android' && (
+              <Text style={styles.infoText}>
+                - Android SAF: Optional external folder export
+              </Text>
+            )}
             <Text style={styles.infoText}>
-              - Google Drive: Cloud backup & restore
+              - Google Drive: Cloud backup & restore with OAuth
             </Text>
             <Text style={styles.infoText}>
               - Import & Tally: Analyze backup data with detailed statistics
             </Text>
             <Text style={styles.infoText}>
-              - Import from File: Pick JSON backup files from anywhere
+              - Import from File: Pick JSON/PDF backup files from anywhere
             </Text>
             <Text style={styles.infoText}>
               - Share Backup: Transfer to another device via any sharing method
@@ -1217,7 +1315,16 @@ export default function SettingsScreen() {
               - Create JSON Backup: Quick JSON export for sharing to any app
             </Text>
             <Text style={styles.infoText}>
-              - Use &quot;Setup Backup Folder&quot; to ensure proper permissions
+              - Test Backup: Verify backup system is working correctly
+            </Text>
+            <Text style={styles.infoText}>
+              - Schema Validation: All backups are validated before import
+            </Text>
+            <Text style={styles.infoText}>
+              - Conflict Resolution: Newer data wins during merge
+            </Text>
+            <Text style={styles.infoText}>
+              - UTF-8 Encoding: All backups use UTF-8 for compatibility
             </Text>
           </View>
         </View>
@@ -1695,8 +1802,33 @@ const createStyles = (colors: any) => StyleSheet.create({
   setupButton: {
     backgroundColor: '#ff9800',
   },
+  clearButton: {
+    backgroundColor: '#f44336',
+  },
+  testButton: {
+    backgroundColor: '#9c27b0',
+  },
   backupButton: {
     backgroundColor: '#34a853',
+  },
+  backupLocationBox: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  backupLocationLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  backupLocationText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   importButton: {
     backgroundColor: '#6c757d',
