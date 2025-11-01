@@ -5,6 +5,8 @@ import { Redirect } from 'expo-router';
 import { StorageService } from '../utils/storage';
 import { useTheme } from '../contexts/ThemeContext';
 
+const SETUP_TIMEOUT = 8000; // 8 seconds max for setup check
+
 export default function IndexScreen() {
   const { colors } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -16,42 +18,39 @@ export default function IndexScreen() {
   }, []);
 
   const checkInitialSetup = async () => {
+    const timeoutId = setTimeout(() => {
+      console.log('[Index] Setup check timeout - defaulting to auth screen');
+      setError('Setup check timed out');
+      setHasName(true);
+      setIsAuthenticated(false);
+    }, SETUP_TIMEOUT);
+
     try {
       console.log('[Index] Checking initial setup...');
       
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Setup check timeout')), 5000);
-      });
+      // First check if technician name is set
+      const technicianName = await StorageService.getTechnicianName();
+      console.log('[Index] Technician name:', technicianName || 'Not set');
+      
+      if (!technicianName) {
+        // No name set, redirect to name setup
+        console.log('[Index] No technician name set, redirecting to set-name');
+        clearTimeout(timeoutId);
+        setHasName(false);
+        setIsAuthenticated(false);
+        return;
+      }
 
-      const setupPromise = (async () => {
-        // First check if technician name is set
-        const technicianName = await StorageService.getTechnicianName();
-        console.log('[Index] Technician name:', technicianName);
-        
-        if (!technicianName) {
-          // No name set, redirect to name setup
-          console.log('[Index] No technician name set, redirecting to set-name');
-          setHasName(false);
-          setIsAuthenticated(false);
-          return;
-        }
-
-        // Name is set, check authentication
-        setHasName(true);
-        const settings = await StorageService.getSettings();
-        console.log('[Index] Authentication status:', settings.isAuthenticated);
-        setIsAuthenticated(settings.isAuthenticated || false);
-      })();
-
-      await Promise.race([setupPromise, timeoutPromise]);
+      // Name is set, check authentication
+      setHasName(true);
+      const settings = await StorageService.getSettings();
+      console.log('[Index] Authentication status:', settings.isAuthenticated);
+      clearTimeout(timeoutId);
+      setIsAuthenticated(settings.isAuthenticated || false);
     } catch (error: any) {
       console.log('[Index] Error checking initial setup:', error);
-      
-      if (error.message === 'Setup check timeout') {
-        console.log('[Index] Setup check timed out, defaulting to auth screen');
-        setError('Loading timed out');
-      }
+      clearTimeout(timeoutId);
+      setError(error?.message || 'Setup error');
       
       // Default to showing auth screen on error
       setHasName(true);
@@ -65,8 +64,11 @@ export default function IndexScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>
+          Initializing...
+        </Text>
         {error && (
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
             {error}
           </Text>
         )}
@@ -96,8 +98,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorText: {
+  loadingText: {
     marginTop: 16,
+    fontSize: 16,
+  },
+  errorText: {
+    marginTop: 8,
     fontSize: 14,
   },
 });

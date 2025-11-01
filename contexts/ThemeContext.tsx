@@ -15,6 +15,8 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const THEME_LOAD_TIMEOUT = 3000; // 3 seconds max for theme loading
+
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('light');
   const [colors, setColors] = useState(lightColors);
@@ -26,6 +28,11 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const loadTheme = async () => {
+    const timeoutId = setTimeout(() => {
+      console.log('[ThemeProvider] Theme loading timeout - using default light theme');
+      setIsLoading(false);
+    }, THEME_LOAD_TIMEOUT);
+
     try {
       console.log('[ThemeProvider] Loading theme...');
       const settings = await StorageService.getSettings();
@@ -39,6 +46,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       setThemeState('light');
       setColors(lightColors);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
