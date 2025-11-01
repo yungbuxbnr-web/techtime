@@ -22,6 +22,8 @@ export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180, absenceHours: 0, theme: 'light' });
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [technicianName, setTechnicianName] = useState('');
+  const [newTechnicianName, setNewTechnicianName] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [targetHours, setTargetHours] = useState('180');
@@ -57,12 +59,15 @@ export default function SettingsScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [settingsData, jobsData] = await Promise.all([
+      const [settingsData, jobsData, name] = await Promise.all([
         StorageService.getSettings(),
-        StorageService.getJobs()
+        StorageService.getJobs(),
+        StorageService.getTechnicianName()
       ]);
       setSettings(settingsData);
       setJobs(jobsData);
+      setTechnicianName(name || '');
+      setNewTechnicianName(name || '');
       setNewPin(settingsData.pin);
       setConfirmPin(settingsData.pin);
       setTargetHours(String(settingsData.targetHours || 180));
@@ -119,6 +124,35 @@ export default function SettingsScreen() {
       console.log('Error checking biometric availability:', error);
     }
   };
+
+  const handleUpdateTechnicianName = useCallback(async () => {
+    const trimmedName = newTechnicianName.trim();
+    
+    if (!trimmedName) {
+      showNotification('Please enter your name', 'error');
+      return;
+    }
+
+    if (trimmedName.length < 2) {
+      showNotification('Name must be at least 2 characters', 'error');
+      return;
+    }
+
+    if (trimmedName.length > 50) {
+      showNotification('Name must be less than 50 characters', 'error');
+      return;
+    }
+
+    try {
+      await StorageService.setTechnicianName(trimmedName);
+      setTechnicianName(trimmedName);
+      showNotification(`Name updated to ${trimmedName}`, 'success');
+      console.log('Technician name updated:', trimmedName);
+    } catch (error) {
+      console.log('Error updating technician name:', error);
+      showNotification('Error updating name', 'error');
+    }
+  }, [newTechnicianName, showNotification]);
 
   const handleToggleTheme = useCallback(async () => {
     try {
@@ -632,6 +666,38 @@ export default function SettingsScreen() {
 
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         
+        {/* Technician Name Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>👤 Technician Profile</Text>
+          <Text style={styles.sectionDescription}>
+            Your name appears throughout the app and on exported reports
+          </Text>
+          
+          <Text style={styles.label}>Current Name</Text>
+          <View style={styles.currentNameDisplay}>
+            <Text style={styles.currentNameText}>{technicianName || 'Not set'}</Text>
+          </View>
+          
+          <Text style={styles.label}>New Name</Text>
+          <TextInput
+            style={styles.input}
+            value={newTechnicianName}
+            onChangeText={setNewTechnicianName}
+            placeholder="Enter your full name"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+            autoCorrect={false}
+            maxLength={50}
+          />
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.primaryButton]} 
+            onPress={handleUpdateTechnicianName}
+          >
+            <Text style={styles.buttonText}>🔄 Update Name</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Theme Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎨 Appearance</Text>
@@ -1272,7 +1338,7 @@ export default function SettingsScreen() {
             GDPR Compliant • Secure • Reliable
           </Text>
           <Text style={styles.signature}>
-            ✍️ Digitally signed by Buckston Rugge
+            ✍️ Digitally signed by {technicianName || 'Technician'}
           </Text>
         </View>
       </ScrollView>
@@ -1417,6 +1483,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.background,
     color: colors.text,
     marginBottom: 16,
+  },
+  currentNameDisplay: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  currentNameText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
   },
   targetInfo: {
     backgroundColor: colors.backgroundAlt,

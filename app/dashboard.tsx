@@ -19,6 +19,7 @@ export default function DashboardScreen() {
   const isLandscape = width > height;
   
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [technicianName, setTechnicianName] = useState('');
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({
     totalJobs: 0,
     totalAWs: 0,
@@ -108,11 +109,13 @@ export default function DashboardScreen() {
 
   const loadJobs = useCallback(async () => {
     try {
-      const [jobsData, settings] = await Promise.all([
+      const [jobsData, settings, name] = await Promise.all([
         StorageService.getJobs(),
-        StorageService.getSettings()
+        StorageService.getSettings(),
+        StorageService.getTechnicianName()
       ]);
       setJobs(jobsData);
+      setTechnicianName(name || 'Technician');
       
       // Get current month's absence hours (will be 0 if month was just reset)
       const currentMonth = new Date().getMonth();
@@ -246,7 +249,7 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Technician Records</Text>
-            <Text style={styles.nameText}>Buckston Rugge</Text>
+            <Text style={styles.nameText}>{technicianName}</Text>
           </View>
           <TouchableOpacity
             style={styles.optionsButton}

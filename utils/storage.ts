@@ -12,12 +12,38 @@ const SAF = FileSystem.StorageAccessFramework;
 const JOBS_KEY = 'jobs';
 const SETTINGS_KEY = 'settings';
 const BACKUP_DIRECTORY_URI_KEY = 'backup.dirUri';
+const TECHNICIAN_NAME_KEY = 'technicianName';
 
 const defaultSettings: AppSettings = {
   pin: '3101',
   isAuthenticated: false,
   targetHours: 180,
   theme: 'light',
+};
+
+// ============================================
+// TECHNICIAN NAME MANAGEMENT
+// ============================================
+
+export const getTechnicianName = async (): Promise<string | null> => {
+  try {
+    const name = await AsyncStorage.getItem(TECHNICIAN_NAME_KEY);
+    console.log('Retrieved technician name:', name || 'Not set');
+    return name;
+  } catch (error) {
+    console.log('Error getting technician name:', error);
+    return null;
+  }
+};
+
+export const setTechnicianName = async (name: string): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(TECHNICIAN_NAME_KEY, name);
+    console.log('Technician name saved:', name);
+  } catch (error) {
+    console.log('Error setting technician name:', error);
+    throw error;
+  }
 };
 
 // ============================================
@@ -221,6 +247,15 @@ export async function readJson(uri: string): Promise<any> {
 // ============================================
 
 export const StorageService = {
+  // Technician name management
+  async getTechnicianName(): Promise<string | null> {
+    return getTechnicianName();
+  },
+
+  async setTechnicianName(name: string): Promise<void> {
+    return setTechnicianName(name);
+  },
+
   // Jobs management
   async getJobs(): Promise<Job[]> {
     try {
@@ -342,7 +377,7 @@ export const StorageService = {
   // Data management
   async clearAllData(): Promise<void> {
     try {
-      await AsyncStorage.multiRemove([JOBS_KEY, SETTINGS_KEY]);
+      await AsyncStorage.multiRemove([JOBS_KEY, SETTINGS_KEY, TECHNICIAN_NAME_KEY]);
       console.log('All data cleared successfully');
     } catch (error) {
       console.log('Error clearing data:', error);
@@ -354,6 +389,7 @@ export const StorageService = {
     try {
       const jobs = await this.getJobs();
       const settings = await this.getSettings();
+      const technicianName = await this.getTechnicianName();
       
       const exportData = {
         jobs,
@@ -361,6 +397,7 @@ export const StorageService = {
           ...settings,
           isAuthenticated: false,
         },
+        technicianName,
         exportDate: new Date().toISOString(),
         version: '1.0',
       };
@@ -389,6 +426,10 @@ export const StorageService = {
         };
         await this.saveSettings(newSettings);
       }
+
+      if (importData.technicianName) {
+        await this.setTechnicianName(importData.technicianName);
+      }
       
       console.log('Data imported successfully');
     } catch (error) {
@@ -402,6 +443,7 @@ export const StorageService = {
     try {
       const jobs = await this.getJobs();
       const settings = await this.getSettings();
+      const technicianName = await this.getTechnicianName();
       
       return {
         version: '1.0.0',
@@ -411,6 +453,7 @@ export const StorageService = {
           ...settings,
           isAuthenticated: false,
         },
+        technicianName,
         metadata: {
           totalJobs: jobs.length,
           totalAWs: jobs.reduce((sum, job) => sum + job.awValue, 0),
@@ -442,6 +485,11 @@ export const StorageService = {
         };
         await this.saveSettings(newSettings);
         console.log('Settings imported successfully');
+      }
+
+      if (data.technicianName) {
+        await this.setTechnicianName(data.technicianName);
+        console.log('Technician name imported successfully');
       }
     } catch (error) {
       console.log('Error importing jobs:', error);

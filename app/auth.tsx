@@ -13,6 +13,7 @@ export default function AuthScreen() {
   const { colors } = useTheme();
   const [pin, setPin] = useState('');
   const [correctPin, setCorrectPin] = useState('3101');
+  const [technicianName, setTechnicianName] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isShaking, setIsShaking] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -72,6 +73,7 @@ export default function AuthScreen() {
 
   useEffect(() => {
     loadSettings();
+    loadTechnicianName();
     checkBiometricAvailability();
     console.log('Auth screen loaded - Authentication required on app start');
   }, [checkBiometricAvailability]);
@@ -83,6 +85,18 @@ export default function AuthScreen() {
       console.log('Settings loaded, authentication required');
     } catch (error) {
       console.log('Error loading settings:', error);
+    }
+  };
+
+  const loadTechnicianName = async () => {
+    try {
+      const name = await StorageService.getTechnicianName();
+      if (name) {
+        setTechnicianName(name);
+        console.log('Technician name loaded:', name);
+      }
+    } catch (error) {
+      console.log('Error loading technician name:', error);
     }
   };
 
@@ -175,7 +189,11 @@ export default function AuthScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>Technician Records</Text>
-            <Text style={styles.subtitle}>Buckston Rugge</Text>
+            {technicianName ? (
+              <Text style={styles.subtitle}>{technicianName}</Text>
+            ) : (
+              <Text style={styles.subtitle}>Welcome</Text>
+            )}
             <Text style={styles.label}>Enter PIN</Text>
             
             {biometricAvailable && biometricEnabled && (
