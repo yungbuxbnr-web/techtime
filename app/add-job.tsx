@@ -1,22 +1,28 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
+import CameraModal from '../features/scan/CameraModal';
+import ScanResultSheet from '../features/scan/ScanResultSheet';
+import { scanRegistration, scanJobCard } from '../services/scan/pipeline';
+import { isOCRConfigured, getOCRStatusMessage } from '../services/ocr';
+import { ScanResult } from '../services/scan/pipeline';
 
 interface JobSuggestion {
   wipNumber: string;
   vehicleRegistration: string;
   awValue: number;
   lastUsed: string;
-  frequency: number; // How many times this combination has been used
-  totalAWs: number; // Total AWs for this combination
+  frequency: number;
+  totalAWs: number;
 }
 
 export default function AddJobScreen() {
@@ -37,11 +43,18 @@ export default function AddJobScreen() {
   const [showRegSuggestions, setShowRegSuggestions] = useState(false);
   const [showAwPicker, setShowAwPicker] = useState(false);
 
+  // Scanning state
+  const [showRegCamera, setShowRegCamera] = useState(false);
+  const [showJobCardCamera, setShowJobCardCamera] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [showScanResult, setShowScanResult] = useState(false);
+  const [userEditedFields, setUserEditedFields] = useState<Set<string>>(new Set());
+
   const wipRef = useRef<TextInput>(null);
   const vehicleRef = useRef<TextInput>(null);
   const notesRef = useRef<TextInput>(null);
   
-  // Debounce timers for suggestions
   const wipDebounceTimer = useRef<NodeJS.Timeout | null>(null);
   const regDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -108,24 +121,21 @@ export default function AddJobScreen() {
     }
   }, [editId, loadJobForEditing, loadAllJobs]);
 
-  // Enhanced: Create indexed maps with frequency tracking
   const jobIndexes = useMemo(() => {
     const wipMap = new Map<string, JobSuggestion>();
     const regMap = new Map<string, JobSuggestion>();
-    const combinationMap = new Map<string, JobSuggestion>(); // Track WIP+Reg combinations
+    const combinationMap = new Map<string, JobSuggestion>();
 
-    // Process all jobs to build frequency data
     allJobs.forEach(job => {
       const combinationKey = `${job.wipNumber}|${job.vehicleRegistration.toUpperCase()}`;
       
-      // Track WIP number frequency
       if (wipMap.has(job.wipNumber)) {
         const existing = wipMap.get(job.wipNumber)!;
         existing.frequency += 1;
         existing.totalAWs += job.awValue;
         if (new Date(job.dateCreated) > new Date(existing.lastUsed)) {
           existing.lastUsed = job.dateCreated;
-          existing.awValue = job.awValue; // Use most recent AW value
+          existing.awValue = job.awValue;
         }
       } else {
         wipMap.set(job.wipNumber, {
@@ -138,7 +148,6 @@ export default function AddJobScreen() {
         });
       }
       
-      // Track registration number frequency
       const regKey = job.vehicleRegistration.toUpperCase();
       if (regMap.has(regKey)) {
         const existing = regMap.get(regKey)!;
@@ -146,7 +155,7 @@ export default function AddJobScreen() {
         existing.totalAWs += job.awValue;
         if (new Date(job.dateCreated) > new Date(existing.lastUsed)) {
           existing.lastUsed = job.dateCreated;
-          existing.wipNumber = job.wipNumber; // Use most recent WIP
+          existing.wipNumber = job.wipNumber;
           existing.awValue = job.awValue;
         }
       } else {
@@ -160,7 +169,6 @@ export default function AddJobScreen() {
         });
       }
 
-      // Track exact combinations
       if (combinationMap.has(combinationKey)) {
         const existing = combinationMap.get(combinationKey)!;
         existing.frequency += 1;
@@ -184,26 +192,21 @@ export default function AddJobScreen() {
     return { wipMap, regMap, combinationMap };
   }, [allJobs]);
 
-  // Enhanced: Generate WIP number suggestions with smart sorting - ONLY when user types
   const generateWipSuggestions = useCallback((input: string) => {
-    // Clear any existing timer
     if (wipDebounceTimer.current) {
       clearTimeout(wipDebounceTimer.current);
     }
 
-    // Don't show suggestions if input is empty or only whitespace
     if (!input || input.trim().length === 0) {
       setWipSuggestions([]);
       setShowWipSuggestions(false);
       return;
     }
 
-    // Debounce: wait 300ms after user stops typing
     wipDebounceTimer.current = setTimeout(() => {
       console.log('Generating WIP suggestions for:', input);
       const suggestions: JobSuggestion[] = [];
       
-      // First, check for exact combination match (repeat job)
       const exactMatches: JobSuggestion[] = [];
       jobIndexes.combinationMap.forEach((suggestion, key) => {
         const [wip] = key.split('|');
@@ -212,39 +215,31 @@ export default function AddJobScreen() {
         }
       });
 
-      // If we have exact matches, prioritize them
       if (exactMatches.length > 0) {
         exactMatches.sort((a, b) => {
-          // Sort by frequency first (repeat jobs)
           if (b.frequency !== a.frequency) {
             return b.frequency - a.frequency;
           }
-          // Then by recency
           return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
         });
         suggestions.push(...exactMatches);
       }
 
-      // Then add prefix matches
       jobIndexes.wipMap.forEach((suggestion, wipNum) => {
         if (wipNum.startsWith(input) && wipNum !== input) {
           suggestions.push(suggestion);
         }
       });
 
-      // Smart sorting for prefix matches
       suggestions.sort((a, b) => {
-        // Exact match gets highest priority
         const aExact = a.wipNumber === input ? 1 : 0;
         const bExact = b.wipNumber === input ? 1 : 0;
         if (aExact !== bExact) return bExact - aExact;
         
-        // Then by frequency (repeat jobs)
         if (b.frequency !== a.frequency) {
           return b.frequency - a.frequency;
         }
         
-        // Finally by recency
         return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
       });
 
@@ -255,30 +250,25 @@ export default function AddJobScreen() {
       if (topSuggestions.length > 0) {
         console.log(`Found ${topSuggestions.length} WIP suggestions, top frequency: ${topSuggestions[0].frequency}x`);
       }
-    }, 300); // 300ms debounce delay
+    }, 300);
   }, [jobIndexes.wipMap, jobIndexes.combinationMap]);
 
-  // Enhanced: Generate registration number suggestions with smart sorting - ONLY when user types
   const generateRegSuggestions = useCallback((input: string) => {
-    // Clear any existing timer
     if (regDebounceTimer.current) {
       clearTimeout(regDebounceTimer.current);
     }
 
-    // Don't show suggestions if input is empty or only whitespace
     if (!input || input.trim().length === 0) {
       setRegSuggestions([]);
       setShowRegSuggestions(false);
       return;
     }
 
-    // Debounce: wait 300ms after user stops typing
     regDebounceTimer.current = setTimeout(() => {
       console.log('Generating registration suggestions for:', input);
       const upperInput = input.toUpperCase();
       const suggestions: JobSuggestion[] = [];
 
-      // Check for exact matches first (repeat customer)
       const exactMatches: JobSuggestion[] = [];
       jobIndexes.regMap.forEach((suggestion, regKey) => {
         if (regKey === upperInput) {
@@ -286,44 +276,35 @@ export default function AddJobScreen() {
         }
       });
 
-      // If we have exact matches, prioritize them
       if (exactMatches.length > 0) {
         exactMatches.sort((a, b) => {
-          // Sort by frequency first (repeat customers)
           if (b.frequency !== a.frequency) {
             return b.frequency - a.frequency;
           }
-          // Then by recency
           return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
         });
         suggestions.push(...exactMatches);
       }
 
-      // Then add partial matches
       jobIndexes.regMap.forEach((suggestion, regKey) => {
         if (regKey.includes(upperInput) && regKey !== upperInput) {
           suggestions.push(suggestion);
         }
       });
 
-      // Smart sorting for partial matches
       suggestions.sort((a, b) => {
-        // Exact match gets priority
         const aExact = a.vehicleRegistration.toUpperCase() === upperInput ? 1 : 0;
         const bExact = b.vehicleRegistration.toUpperCase() === upperInput ? 1 : 0;
         if (aExact !== bExact) return bExact - aExact;
 
-        // Starts with input gets priority
         const aStarts = a.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
         const bStarts = b.vehicleRegistration.toUpperCase().startsWith(upperInput) ? 1 : 0;
         if (aStarts !== bStarts) return bStarts - aStarts;
         
-        // Then by frequency (repeat customers)
         if (b.frequency !== a.frequency) {
           return b.frequency - a.frequency;
         }
         
-        // Finally by recency
         return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
       });
 
@@ -334,10 +315,9 @@ export default function AddJobScreen() {
       if (topSuggestions.length > 0) {
         console.log(`Found ${topSuggestions.length} registration suggestions, top frequency: ${topSuggestions[0].frequency}x`);
       }
-    }, 300); // 300ms debounce delay
+    }, 300);
   }, [jobIndexes.regMap]);
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (wipDebounceTimer.current) {
@@ -351,11 +331,13 @@ export default function AddJobScreen() {
 
   const handleWipNumberChange = (text: string) => {
     setWipNumber(text);
+    setUserEditedFields(prev => new Set(prev).add('wip'));
     generateWipSuggestions(text);
   };
 
   const handleVehicleRegistrationChange = (text: string) => {
     setVehicleRegistration(text);
+    setUserEditedFields(prev => new Set(prev).add('reg'));
     generateRegSuggestions(text);
   };
 
@@ -383,6 +365,217 @@ export default function AddJobScreen() {
       : 'Previous job details loaded';
     showNotification(message, 'info');
     console.log('Selected registration suggestion:', suggestion.vehicleRegistration, 'Frequency:', suggestion.frequency);
+  };
+
+  // Scan Registration
+  const handleScanReg = () => {
+    if (!isOCRConfigured()) {
+      Alert.alert(
+        'OCR Not Configured',
+        getOCRStatusMessage() + '\n\nYou can still enter the registration manually.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setShowRegCamera(true);
+  };
+
+  const handleRegCapture = async (uri: string) => {
+    setShowRegCamera(false);
+    setIsScanning(true);
+    
+    try {
+      console.log('[AddJob] Scanning registration from:', uri);
+      const result = await scanRegistration(uri);
+      
+      if (result.reg) {
+        // Check if user has manually edited the field
+        if (userEditedFields.has('reg') && vehicleRegistration.trim().length > 0) {
+          Alert.alert(
+            'Overwrite Registration?',
+            `Replace "${vehicleRegistration}" with "${result.reg.value}"?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Replace',
+                onPress: () => {
+                  setVehicleRegistration(result.reg!.value);
+                  showNotification('Registration updated from scan', 'success');
+                },
+              },
+            ]
+          );
+        } else {
+          setVehicleRegistration(result.reg.value);
+          showNotification(
+            `Registration detected: ${result.reg.value} (${Math.round(result.reg.confidence * 100)}% confidence)`,
+            'success'
+          );
+        }
+      } else {
+        showNotification('No registration detected. Please try again or enter manually.', 'info');
+      }
+    } catch (error: any) {
+      console.log('[AddJob] Error scanning registration:', error);
+      
+      if (error.message === 'OCR_OFFLINE') {
+        Alert.alert(
+          'No Internet Connection',
+          'OCR requires an internet connection. Please check your connection and try again, or enter the registration manually.',
+          [{ text: 'OK' }]
+        );
+      } else if (error.message === 'OCR_TIMEOUT') {
+        Alert.alert(
+          'Scan Timeout',
+          'The scan took too long. Please try again with better lighting or enter manually.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Scan Failed',
+          'Failed to scan registration. Please try again or enter manually.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Scan Job Card
+  const handleScanJobCard = () => {
+    if (!isOCRConfigured()) {
+      Alert.alert(
+        'OCR Not Configured',
+        getOCRStatusMessage() + '\n\nYou can still enter the details manually.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    Alert.alert(
+      'Scan Job Card',
+      'Choose how to scan the job card:',
+      [
+        {
+          text: 'Take Photo',
+          onPress: () => setShowJobCardCamera(true),
+        },
+        {
+          text: 'Choose from Files',
+          onPress: handlePickJobCardFile,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handlePickJobCardFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*', 'application/pdf'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        console.log('[AddJob] Selected file:', uri);
+        
+        // Check if it's a PDF
+        if (uri.toLowerCase().endsWith('.pdf')) {
+          Alert.alert(
+            'PDF Not Supported',
+            'Please take a photo of the job card instead. PDF scanning is not yet supported.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+        
+        await handleJobCardCapture(uri);
+      }
+    } catch (error) {
+      console.log('[AddJob] Error picking file:', error);
+      Alert.alert('Error', 'Failed to select file. Please try again.');
+    }
+  };
+
+  const handleJobCardCapture = async (uri: string) => {
+    setShowJobCardCamera(false);
+    setIsScanning(true);
+    
+    try {
+      console.log('[AddJob] Scanning job card from:', uri);
+      const result = await scanJobCard(uri);
+      
+      if (result.reg || result.wip || result.jobNo) {
+        setScanResult(result);
+        setShowScanResult(true);
+      } else {
+        showNotification('No data detected. Please try again or enter manually.', 'info');
+      }
+    } catch (error: any) {
+      console.log('[AddJob] Error scanning job card:', error);
+      
+      if (error.message === 'OCR_OFFLINE') {
+        Alert.alert(
+          'No Internet Connection',
+          'OCR requires an internet connection. Please check your connection and try again, or enter the details manually.',
+          [{ text: 'OK' }]
+        );
+      } else if (error.message === 'OCR_TIMEOUT') {
+        Alert.alert(
+          'Scan Timeout',
+          'The scan took too long. Please try again with better lighting or enter manually.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Scan Failed',
+          'Failed to scan job card. Please try again or enter manually.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleApplyScanResult = (data: { reg?: string; wip?: string; jobNo?: string }) => {
+    console.log('[AddJob] Applying scan result:', data);
+    
+    // Check for user-edited fields and confirm overwrite
+    const fieldsToOverwrite: string[] = [];
+    if (data.reg && userEditedFields.has('reg') && vehicleRegistration.trim().length > 0) {
+      fieldsToOverwrite.push('Registration');
+    }
+    if (data.wip && userEditedFields.has('wip') && wipNumber.trim().length > 0) {
+      fieldsToOverwrite.push('WIP Number');
+    }
+    
+    if (fieldsToOverwrite.length > 0) {
+      Alert.alert(
+        'Overwrite Fields?',
+        `You have manually edited: ${fieldsToOverwrite.join(', ')}. Do you want to replace with scanned values?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Replace',
+            onPress: () => {
+              if (data.reg) setVehicleRegistration(data.reg);
+              if (data.wip) setWipNumber(data.wip);
+              showNotification('Job details updated from scan', 'success');
+            },
+          },
+        ]
+      );
+    } else {
+      if (data.reg) setVehicleRegistration(data.reg);
+      if (data.wip) setWipNumber(data.wip);
+      showNotification('Job details updated from scan', 'success');
+    }
   };
 
   const handleVhcColorSelect = (color: 'green' | 'orange' | 'red') => {
@@ -470,7 +663,6 @@ export default function AddJobScreen() {
 
         await StorageService.saveJob(newJob);
         
-        // Check if this is a repeat job
         const combinationKey = `${newJob.wipNumber}|${newJob.vehicleRegistration}`;
         const isRepeat = jobIndexes.combinationMap.has(combinationKey);
         
@@ -527,6 +719,48 @@ export default function AddJobScreen() {
         onHide={hideNotification}
       />
       
+      {/* Camera Modals */}
+      <CameraModal
+        visible={showRegCamera}
+        onClose={() => setShowRegCamera(false)}
+        onCapture={handleRegCapture}
+        title="Scan Registration"
+        subtitle="Position the license plate in the frame"
+      />
+      
+      <CameraModal
+        visible={showJobCardCamera}
+        onClose={() => setShowJobCardCamera(false)}
+        onCapture={handleJobCardCapture}
+        title="Scan Job Card"
+        subtitle="Position the job card in the frame"
+      />
+      
+      {/* Scan Result Sheet */}
+      {scanResult && (
+        <ScanResultSheet
+          visible={showScanResult}
+          onClose={() => setShowScanResult(false)}
+          onApply={handleApplyScanResult}
+          reg={scanResult.reg}
+          wip={scanResult.wip}
+          jobNo={scanResult.jobNo}
+          allCandidates={scanResult.allCandidates}
+        />
+      )}
+      
+      {/* Scanning Overlay */}
+      {isScanning && (
+        <View style={styles.scanningOverlay}>
+          <View style={styles.scanningContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.scanningText, { color: colors.text }]}>
+              Processing scan...
+            </Text>
+          </View>
+        </View>
+      )}
+      
       <KeyboardAvoidingView 
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -547,7 +781,7 @@ export default function AddJobScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.form}>
-            {/* WIP Number Input with Dropdown Suggestions */}
+            {/* WIP Number Input with Scan Button */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>WIP Number *</Text>
               <TextInput
@@ -567,13 +801,11 @@ export default function AddJobScreen() {
                   }
                 }}
                 onBlur={() => {
-                  // Delay hiding to allow tap on suggestion
                   setTimeout(() => setShowWipSuggestions(false), 200);
                 }}
               />
               <Text style={styles.helperText}>Must be exactly 5 digits</Text>
               
-              {/* WIP Suggestions Dropdown - appears directly below input */}
               {showWipSuggestions && wipSuggestions.length > 0 && (
                 <View style={styles.suggestionsDropdown}>
                   <View style={styles.suggestionsHeader}>
@@ -622,31 +854,37 @@ export default function AddJobScreen() {
               )}
             </View>
 
-            {/* Vehicle Registration Input with Dropdown Suggestions */}
+            {/* Vehicle Registration Input with Scan Button */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Vehicle Registration *</Text>
-              <TextInput
-                ref={vehicleRef}
-                style={styles.input}
-                value={vehicleRegistration}
-                onChangeText={handleVehicleRegistrationChange}
-                placeholder="Enter vehicle registration"
-                placeholderTextColor={colors.textSecondary}
-                autoCapitalize="characters"
-                returnKeyType="next"
-                onSubmitEditing={() => notesRef.current?.focus()}
-                onFocus={() => {
-                  if (vehicleRegistration.trim().length > 0) {
-                    generateRegSuggestions(vehicleRegistration);
-                  }
-                }}
-                onBlur={() => {
-                  // Delay hiding to allow tap on suggestion
-                  setTimeout(() => setShowRegSuggestions(false), 200);
-                }}
-              />
+              <View style={styles.inputWithButton}>
+                <TextInput
+                  ref={vehicleRef}
+                  style={[styles.input, styles.inputWithIcon]}
+                  value={vehicleRegistration}
+                  onChangeText={handleVehicleRegistrationChange}
+                  placeholder="Enter vehicle registration"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="characters"
+                  returnKeyType="next"
+                  onSubmitEditing={() => notesRef.current?.focus()}
+                  onFocus={() => {
+                    if (vehicleRegistration.trim().length > 0) {
+                      generateRegSuggestions(vehicleRegistration);
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowRegSuggestions(false), 200);
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.scanIconButton}
+                  onPress={handleScanReg}
+                >
+                  <Text style={styles.scanIconText}>📷</Text>
+                </TouchableOpacity>
+              </View>
               
-              {/* Registration Suggestions Dropdown - appears directly below input */}
               {showRegSuggestions && regSuggestions.length > 0 && (
                 <View style={styles.suggestionsDropdown}>
                   <View style={styles.suggestionsHeader}>
@@ -694,6 +932,14 @@ export default function AddJobScreen() {
                 </View>
               )}
             </View>
+
+            {/* Scan Job Card Button */}
+            <TouchableOpacity
+              style={[styles.scanJobCardButton, { backgroundColor: colors.primary }]}
+              onPress={handleScanJobCard}
+            >
+              <Text style={styles.scanJobCardButtonText}>📄 Scan Job Card</Text>
+            </TouchableOpacity>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>AW Value *</Text>
@@ -924,6 +1170,40 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.text,
     minHeight: 48,
   },
+  inputWithButton: {
+    position: 'relative',
+  },
+  inputWithIcon: {
+    paddingRight: 56,
+  },
+  scanIconButton: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanIconText: {
+    fontSize: 20,
+  },
+  scanJobCardButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  scanJobCardButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
   notesInput: {
     minHeight: 100,
     paddingTop: 12,
@@ -1071,7 +1351,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Suggestions Dropdown Styles - appears below input
   suggestionsDropdown: {
     position: 'absolute',
     top: '100%',
@@ -1163,5 +1442,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     letterSpacing: 0.3,
+  },
+  scanningOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  scanningContainer: {
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+  },
+  scanningText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
   },
 });

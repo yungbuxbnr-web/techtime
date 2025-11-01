@@ -1,81 +1,82 @@
+
 {
   "expo": {
-    "name": "techtime",
+    "name": "TechTrace",
     "slug": "techtime",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
+    "icon": "./assets/images/final_quest_240x240.png",
+    "scheme": "techtime",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
+      "image": "./assets/images/final_quest_240x240.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.buxrug.techtime",
-      "buildNumber": "1",
-      "deploymentTarget": "13.4",
+      "bundleIdentifier": "com.techtime.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true,
-        "NSFaceIDUsageDescription": "We use Face ID to securely authenticate you and protect your technician records. This ensures only you can access your sensitive job data.",
-        "NSPhotoLibraryUsageDescription": "We need access to save exported reports to your photo library.",
-        "NSPhotoLibraryAddUsageDescription": "We need access to save exported reports to your photo library."
+        "NSCameraUsageDescription": "This app needs access to your camera to scan vehicle registration plates and job cards.",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone for video recording.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select images for scanning.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save photos to your library."
       },
-      "jsEngine": "hermes"
+      "usesIcloudStorage": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/final_quest_240x240.png",
+        "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.techtracer",
+      "package": "com.techtime.app",
       "permissions": [
-        "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
-      ],
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "data": [
-            {
-              "mimeType": "application/json"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ],
-      "jsEngine": "hermes"
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_MEDIA_LOCATION"
+      ]
     },
     "web": {
-      "favicon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/final_quest_240x240.png"
     },
     "plugins": [
-      "expo-font",
       "expo-router",
-      "expo-web-browser",
       [
-        "expo-local-authentication",
+        "expo-camera",
         {
-          "faceIDPermission": "Allow TechTime to use Face ID to authenticate you and protect your technician records. This ensures only you can access your sensitive job data."
+          "cameraPermission": "Allow TechTrace to access your camera to scan vehicle registration plates and job cards.",
+          "microphonePermission": "Allow TechTrace to access your microphone for video recording.",
+          "recordAudioAndroid": false
         }
       ],
-      "expo-document-picker"
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TechTrace to access your photos to select images for scanning."
+        }
+      ]
     ],
-    "scheme": "techtime",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "your-project-id"
+      },
+      "OCR_PROVIDER": "vision",
+      "OCR_API_KEY": ""
     }
   }
 }
