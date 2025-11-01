@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
+import { MonthlyResetService } from '../utils/monthlyReset';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
@@ -55,6 +56,15 @@ export default function JobsScreen() {
         router.replace('/auth');
         return;
       }
+      
+      // Check for monthly reset
+      try {
+        await MonthlyResetService.checkAndResetIfNewMonth();
+      } catch (resetError) {
+        console.log('[Jobs] Error checking monthly reset:', resetError);
+        // Don't block loading if reset check fails
+      }
+      
       await loadJobs();
     } catch (error) {
       console.log('Error checking auth:', error);

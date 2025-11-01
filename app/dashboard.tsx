@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
+import { MonthlyResetService } from '../utils/monthlyReset';
 import { Job, MonthlyStats } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
@@ -83,6 +84,28 @@ export default function DashboardScreen() {
     );
   }, [showNotification]);
 
+  const checkMonthlyReset = useCallback(async () => {
+    try {
+      const resetResult = await MonthlyResetService.checkAndResetIfNewMonth();
+      
+      if (resetResult.wasReset) {
+        const previousMonthName = MonthlyResetService.getMonthName(resetResult.previousMonth || 0);
+        const currentMonthName = MonthlyResetService.getMonthName(resetResult.currentMonth);
+        
+        showNotification(
+          `🗓️ New month detected!\n\nAbsence records have been automatically reset for ${currentMonthName} ${resetResult.currentYear}.\n\nPrevious month: ${previousMonthName} ${resetResult.previousYear}`,
+          'success'
+        );
+        console.log('[Dashboard] Monthly reset completed:', resetResult);
+      } else {
+        console.log('[Dashboard] No monthly reset needed');
+      }
+    } catch (error) {
+      console.log('[Dashboard] Error checking monthly reset:', error);
+      // Don't show error to user - this is a background operation
+    }
+  }, [showNotification]);
+
   const loadJobs = useCallback(async () => {
     try {
       const [jobsData, settings] = await Promise.all([
@@ -91,7 +114,7 @@ export default function DashboardScreen() {
       ]);
       setJobs(jobsData);
       
-      // Get current month's absence hours
+      // Get current month's absence hours (will be 0 if month was just reset)
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
       const absenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
@@ -123,12 +146,17 @@ export default function DashboardScreen() {
         router.replace('/auth');
         return;
       }
+      
+      // Check for monthly reset first
+      await checkMonthlyReset();
+      
+      // Then load jobs
       await loadJobs();
     } catch (error) {
       console.log('Error checking auth:', error);
       router.replace('/auth');
     }
-  }, [loadJobs]);
+  }, [loadJobs, checkMonthlyReset]);
 
   useFocusEffect(
     useCallback(() => {

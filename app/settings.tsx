@@ -9,6 +9,7 @@ import { BackupService, BackupData } from '../utils/backupService';
 import { BiometricService } from '../utils/biometricService';
 import { PDFImportService } from '../utils/pdfImportService';
 import { CalculationService } from '../utils/calculations';
+import { MonthlyResetService } from '../utils/monthlyReset';
 import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import GoogleDriveBackup from '../components/GoogleDriveBackup';
@@ -80,6 +81,18 @@ export default function SettingsScreen() {
         router.replace('/auth');
         return;
       }
+      
+      // Check for monthly reset
+      try {
+        const resetResult = await MonthlyResetService.checkAndResetIfNewMonth();
+        if (resetResult.wasReset) {
+          console.log('[Settings] Monthly reset completed:', resetResult);
+        }
+      } catch (resetError) {
+        console.log('[Settings] Error checking monthly reset:', resetError);
+        // Don't block loading if reset check fails
+      }
+      
       await loadData();
     } catch (error) {
       console.log('Error checking auth:', error);
