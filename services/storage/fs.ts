@@ -6,7 +6,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Type-safe access to FileSystem properties
 const DOC_DIR = (FileSystem as any).documentDirectory as string;
 const CACHE_DIR = (FileSystem as any).cacheDirectory as string;
-const UTF8 = ((FileSystem as any).EncodingType?.UTF8 ?? 'utf8') as any;
+
+// UTF-8 encoding helper - no EncodingType reference
+type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
+const UTF8: FsUtf = 'utf8';
 
 // Storage Access Framework helper (Android only)
 const getStorageAccessFramework = () => {
@@ -41,7 +44,7 @@ export async function writeJson(filePath: string, data: any): Promise<void> {
   try {
     const jsonString = JSON.stringify(data, null, 2);
     await FileSystem.writeAsStringAsync(filePath, jsonString, {
-      encoding: UTF8
+      encoding: UTF8 as any
     });
     console.log('[FS] JSON written to:', filePath);
   } catch (error) {
@@ -56,7 +59,7 @@ export async function writeJson(filePath: string, data: any): Promise<void> {
 export async function readJson<T = any>(filePath: string): Promise<T> {
   try {
     const content = await FileSystem.readAsStringAsync(filePath, {
-      encoding: UTF8
+      encoding: UTF8 as any
     });
     
     if (!content || content.trim().length === 0) {
@@ -154,7 +157,7 @@ export async function safWriteText(fileUri: string, content: string): Promise<vo
   
   try {
     await FileSystem.writeAsStringAsync(fileUri, content, {
-      encoding: UTF8
+      encoding: UTF8 as any
     });
     console.log('[FS] SAF text written to:', fileUri);
   } catch (error) {

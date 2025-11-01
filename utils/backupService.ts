@@ -1,5 +1,4 @@
 
-/* eslint-disable import/namespace */
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as DocumentPicker from 'expo-document-picker';
@@ -10,6 +9,10 @@ import { Platform } from 'react-native';
 
 const BACKUP_FOLDER_NAME = 'TechTraceData';
 const BACKUP_FILE_NAME = 'backup.json';
+
+// UTF-8 encoding helper - no EncodingType reference
+type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
+const UTF8: FsUtf = 'utf8';
 
 export interface BackupData {
   version: string;
@@ -130,7 +133,7 @@ const checkDirectoryWritable = async (directoryPath: string): Promise<boolean> =
   try {
     const testFilePath = `${directoryPath}test_write_${Date.now()}.tmp`;
     await FileSystem.writeAsStringAsync(testFilePath, 'test', { 
-      encoding: 'utf8'
+      encoding: UTF8 as any
     });
     await FileSystem.deleteAsync(testFilePath, { idempotent: true });
     console.log('Directory is writable:', directoryPath);
@@ -159,7 +162,7 @@ const verifyBackupFile = async (filePath: string): Promise<{ valid: boolean; mes
     
     // Read and parse file content
     const content = await FileSystem.readAsStringAsync(filePath, { 
-      encoding: 'utf8'
+      encoding: UTF8 as any
     });
     const data = JSON.parse(content);
     
@@ -331,7 +334,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         backupFilePath,
         JSON.stringify(backupData, null, 2),
-        { encoding: 'utf8' }
+        { encoding: UTF8 as any }
       );
       console.log('✓ Timestamped backup file written:', backupFileName);
 
@@ -341,7 +344,7 @@ export const BackupService = {
       await FileSystem.writeAsStringAsync(
         latestBackupPath,
         JSON.stringify(backupData, null, 2),
-        { encoding: 'utf8' }
+        { encoding: UTF8 as any }
       );
       console.log('✓ Latest backup file written');
 
@@ -500,7 +503,7 @@ export const BackupService = {
       // Step 4: Read backup file
       console.log('Step 4: Reading backup file...');
       const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
-        encoding: 'utf8'
+        encoding: UTF8 as any
       });
 
       // Step 5: Parse backup data

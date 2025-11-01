@@ -25,9 +25,6 @@ const CONFIG_KEY = 'google_drive_config';
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-// Type-safe encoding
-const UTF8 = ((FileSystem as any).EncodingType?.UTF8 ?? 'utf8') as any;
-
 export interface DriveConfig {
   clientId: string;
   clientSecret: string;

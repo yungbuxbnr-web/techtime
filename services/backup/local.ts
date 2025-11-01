@@ -18,8 +18,19 @@ const DATA_FOLDER = 'data';
 const RECORDS_FILE = 'records.json';
 const SAF_URI_KEY = 'saf_backup_uri';
 
-// Safe encoding type with fallback
-const UTF8 = ((FileSystem as any).EncodingType?.UTF8 ?? 'utf8') as any;
+// UTF-8 encoding helper - no EncodingType reference
+type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
+const UTF8: FsUtf = 'utf8';
+
+export async function writeJsonUtf8(path: string, obj: unknown) {
+  const data = JSON.stringify(obj);
+  await FileSystem.writeAsStringAsync(path, data, { encoding: UTF8 as any });
+}
+
+export async function readJsonUtf8<T = unknown>(path: string): Promise<T> {
+  const str = await FileSystem.readAsStringAsync(path, { encoding: UTF8 as any });
+  return JSON.parse(str) as T;
+}
 
 // Storage Access Framework helper (Android only)
 const getStorageAccessFramework = () => {
@@ -661,10 +672,10 @@ export const LocalBackupService = {
             
             // Note: PDF export to SAF is optional and may fail
             try {
-              const pdfContent = await FileSystem.readAsStringAsync(pdfPath, { encoding: 'base64' });
+              const pdfContent = await FileSystem.readAsStringAsync(pdfPath, { encoding: 'base64' as any });
               const safPdfUri = await FS.safCreateFile(safUri, pdfFileName, 'application/pdf');
               if (safPdfUri) {
-                await FileSystem.writeAsStringAsync(safPdfUri, pdfContent, { encoding: 'base64' });
+                await FileSystem.writeAsStringAsync(safPdfUri, pdfContent, { encoding: 'base64' as any });
                 console.log('✓ PDF backup exported to SAF:', safPdfUri);
               }
             } catch (pdfError) {
@@ -746,12 +757,8 @@ export const LocalBackupService = {
       const jsonFileName = `techtime-backup-${timestampForFile}.json`;
       const jsonPath = `${CACHE_DIR}${jsonFileName}`;
       
-      // Write JSON to cache
-      await FileSystem.writeAsStringAsync(
-        jsonPath,
-        JSON.stringify(backupData, null, 2),
-        { encoding: UTF8 }
-      );
+      // Write JSON to cache using helper
+      await writeJsonUtf8(jsonPath, backupData);
       
       console.log('✓ JSON backup created in cache:', jsonPath);
       
@@ -867,12 +874,8 @@ export const LocalBackupService = {
         };
       }
       
-      // Read and parse JSON
-      const content = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: UTF8
-      });
-      
-      const backupData: BackupData = JSON.parse(content);
+      // Read and parse JSON using helper
+      const backupData: BackupData = await readJsonUtf8(fileUri);
       
       // Validate schema
       const validation = validateBackupSchema(backupData);
@@ -1014,12 +1017,8 @@ export const LocalBackupService = {
         };
       }
       
-      // For JSON, import/merge
-      const content = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: UTF8
-      });
-      
-      const backupData: BackupData = JSON.parse(content);
+      // For JSON, import/merge using helper
+      const backupData: BackupData = await readJsonUtf8(fileUri);
       
       // Validate schema
       if (!backupData.jobs || !Array.isArray(backupData.jobs)) {

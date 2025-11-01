@@ -2,8 +2,19 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 
-// Safe UTF-8 encoding fallback for cross-SDK compatibility
-const UTF8 = (FileSystem.EncodingType?.UTF8 ?? 'utf8') as any;
+// UTF-8 encoding helper - no EncodingType reference
+type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
+const UTF8: FsUtf = 'utf8';
+
+export async function writeJsonUtf8(path: string, obj: unknown) {
+  const data = JSON.stringify(obj);
+  await FileSystem.writeAsStringAsync(path, data, { encoding: UTF8 as any });
+}
+
+export async function readJsonUtf8<T = unknown>(path: string): Promise<T> {
+  const str = await FileSystem.readAsStringAsync(path, { encoding: UTF8 as any });
+  return JSON.parse(str) as T;
+}
 
 // OCR Provider types
 export type OCRProvider = 'vision' | 'tesseract' | 'mock';
@@ -57,7 +68,7 @@ async function performVisionOCR(imageUri: string, apiKey: string, timeout: numbe
   try {
     // Read image as base64
     const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: UTF8,
+      encoding: 'base64' as any,
     });
     
     console.log('[OCR] Image encoded, size:', base64Image.length, 'chars');
