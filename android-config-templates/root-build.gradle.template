@@ -9,8 +9,11 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.10909125"
         
-        // Kotlin version
-        kotlinVersion = "2.1.0"
+        // Kotlin version - Updated to 2.1.20 to align with KSP
+        kotlinVersion = "2.1.20"
+        
+        // KSP version - Aligned with Kotlin 2.1.20
+        kspVersion = "2.1.20-2.0.1"
         
         // AGP version
         agpVersion = "8.5.0"
@@ -22,6 +25,8 @@ buildscript {
     dependencies {
         classpath("com.android.tools.build:gradle:$agpVersion")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        // KSP plugin - Add if using KSP-based libraries
+        // classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -48,5 +53,20 @@ allprojects {
 allprojects {
     tasks.configureEach {
         it.environment("NODE_ENV", System.getenv("NODE_ENV") ?: "production")
+    }
+}
+
+// ============================================================
+// Configure KSP for all subprojects that use it
+// This enables incremental processing and limits memory churn
+// ============================================================
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin('com.google.devtools.ksp')) {
+            project.extensions.configure('ksp') {
+                arg("ksp.incremental", "true")
+                arg("ksp.incremental.log", "false")
+            }
+        }
     }
 }

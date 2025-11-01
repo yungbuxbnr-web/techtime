@@ -12,15 +12,37 @@
 # MEMORY CONFIGURATION - FIX METASPACE OOM ERRORS
 # ============================================================================
 
-# Increase JVM memory for Gradle daemon
-# Adjust -Xmx4g to -Xmx3g or -Xmx2g if system has limited RAM
-org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
+# Increase JVM memory for Gradle daemon to 6GB with 2GB Metaspace
+# This fixes Metaspace OOM in :expo-updates:kspReleaseKotlin and lintVitalAnalyzeRelease
+org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2048m -Dfile.encoding=UTF-8 -XX:+UseParallelGC
 
-# Increase Kotlin daemon memory
-kotlin.daemon.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1024m
+# Increase Kotlin daemon memory to 3GB with 1GB Metaspace
+kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m
 
 # Enable incremental compilation for Kotlin
 kotlin.incremental=true
+
+# Use in-process Kotlin compiler execution strategy
+-Dkotlin.compiler.execution.strategy=in-process
+
+# ============================================================================
+# GRADLE OPTIMIZATION - TAME PARALLELISM
+# ============================================================================
+
+# Limit maximum number of worker processes to 2 (reduce to 1 if still OOM)
+org.gradle.workers.max=2
+
+# Enable Gradle caching for faster builds
+org.gradle.caching=true
+
+# Disable file system watching to avoid lock issues
+org.gradle.vfs.watch=false
+
+# Disable Gradle daemon in CI environments (uncomment if needed)
+# org.gradle.daemon=false
+
+# Disable parallel builds to reduce resource usage (uncomment if needed)
+# org.gradle.parallel=false
 
 # ============================================================================
 # ANDROID CONFIGURATION
@@ -36,25 +58,6 @@ android.enableJetifier=true
 
 # Use non-transitive R classes for faster builds
 android.nonTransitiveRClass=true
-
-# ============================================================================
-# GRADLE OPTIMIZATION
-# ============================================================================
-
-# Limit maximum number of worker processes
-org.gradle.workers.max=2
-
-# Enable Gradle caching for faster builds
-org.gradle.caching=true
-
-# Disable file system watching to avoid lock issues
-org.gradle.vfs.watch=false
-
-# Disable Gradle daemon in CI environments (uncomment if needed)
-# org.gradle.daemon=false
-
-# Disable parallel builds to reduce resource usage (uncomment if needed)
-# org.gradle.parallel=false
 
 # ============================================================================
 # REACT NATIVE CONFIGURATION
@@ -82,6 +85,9 @@ hermesEnabled=true
 
 # Enable incremental processing for KSP
 ksp.incremental=true
+
+# Disable KSP incremental logging to reduce overhead
+ksp.incremental.log=false
 
 # ============================================================================
 # ADDITIONAL OPTIMIZATIONS

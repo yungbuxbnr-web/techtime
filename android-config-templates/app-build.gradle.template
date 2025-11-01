@@ -70,22 +70,24 @@ android {
     }
     
     // ============================================================
-    // FIX: Disable LintVital to prevent build failures
+    // FIX: Disable LintVital to prevent build failures and reduce memory pressure
+    // This prevents lintVitalAnalyzeRelease from failing the build
     // ============================================================
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+        disable 'MissingTranslation', 'ExtraTranslation'
+    }
+    
+    // For newer AGP versions (>= 7.0), also use lint block:
     lint {
         abortOnError false
         checkReleaseBuilds false
         disable 'MissingTranslation', 'ExtraTranslation'
     }
     
-    // For older AGP versions (< 7.0), use lintOptions instead:
-    // lintOptions {
-    //     abortOnError false
-    //     checkReleaseBuilds false
-    // }
-    
     // ============================================================
-    // Java 17 Compatibility
+    // Java 17 Compatibility - Required for JDK 17
     // ============================================================
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -121,10 +123,12 @@ android {
 }
 
 // ============================================================
-// KSP Configuration (if using KSP-based libraries)
+// KSP Configuration - Enable incremental processing to limit memory churn
+// Add this block if using KSP-based libraries (Room, Moshi, etc.)
 // ============================================================
 // ksp {
 //     arg("ksp.incremental", "true")
+//     arg("ksp.incremental.log", "false")
 // }
 
 dependencies {
