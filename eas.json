@@ -1,3 +1,4 @@
+
 {
   "cli": {
     "version": ">= 5.0.0"
@@ -9,35 +10,43 @@
       "autoIncrement": true,
       "image": "latest",
       "env": {
-        "NODE_ENV": "development"
-      }
+        "NODE_ENV": "development",
+        "NODE_OPTIONS": "--max-old-space-size=4096"
+      },
+      "node": "18.x"
     },
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
       "image": "latest",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "ios": {
         "buildConfiguration": "Release"
       },
       "env": {
-        "NODE_ENV": "production"
-      }
+        "NODE_ENV": "production",
+        "NODE_OPTIONS": "--max-old-space-size=8192"
+      },
+      "node": "18.x"
     },
     "production": {
       "autoIncrement": true,
       "image": "latest",
       "android": {
-        "buildType": "aab"
+        "buildType": "aab",
+        "gradleCommand": ":app:bundleRelease"
       },
       "ios": {
         "buildConfiguration": "Release"
       },
       "env": {
-        "NODE_ENV": "production"
-      }
+        "NODE_ENV": "production",
+        "NODE_OPTIONS": "--max-old-space-size=8192"
+      },
+      "node": "18.x"
     }
   },
   "submit": {
