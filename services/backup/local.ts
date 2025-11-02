@@ -11,27 +11,15 @@ import { Job } from '../../types';
 import * as FS from '../storage/fs';
 
 // Type-safe access to FileSystem properties
-const getDocDir = () => FS.getDocumentDirectory();
-const getCacheDir = () => FS.getCacheDirectory();
-
+const DOC_DIR = FS.getDocumentDirectory();
+const CACHE_DIR = FS.getCacheDirectory();
 const BACKUP_FOLDER = 'backups';
 const DATA_FOLDER = 'data';
 const RECORDS_FILE = 'records.json';
 const SAF_URI_KEY = 'saf_backup_uri';
 
-// UTF-8 encoding helper - no EncodingType reference
-type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
-const UTF8: FsUtf = 'utf8';
-
-export async function writeJsonUtf8(path: string, obj: unknown) {
-  const data = JSON.stringify(obj);
-  await FileSystem.writeAsStringAsync(path, data, { encoding: UTF8 as any });
-}
-
-export async function readJsonUtf8<T = unknown>(path: string): Promise<T> {
-  const str = await FileSystem.readAsStringAsync(path, { encoding: UTF8 as any });
-  return JSON.parse(str) as T;
-}
+// Safe encoding type with fallback
+const UTF8 = ((FileSystem as any).EncodingType?.UTF8 ?? 'utf8') as any;
 
 // Storage Access Framework helper (Android only)
 const getStorageAccessFramework = () => {
@@ -185,14 +173,6 @@ export const LocalBackupService = {
    */
   async setupBackupFolder(): Promise<{ success: boolean; message: string; uri?: string }> {
     try {
-      // Check if file system is available
-      if (!FS.isFileSystemAvailable()) {
-        return {
-          success: false,
-          message: 'File system is not available on this device. Please restart the app and try again.'
-        };
-      }
-      
       if (Platform.OS === 'android') {
         console.log('[Android] Requesting SAF directory permissions...');
         
@@ -233,12 +213,10 @@ export const LocalBackupService = {
         // iOS: Show info sheet
         console.log('[iOS] Showing backup folder info...');
         
-        const docDir = getDocDir();
-        
         return {
           success: true,
           message: '📱 iOS Backup Information\n\niOS doesn\'t allow permanent external folder access. Backups are saved to:\n\n📁 On My iPhone › TechTime › Documents › backups\n\nWhen exporting, you\'ll be prompted to choose a location each time (Files, iCloud Drive, etc.).',
-          uri: docDir
+          uri: DOC_DIR
         };
       }
     } catch (error) {
@@ -266,18 +244,9 @@ export const LocalBackupService = {
         }
       }
       
-      const docDir = getDocDir();
-      if (!docDir || docDir.length === 0) {
-        return {
-          success: false,
-          location: 'File system not available',
-          type: 'sandbox'
-        };
-      }
-      
       return {
         success: true,
-        location: `${docDir}${BACKUP_FOLDER}/`,
+        location: `${DOC_DIR}${BACKUP_FOLDER}/`,
         type: 'sandbox'
       };
     } catch (error) {
@@ -323,14 +292,6 @@ export const LocalBackupService = {
     try {
       console.log('=== TESTING BACKUP ===');
       
-      // Check if file system is available
-      if (!FS.isFileSystemAvailable()) {
-        return {
-          success: false,
-          message: '❌ File system not available. Please restart the app and try again.'
-        };
-      }
-      
       // Create test data
       const testData = {
         version: BACKUP_VERSION,
@@ -348,15 +309,7 @@ export const LocalBackupService = {
       };
 
       // Ensure backup directory
-      const docDir = getDocDir();
-      if (!docDir || docDir.length === 0) {
-        return {
-          success: false,
-          message: '❌ Document directory not available'
-        };
-      }
-      
-      const backupDir = `${docDir}${BACKUP_FOLDER}/`;
+      const backupDir = `${DOC_DIR}${BACKUP_FOLDER}/`;
       await FS.ensureDir(backupDir);
 
       // Write test file
@@ -432,17 +385,7 @@ export const LocalBackupService = {
    */
   async ensureBackupDirectory(): Promise<{ success: boolean; path: string | null }> {
     try {
-      // Check if file system is available
-      if (!FS.isFileSystemAvailable()) {
-        return { success: false, path: null };
-      }
-      
-      const docDir = getDocDir();
-      if (!docDir || docDir.length === 0) {
-        return { success: false, path: null };
-      }
-      
-      const backupDir = `${docDir}${BACKUP_FOLDER}/`;
+      const backupDir = `${DOC_DIR}${BACKUP_FOLDER}/`;
       const dirInfo = await FileSystem.getInfoAsync(backupDir);
       
       if (!dirInfo.exists) {
@@ -643,14 +586,6 @@ export const LocalBackupService = {
     try {
       console.log('=== CREATING LOCAL BACKUP ===');
       
-      // Check if file system is available
-      if (!FS.isFileSystemAvailable()) {
-        return {
-          success: false,
-          message: 'File system is not available. Please restart the app and try again.'
-        };
-      }
-      
       // Ensure backup directory exists
       const dirResult = await this.ensureBackupDirectory();
       if (!dirResult.success || !dirResult.path) {
@@ -726,10 +661,10 @@ export const LocalBackupService = {
             
             // Note: PDF export to SAF is optional and may fail
             try {
-              const pdfContent = await FileSystem.readAsStringAsync(pdfPath, { encoding: 'base64' as any });
+              const pdfContent = await FileSystem.readAsStringAsync(pdfPath, { encoding: 'base64' });
               const safPdfUri = await FS.safCreateFile(safUri, pdfFileName, 'application/pdf');
               if (safPdfUri) {
-                await FileSystem.writeAsStringAsync(safPdfUri, pdfContent, { encoding: 'base64' as any });
+                await FileSystem.writeAsStringAsync(safPdfUri, pdfContent, { encoding: 'base64' });
                 console.log('✓ PDF backup exported to SAF:', safPdfUri);
               }
             } catch (pdfError) {
@@ -777,14 +712,6 @@ export const LocalBackupService = {
         };
       }
       
-      // Check if file system is available
-      if (!FS.isFileSystemAvailable()) {
-        return {
-          success: false,
-          message: 'File system is not available. Please restart the app and try again.'
-        };
-      }
-      
       // Get all app data
       const jobs = await StorageService.getJobs();
       const settings = await StorageService.getSettings();
@@ -809,8 +736,7 @@ export const LocalBackupService = {
       };
       
       // Create temporary file in cache directory
-      const cacheDir = getCacheDir();
-      if (!cacheDir || cacheDir.length === 0) {
+      if (!CACHE_DIR) {
         return {
           success: false,
           message: 'Cache directory not available'
@@ -818,10 +744,14 @@ export const LocalBackupService = {
       }
       
       const jsonFileName = `techtime-backup-${timestampForFile}.json`;
-      const jsonPath = `${cacheDir}${jsonFileName}`;
+      const jsonPath = `${CACHE_DIR}${jsonFileName}`;
       
-      // Write JSON to cache using helper
-      await writeJsonUtf8(jsonPath, backupData);
+      // Write JSON to cache
+      await FileSystem.writeAsStringAsync(
+        jsonPath,
+        JSON.stringify(backupData, null, 2),
+        { encoding: UTF8 }
+      );
       
       console.log('✓ JSON backup created in cache:', jsonPath);
       
@@ -937,8 +867,12 @@ export const LocalBackupService = {
         };
       }
       
-      // Read and parse JSON using helper
-      const backupData: BackupData = await readJsonUtf8(fileUri);
+      // Read and parse JSON
+      const content = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: UTF8
+      });
+      
+      const backupData: BackupData = JSON.parse(content);
       
       // Validate schema
       const validation = validateBackupSchema(backupData);
@@ -1080,8 +1014,12 @@ export const LocalBackupService = {
         };
       }
       
-      // For JSON, import/merge using helper
-      const backupData: BackupData = await readJsonUtf8(fileUri);
+      // For JSON, import/merge
+      const content = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: UTF8
+      });
+      
+      const backupData: BackupData = JSON.parse(content);
       
       // Validate schema
       if (!backupData.jobs || !Array.isArray(backupData.jobs)) {
@@ -1120,14 +1058,6 @@ export const LocalBackupService = {
         return {
           success: false,
           message: 'Sharing is not available on this device'
-        };
-      }
-      
-      // Check if file system is available
-      if (!FS.isFileSystemAvailable()) {
-        return {
-          success: false,
-          message: 'File system is not available. Please restart the app and try again.'
         };
       }
       

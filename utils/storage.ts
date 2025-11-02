@@ -27,12 +27,11 @@ const defaultSettings: AppSettings = {
 
 export const getTechnicianName = async (): Promise<string | null> => {
   try {
-    console.log('[Storage] Getting technician name...');
     const name = await AsyncStorage.getItem(TECHNICIAN_NAME_KEY);
-    console.log('[Storage] Retrieved technician name:', name || 'Not set');
+    console.log('Retrieved technician name:', name || 'Not set');
     return name;
   } catch (error) {
-    console.log('[Storage] Error getting technician name:', error);
+    console.log('Error getting technician name:', error);
     return null;
   }
 };
@@ -328,17 +327,14 @@ export const StorageService = {
   // Settings management
   async getSettings(): Promise<AppSettings> {
     try {
-      console.log('[Storage] Getting settings...');
       const settingsJson = await AsyncStorage.getItem(SETTINGS_KEY);
       if (settingsJson) {
         const settings = JSON.parse(settingsJson);
-        console.log('[Storage] Settings loaded from storage');
         return { ...defaultSettings, ...settings };
       }
-      console.log('[Storage] No settings found, using defaults');
       return defaultSettings;
     } catch (error) {
-      console.log('[Storage] Error getting settings:', error);
+      console.log('Error getting settings:', error);
       return defaultSettings;
     }
   },

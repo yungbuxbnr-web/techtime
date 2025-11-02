@@ -19,23 +19,21 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [colors, setColors] = useState(lightColors);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load theme from storage on mount - non-blocking
+  // Load theme from storage on mount
   useEffect(() => {
     loadTheme();
   }, []);
 
   const loadTheme = async () => {
     try {
-      console.log('[ThemeProvider] Loading theme from storage...');
       const settings = await StorageService.getSettings();
       const savedTheme = settings.theme || 'light';
-      
-      console.log('[ThemeProvider] Theme loaded:', savedTheme);
       setThemeState(savedTheme);
       setColors(savedTheme === 'dark' ? darkColors : lightColors);
+      console.log('Theme loaded:', savedTheme);
     } catch (error) {
-      console.log('[ThemeProvider] Error loading theme, using default light theme:', error);
-      // Default to light theme on error
+      console.log('Error loading theme:', error);
+      // Default to light theme
       setThemeState('light');
       setColors(lightColors);
     } finally {
@@ -45,15 +43,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const setTheme = async (newTheme: Theme) => {
     try {
-      console.log('[ThemeProvider] Setting theme to:', newTheme);
       setThemeState(newTheme);
       setColors(newTheme === 'dark' ? darkColors : lightColors);
       
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, theme: newTheme });
-      console.log('[ThemeProvider] Theme saved successfully');
+      console.log('Theme updated to:', newTheme);
     } catch (error) {
-      console.log('[ThemeProvider] Error setting theme:', error);
+      console.log('Error setting theme:', error);
     }
   };
 
@@ -62,7 +59,11 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     await setTheme(newTheme);
   };
 
-  // Render immediately with default theme - theme will update once loaded
+  // Don't render children until theme is loaded
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <ThemeContext.Provider value={{ theme, colors, toggleTheme, setTheme }}>
       {children}
@@ -73,18 +74,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    // Return default theme instead of throwing error to prevent crashes
-    console.log('[useTheme] Warning: useTheme called outside ThemeProvider, using default theme');
-    return {
-      theme: 'light' as Theme,
-      colors: lightColors,
-      toggleTheme: async () => {
-        console.log('[useTheme] toggleTheme called outside provider');
-      },
-      setTheme: async () => {
-        console.log('[useTheme] setTheme called outside provider');
-      },
-    };
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
 };

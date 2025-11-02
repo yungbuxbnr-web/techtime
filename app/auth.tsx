@@ -20,36 +20,6 @@ export default function AuthScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
   const [hasAttemptedBiometric, setHasAttemptedBiometric] = useState(false);
-  const [isCheckingName, setIsCheckingName] = useState(true);
-
-  useEffect(() => {
-    console.log('[Auth] Screen loaded');
-    checkTechnicianName();
-  }, []);
-
-  const checkTechnicianName = async () => {
-    try {
-      console.log('[Auth] Checking if technician name is set...');
-      const name = await StorageService.getTechnicianName();
-      
-      if (!name) {
-        console.log('[Auth] No technician name found, redirecting to set-name');
-        router.replace('/set-name');
-        return;
-      }
-      
-      console.log('[Auth] Technician name found:', name);
-      setTechnicianName(name);
-      setIsCheckingName(false);
-      
-      // Now load settings and check biometric
-      loadSettings();
-      checkBiometricAvailability();
-    } catch (error) {
-      console.log('[Auth] Error checking technician name:', error);
-      setIsCheckingName(false);
-    }
-  };
 
   const handleBiometricAuth = useCallback(async () => {
     try {
@@ -101,6 +71,13 @@ export default function AuthScreen() {
     }
   }, [handleBiometricAuth, hasAttemptedBiometric]);
 
+  useEffect(() => {
+    loadSettings();
+    loadTechnicianName();
+    checkBiometricAvailability();
+    console.log('Auth screen loaded - Authentication required on app start');
+  }, [checkBiometricAvailability]);
+
   const loadSettings = async () => {
     try {
       const settings = await StorageService.getSettings();
@@ -108,6 +85,18 @@ export default function AuthScreen() {
       console.log('Settings loaded, authentication required');
     } catch (error) {
       console.log('Error loading settings:', error);
+    }
+  };
+
+  const loadTechnicianName = async () => {
+    try {
+      const name = await StorageService.getTechnicianName();
+      if (name) {
+        setTechnicianName(name);
+        console.log('Technician name loaded:', name);
+      }
+    } catch (error) {
+      console.log('Error loading technician name:', error);
     }
   };
 
@@ -187,15 +176,6 @@ export default function AuthScreen() {
 
   const styles = createStyles(colors);
 
-  // Show loading while checking for technician name
-  if (isCheckingName) {
-    return (
-      <View style={[styles.container, styles.center]}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -258,15 +238,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-  },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
   },
   header: {
     alignItems: 'center',

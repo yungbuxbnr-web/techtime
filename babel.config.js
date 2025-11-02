@@ -1,38 +1,34 @@
-
 module.exports = function (api) {
   api.cache(true);
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      '@babel/plugin-proposal-export-namespace-from',
-      'react-native-reanimated/plugin',
       [
         'module-resolver',
         {
           root: ['./'],
-          extensions: ['.ios.js', '.android.js', '.js', '.ts', '.tsx', '.json'],
+          extensions: [
+            '.ios.ts',
+            '.android.ts',
+            '.ts',
+            '.ios.tsx',
+            '.android.tsx',
+            '.tsx',
+            '.jsx',
+            '.js',
+            '.json',
+          ],
           alias: {
             '@': './',
             '@components': './components',
-            '@utils': './utils',
-            '@services': './services',
-            '@features': './features',
-            '@contexts': './contexts',
+            '@style': './style',
+            '@hooks': './hooks',
             '@types': './types',
           },
         },
       ],
-      [
-        'module:react-native-dotenv',
-        {
-          moduleName: '@env',
-          path: '.env',
-          blacklist: null,
-          whitelist: null,
-          safe: false,
-          allowUndefined: true,
-        },
-      ],
+      '@babel/plugin-proposal-export-namespace-from',
+      'react-native-worklets/plugin', // react-native-worklets/plugin must be listed last!
     ],
   };
 };
