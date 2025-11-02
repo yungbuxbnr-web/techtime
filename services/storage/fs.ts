@@ -3,10 +3,6 @@ import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Type-safe access to FileSystem properties
-const DOC_DIR = (FileSystem as any).documentDirectory as string;
-const CACHE_DIR = (FileSystem as any).cacheDirectory as string;
-
 // UTF-8 encoding helper - no EncodingType reference
 type FsUtf = FileSystem.FileSystemEncoding | 'utf8';
 const UTF8: FsUtf = 'utf8';
@@ -22,10 +18,75 @@ const getStorageAccessFramework = () => {
 const SAF_URI_KEY = 'saf_backup_uri';
 
 /**
+ * Get document directory path with fallback
+ */
+export function getDocumentDirectory(): string {
+  try {
+    const docDir = (FileSystem as any).documentDirectory;
+    if (docDir && typeof docDir === 'string') {
+      return docDir;
+    }
+    
+    // Fallback to cache directory if document directory is not available
+    const cacheDir = (FileSystem as any).cacheDirectory;
+    if (cacheDir && typeof cacheDir === 'string') {
+      console.log('[FS] Document directory not available, using cache directory');
+      return cacheDir;
+    }
+    
+    // Last resort: return empty string (will cause errors but won't crash at module load)
+    console.log('[FS] WARNING: No file system directory available');
+    return '';
+  } catch (error) {
+    console.log('[FS] Error accessing document directory:', error);
+    return '';
+  }
+}
+
+/**
+ * Get cache directory path with fallback
+ */
+export function getCacheDirectory(): string {
+  try {
+    const cacheDir = (FileSystem as any).cacheDirectory;
+    if (cacheDir && typeof cacheDir === 'string') {
+      return cacheDir;
+    }
+    
+    // Fallback to document directory if cache directory is not available
+    const docDir = (FileSystem as any).documentDirectory;
+    if (docDir && typeof docDir === 'string') {
+      console.log('[FS] Cache directory not available, using document directory');
+      return docDir;
+    }
+    
+    // Last resort: return empty string
+    console.log('[FS] WARNING: No file system directory available');
+    return '';
+  } catch (error) {
+    console.log('[FS] Error accessing cache directory:', error);
+    return '';
+  }
+}
+
+/**
+ * Check if file system is available
+ */
+export function isFileSystemAvailable(): boolean {
+  const docDir = getDocumentDirectory();
+  const cacheDir = getCacheDirectory();
+  return (docDir && docDir.length > 0) || (cacheDir && cacheDir.length > 0);
+}
+
+/**
  * Ensure a directory exists, creating it if necessary
  */
 export async function ensureDir(dirPath: string): Promise<void> {
   try {
+    if (!dirPath || dirPath.length === 0) {
+      throw new Error('Invalid directory path');
+    }
+    
     const dirInfo = await FileSystem.getInfoAsync(dirPath);
     if (!dirInfo.exists) {
       console.log('[FS] Creating directory:', dirPath);
@@ -42,6 +103,10 @@ export async function ensureDir(dirPath: string): Promise<void> {
  */
 export async function writeJson(filePath: string, data: any): Promise<void> {
   try {
+    if (!filePath || filePath.length === 0) {
+      throw new Error('Invalid file path');
+    }
+    
     const jsonString = JSON.stringify(data, null, 2);
     await FileSystem.writeAsStringAsync(filePath, jsonString, {
       encoding: UTF8 as any
@@ -58,6 +123,10 @@ export async function writeJson(filePath: string, data: any): Promise<void> {
  */
 export async function readJson<T = any>(filePath: string): Promise<T> {
   try {
+    if (!filePath || filePath.length === 0) {
+      throw new Error('Invalid file path');
+    }
+    
     const content = await FileSystem.readAsStringAsync(filePath, {
       encoding: UTF8 as any
     });
@@ -83,6 +152,10 @@ export async function readJson<T = any>(filePath: string): Promise<T> {
  */
 export async function exists(path: string): Promise<boolean> {
   try {
+    if (!path || path.length === 0) {
+      return false;
+    }
+    
     const info = await FileSystem.getInfoAsync(path);
     return info.exists;
   } catch (error) {
@@ -96,6 +169,10 @@ export async function exists(path: string): Promise<boolean> {
  */
 export async function getLatestBackup(dirPath: string): Promise<string | null> {
   try {
+    if (!dirPath || dirPath.length === 0) {
+      return null;
+    }
+    
     const dirExists = await exists(dirPath);
     if (!dirExists) {
       return null;
@@ -217,24 +294,14 @@ export async function clearSafUri(): Promise<void> {
 }
 
 /**
- * Get document directory path
- */
-export function getDocumentDirectory(): string {
-  return DOC_DIR;
-}
-
-/**
- * Get cache directory path
- */
-export function getCacheDirectory(): string {
-  return CACHE_DIR;
-}
-
-/**
  * Delete a file
  */
 export async function deleteFile(filePath: string): Promise<void> {
   try {
+    if (!filePath || filePath.length === 0) {
+      throw new Error('Invalid file path');
+    }
+    
     await FileSystem.deleteAsync(filePath, { idempotent: true });
     console.log('[FS] File deleted:', filePath);
   } catch (error) {
@@ -248,6 +315,10 @@ export async function deleteFile(filePath: string): Promise<void> {
  */
 export async function copyFile(from: string, to: string): Promise<void> {
   try {
+    if (!from || from.length === 0 || !to || to.length === 0) {
+      throw new Error('Invalid file paths');
+    }
+    
     await FileSystem.copyAsync({ from, to });
     console.log('[FS] File copied from', from, 'to', to);
   } catch (error) {
@@ -261,6 +332,10 @@ export async function copyFile(from: string, to: string): Promise<void> {
  */
 export async function moveFile(from: string, to: string): Promise<void> {
   try {
+    if (!from || from.length === 0 || !to || to.length === 0) {
+      throw new Error('Invalid file paths');
+    }
+    
     await FileSystem.moveAsync({ from, to });
     console.log('[FS] File moved from', from, 'to', to);
   } catch (error) {
@@ -274,6 +349,10 @@ export async function moveFile(from: string, to: string): Promise<void> {
  */
 export async function getFileInfo(filePath: string): Promise<FileSystem.FileInfo> {
   try {
+    if (!filePath || filePath.length === 0) {
+      throw new Error('Invalid file path');
+    }
+    
     return await FileSystem.getInfoAsync(filePath);
   } catch (error) {
     console.log('[FS] Error getting file info:', error);
@@ -286,6 +365,10 @@ export async function getFileInfo(filePath: string): Promise<FileSystem.FileInfo
  */
 export async function listFiles(dirPath: string): Promise<string[]> {
   try {
+    if (!dirPath || dirPath.length === 0) {
+      return [];
+    }
+    
     const dirExists = await exists(dirPath);
     if (!dirExists) {
       return [];
