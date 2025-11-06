@@ -8,6 +8,10 @@
       "distribution": "internal",
       "autoIncrement": true,
       "image": "latest",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug"
+      },
       "env": {
         "NODE_ENV": "development"
       }
@@ -20,7 +24,9 @@
         "buildType": "apk"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "resourceClass": "m-medium"
       },
       "env": {
         "NODE_ENV": "production"
@@ -33,7 +39,9 @@
         "buildType": "aab"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "resourceClass": "m-medium"
       },
       "env": {
         "NODE_ENV": "production"
@@ -45,7 +53,11 @@
       "android": {
         "serviceAccountKeyPath": "./service-account-key.json"
       },
-      "ios": {}
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "your-apple-team-id"
+      }
     }
   }
 }
