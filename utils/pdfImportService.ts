@@ -539,7 +539,7 @@ export const PDFImportService = {
         message: error instanceof Error ? error.message : 'Failed to import file'
       };
     }
-  }
+  },
 };
 </write file>
 
