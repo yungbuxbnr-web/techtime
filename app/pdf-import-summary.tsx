@@ -36,9 +36,34 @@ export default function PDFImportSummaryScreen() {
     loadImportedJobs();
   }, []);
 
+  const applyFilter = useCallback(() => {
+    if (filterType === 'all' || !filterValue) {
+      setFilteredJobs(jobs);
+      return;
+    }
+
+    const filtered = jobs.filter(job => {
+      switch (filterType) {
+        case 'date':
+          return job.startedAt?.includes(filterValue) || job.dateCreated.includes(filterValue);
+        
+        case 'reg':
+          return job.vehicleRegistration.toLowerCase().includes(filterValue.toLowerCase());
+        
+        case 'vhc':
+          return job.vhcStatus === filterValue;
+        
+        default:
+          return true;
+      }
+    });
+
+    setFilteredJobs(filtered);
+  }, [jobs, filterType, filterValue]);
+
   useEffect(() => {
     applyFilter();
-  }, [jobs, filterType, filterValue]);
+  }, [applyFilter]);
 
   const loadImportedJobs = async () => {
     try {
@@ -62,31 +87,6 @@ export default function PDFImportSummaryScreen() {
     }
   };
 
-  const applyFilter = () => {
-    if (filterType === 'all' || !filterValue) {
-      setFilteredJobs(jobs);
-      return;
-    }
-
-    const filtered = jobs.filter(job => {
-      switch (filterType) {
-        case 'date':
-          return job.startedAt?.includes(filterValue) || job.dateCreated.includes(filterValue);
-        
-        case 'reg':
-          return job.vehicleRegistration.toLowerCase().includes(filterValue.toLowerCase());
-        
-        case 'vhc':
-          return job.vhcStatus === filterValue;
-        
-        default:
-          return true;
-      }
-    });
-
-    setFilteredJobs(filtered);
-  };
-
   const exportCSV = async () => {
     try {
       // Create CSV content
@@ -108,9 +108,14 @@ export default function PDFImportSummaryScreen() {
       ].join('\n');
 
       // Save to file
-      const fileUri = `${FileSystem.cacheDirectory}import-${Date.now()}.csv`;
+      const cacheDir = FileSystem.cacheDirectory;
+      if (!cacheDir) {
+        throw new Error('Cache directory not available');
+      }
+      
+      const fileUri = `${cacheDir}import-${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: 'utf8',
+        encoding: FileSystem.EncodingType.UTF8,
       });
 
       // Share file

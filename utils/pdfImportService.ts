@@ -211,7 +211,7 @@ export const PDFImportService = {
     try {
       console.log('Reading PDF file...');
       const base64Content = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
+        encoding: FileSystem.EncodingType.Base64,
       });
       
       console.log('Decoding PDF content...');
@@ -703,10 +703,16 @@ export const PDFImportService = {
       };
       
       const json = JSON.stringify(logData, null, 2);
-      const fileUri = `${FileSystem.cacheDirectory}parse-log-${Date.now()}.json`;
+      
+      const cacheDir = FileSystem.cacheDirectory;
+      if (!cacheDir) {
+        throw new Error('Cache directory not available');
+      }
+      
+      const fileUri = `${cacheDir}parse-log-${Date.now()}.json`;
       
       await FileSystem.writeAsStringAsync(fileUri, json, {
-        encoding: 'utf8',
+        encoding: FileSystem.EncodingType.UTF8,
       });
       
       return fileUri;
