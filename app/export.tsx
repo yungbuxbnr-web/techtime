@@ -150,12 +150,7 @@ export default function ExportScreen() {
 
   const generateStylishPDFHTML = useCallback((exportJobs: Job[], title: string, reportType: string, exportType: 'daily' | 'weekly' | 'monthly' | 'all') => {
     // Calculate performance metrics based on export type
-    let performanceType: 'daily' | 'weekly' | 'monthly' = 'monthly';
-    if (exportType === 'daily') performanceType = 'daily';
-    else if (exportType === 'weekly') performanceType = 'weekly';
-    else if (exportType === 'monthly') performanceType = 'monthly';
-    
-    const metrics = CalculationService.calculatePerformanceMetrics(exportJobs, performanceType);
+    const metrics = CalculationService.calculatePerformanceMetrics(exportJobs, exportType);
     
     const currentDate = new Date().toLocaleDateString('en-GB', { 
       weekday: 'long', 
@@ -215,6 +210,28 @@ export default function ExportScreen() {
     const formattedTotalTime = CalculationService.formatTime(metrics.totalMinutes);
     const remainingHours = Math.max(0, metrics.targetHours - metrics.totalHours);
     const formattedRemainingTime = CalculationService.formatTime(remainingHours * 60);
+
+    // Get first job date for "All Jobs" export
+    let firstJobDateText = '';
+    let firstJobInfoHTML = '';
+    if (exportType === 'all' && exportJobs.length > 0) {
+      const sortedJobs = [...exportJobs].sort((a, b) => 
+        new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+      );
+      const firstJobDate = new Date(sortedJobs[0].dateCreated);
+      firstJobDateText = firstJobDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+      firstJobInfoHTML = `
+        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%); padding: 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; border: 1px solid #90caf9;">
+          <Text style="font-size: 14px; color: #1976d2; font-weight: 600; margin-bottom: 4px;">📅 First Job Entry</Text>
+          <Text style="font-size: 16px; color: #1565c0; font-weight: 700;">${firstJobDateText}</Text>
+          <Text style="font-size: 12px; color: #5f6368; margin-top: 4px; font-style: italic;">Available hours calculated from this date to today</Text>
+        </div>
+      `;
+    }
 
     // Generate efficiency graph SVG
     const efficiencyGraphSVG = generateEfficiencyGraphSVG(
@@ -550,6 +567,7 @@ export default function ExportScreen() {
             
             <div class="summary">
               <h3>📊 Report Summary</h3>
+              ${firstJobInfoHTML}
               <div class="summary-grid">
                 <div class="summary-item">
                   <div class="summary-number">${exportJobs.length}</div>
@@ -583,7 +601,7 @@ export default function ExportScreen() {
                   <div class="performance-item">
                     <div class="performance-number">${metrics.utilizationPercentage.toFixed(1)}%</div>
                     <div class="performance-label">Utilization</div>
-                    <div class="performance-subtitle">Out of ${metrics.targetHours}h target</div>
+                    <div class="performance-subtitle">Out of ${metrics.targetHours.toFixed(1)}h ${exportType === 'all' ? 'available' : 'target'}</div>
                   </div>
                   <div class="performance-item">
                     <div class="performance-number">${metrics.avgAWsPerHour.toFixed(1)}</div>
@@ -593,12 +611,12 @@ export default function ExportScreen() {
                   <div class="performance-item">
                     <div class="performance-number">${metrics.efficiency.toFixed(0)}%</div>
                     <div class="performance-label">Efficiency</div>
-                    <div class="performance-subtitle">vs 12 AWs/hour target</div>
+                    <div class="performance-subtitle">${exportType === 'all' ? 'Since first entry' : 'vs 12 AWs/hour target'}</div>
                   </div>
                   <div class="performance-item">
-                    <div class="performance-number">${formattedRemainingTime}</div>
-                    <div class="performance-label">Remaining</div>
-                    <div class="performance-subtitle">To reach target</div>
+                    <div class="performance-number">${exportType === 'all' ? metrics.availableHours.toFixed(1) + 'h' : formattedRemainingTime}</div>
+                    <div class="performance-label">${exportType === 'all' ? 'Available Hours' : 'Remaining'}</div>
+                    <div class="performance-subtitle">${exportType === 'all' ? 'From first entry' : 'To reach target'}</div>
                   </div>
                 </div>
               </div>
@@ -1523,7 +1541,7 @@ export default function ExportScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📋 Complete History Export</Text>
           <Text style={styles.sectionDescription}>
-            Export all recorded jobs ({getJobCount('all')} jobs) - Performance calculated as monthly totals
+            Export all recorded jobs ({getJobCount('all')} jobs) - Available hours calculated from the date of your first job entry to today
           </Text>
           <TouchableOpacity
             style={[styles.exportButton, styles.pdfButton]}
@@ -1555,6 +1573,9 @@ export default function ExportScreen() {
           </Text>
           <Text style={styles.infoText}>
             - 🎯 Utilization percentages: Daily (8.5h), Weekly (45h), Monthly (180h)
+          </Text>
+          <Text style={styles.infoText}>
+            - 📅 Complete History: Available hours calculated from first job entry date to today
           </Text>
           <Text style={styles.infoText}>
             - 🔢 Efficiency calculations based on 12 AWs/hour target

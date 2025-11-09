@@ -83,6 +83,54 @@ export const CalculationService = {
     return availableHoursAfterAbsence;
   },
 
+  // NEW: Calculate available working hours from the date of first job entry to today
+  // This is used for "All Jobs" export to show total available hours since starting
+  calculateAvailableHoursFromFirstEntry(jobs: Job[], absenceHours: number = 0): number {
+    if (jobs.length === 0) {
+      console.log('No jobs found, returning 0 available hours');
+      return 0;
+    }
+
+    // Find the earliest job date
+    const sortedJobs = [...jobs].sort((a, b) => 
+      new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+    );
+    const firstJobDate = new Date(sortedJobs[0].dateCreated);
+    const today = new Date();
+
+    console.log(`First job entry: ${firstJobDate.toDateString()}`);
+    console.log(`Calculating available hours from ${firstJobDate.toDateString()} to ${today.toDateString()}`);
+
+    let workingDays = 0;
+    
+    // Iterate through all days from first job to today
+    const currentDate = new Date(firstJobDate);
+    currentDate.setHours(0, 0, 0, 0); // Start from beginning of day
+    
+    const endDate = new Date(today);
+    endDate.setHours(23, 59, 59, 999); // End at end of today
+    
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+      
+      // Count Monday (1) to Friday (5) only
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        workingDays++;
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Calculate total available hours
+    const totalAvailableHours = workingDays * HOURS_PER_DAY;
+    
+    // Deduct absence hours
+    const availableHoursAfterAbsence = Math.max(0, totalAvailableHours - absenceHours);
+    
+    console.log(`Total available hours from first entry: ${availableHoursAfterAbsence.toFixed(2)}h (${workingDays} working days × ${HOURS_PER_DAY}h - ${absenceHours}h absence)`);
+    return availableHoursAfterAbsence;
+  },
+
   // Calculate total sold hours from AWs
   calculateSoldHours(totalAws: number): number {
     const soldHours = totalAws * AW_TO_HOURS;
@@ -104,6 +152,29 @@ export const CalculationService = {
     const roundedEfficiency = Math.round(efficiency);
     
     console.log(`Efficiency: ${roundedEfficiency}% (${totalSoldHours.toFixed(2)}h sold / ${totalAvailableHours.toFixed(2)}h available)`);
+    return roundedEfficiency;
+  },
+
+  // NEW: Calculate efficiency from first job entry (for "All Jobs" export)
+  calculateEfficiencyFromFirstEntry(jobs: Job[], absenceHours: number = 0): number {
+    if (jobs.length === 0) {
+      console.log('No jobs found, efficiency = 0%');
+      return 0;
+    }
+
+    const totalAws = jobs.reduce((sum, job) => sum + job.awValue, 0);
+    const totalSoldHours = this.calculateSoldHours(totalAws);
+    const totalAvailableHours = this.calculateAvailableHoursFromFirstEntry(jobs, absenceHours);
+    
+    if (totalAvailableHours === 0) {
+      console.log('No available hours, efficiency = 0%');
+      return 0;
+    }
+    
+    const efficiency = (totalSoldHours / totalAvailableHours) * 100;
+    const roundedEfficiency = Math.round(efficiency);
+    
+    console.log(`Efficiency from first entry: ${roundedEfficiency}% (${totalSoldHours.toFixed(2)}h sold / ${totalAvailableHours.toFixed(2)}h available)`);
     return roundedEfficiency;
   },
 
@@ -159,7 +230,7 @@ export const CalculationService = {
   },
 
   // Calculate performance metrics for different time periods
-  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly', targetHours?: number, month?: number, year?: number, absenceHours: number = 0): {
+  calculatePerformanceMetrics(jobs: Job[], type: 'daily' | 'weekly' | 'monthly' | 'all', targetHours?: number, month?: number, year?: number, absenceHours: number = 0): {
     totalAWs: number;
     totalMinutes: number;
     totalHours: number;
@@ -177,6 +248,7 @@ export const CalculationService = {
     
     let defaultTargetHours = 0;
     let availableHours = 0;
+    let efficiency = 0;
     
     const currentMonth = month !== undefined ? month : new Date().getMonth();
     const currentYear = year !== undefined ? year : new Date().getFullYear();
@@ -185,22 +257,28 @@ export const CalculationService = {
       case 'daily':
         defaultTargetHours = 8.5;
         availableHours = 8.5;
+        efficiency = availableHours > 0 ? Math.round((totalSoldHours / availableHours) * 100) : 0;
         break;
       case 'weekly':
         defaultTargetHours = 42.5; // 8.5 hours × 5 days
         availableHours = 42.5;
+        efficiency = availableHours > 0 ? Math.round((totalSoldHours / availableHours) * 100) : 0;
         break;
       case 'monthly':
         availableHours = this.calculateAvailableHoursToDate(currentMonth, currentYear, absenceHours);
         defaultTargetHours = targetHours || 180;
+        efficiency = availableHours > 0 ? Math.round((totalSoldHours / availableHours) * 100) : 0;
+        break;
+      case 'all':
+        // NEW: For "all" type, calculate from first job entry
+        availableHours = this.calculateAvailableHoursFromFirstEntry(jobs, absenceHours);
+        defaultTargetHours = targetHours || availableHours; // Use available hours as target for all-time
+        efficiency = this.calculateEfficiencyFromFirstEntry(jobs, absenceHours);
         break;
     }
     
     const finalTargetHours = targetHours || defaultTargetHours;
     const utilizationPercentage = finalTargetHours > 0 ? Math.min((totalSoldHours / finalTargetHours) * 100, 100) : 0;
-    
-    // Calculate efficiency based on available hours
-    const efficiency = availableHours > 0 ? Math.round((totalSoldHours / availableHours) * 100) : 0;
     
     const targetAWsPerHour = 12; // Assuming 12 AWs per hour as target
     const avgAWsPerHour = totalHours > 0 ? totalAWs / totalHours : 0;
