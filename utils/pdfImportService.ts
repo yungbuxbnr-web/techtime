@@ -1,6 +1,11 @@
 
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import {
+  cacheDirectory,
+  documentDirectory,
+  readAsStringAsync,
+  writeAsStringAsync,
+} from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
 import { Job, ParsedJobRow, PDFImportResult, ParseLogEntry, PDFImportProgress } from '../types';
 
@@ -107,7 +112,7 @@ export const PDFImportService = {
    */
   async calculateFileHash(uri: string): Promise<string> {
     try {
-      const content = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const content = await readAsStringAsync(uri, { encoding: 'base64' });
       const hash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         content
@@ -252,7 +257,7 @@ export const PDFImportService = {
     try {
       console.log('[PDF Import] Stage A: Extracting text layer from PDF...');
       
-      const base64Content = await FileSystem.readAsStringAsync(uri, {
+      const base64Content = await readAsStringAsync(uri, {
         encoding: 'base64',
       });
       
@@ -916,16 +921,16 @@ export const PDFImportService = {
       
       const json = JSON.stringify(logData, null, 2);
       
-      // Use cacheDirectory with fallback to documentDirectory
-      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-      if (!cacheDir) {
-        throw new Error('File system directory not available');
+      // Use documentDirectory with fallback to cacheDirectory
+      const baseDir = documentDirectory ?? cacheDirectory;
+      if (!baseDir) {
+        throw new Error('No writable directory available');
       }
       
-      const fileUri = `${cacheDir}parse-log-${Date.now()}.json`;
+      const fileUri = `${baseDir}parse-log-${Date.now()}.json`;
       
-      await FileSystem.writeAsStringAsync(fileUri, json, {
-        encoding: FileSystem.EncodingType.UTF8,
+      await writeAsStringAsync(fileUri, json, {
+        encoding: 'utf8',
       });
       
       return fileUri;
@@ -973,16 +978,16 @@ export const PDFImportService = {
         ...csvRows.map(row => row.map(cell => `"${cell}"`).join(',')),
       ].join('\n');
       
-      // Use cacheDirectory with fallback to documentDirectory
-      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-      if (!cacheDir) {
-        throw new Error('File system directory not available');
+      // Use documentDirectory with fallback to cacheDirectory
+      const baseDir = documentDirectory ?? cacheDirectory;
+      if (!baseDir) {
+        throw new Error('No writable directory available');
       }
       
-      const fileUri = `${cacheDir}import-rows-${Date.now()}.csv`;
+      const fileUri = `${baseDir}import-rows-${Date.now()}.csv`;
       
-      await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
+      await writeAsStringAsync(fileUri, csv, {
+        encoding: 'utf8',
       });
       
       return fileUri;

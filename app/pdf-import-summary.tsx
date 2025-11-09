@@ -15,7 +15,11 @@ import { Job } from '../types';
 import { StorageService } from '../utils/storage';
 import NotificationToast from '../components/NotificationToast';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import {
+  cacheDirectory,
+  documentDirectory,
+  writeAsStringAsync,
+} from 'expo-file-system';
 import { Picker } from '@react-native-picker/picker';
 
 export default function PDFImportSummaryScreen() {
@@ -108,14 +112,14 @@ export default function PDFImportSummaryScreen() {
       ].join('\n');
 
       // Save to file - use documentDirectory as fallback
-      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-      if (!cacheDir) {
-        throw new Error('File system directory not available');
+      const baseDir = documentDirectory ?? cacheDirectory;
+      if (!baseDir) {
+        throw new Error('No writable directory available');
       }
       
-      const fileUri = `${cacheDir}import-${Date.now()}.csv`;
-      await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
+      const fileUri = `${baseDir}import-${Date.now()}.csv`;
+      await writeAsStringAsync(fileUri, csv, {
+        encoding: 'utf8',
       });
 
       // Share file
