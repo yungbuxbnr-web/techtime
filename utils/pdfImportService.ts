@@ -253,7 +253,7 @@ export const PDFImportService = {
       console.log('[PDF Import] Stage A: Extracting text layer from PDF...');
       
       const base64Content = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
       
       const binaryString = atob(base64Content);
@@ -315,7 +315,7 @@ export const PDFImportService = {
         }
       }
       
-      console.log('[PDF Import] Extracted ${extractedText.length} characters from PDF');
+      console.log(`[PDF Import] Extracted ${extractedText.length} characters from PDF`);
       
       parseLog.push({
         rowIndex: -1,
@@ -435,7 +435,7 @@ export const PDFImportService = {
       message: `Found ${rows.length} potential data rows after cleaning`,
     });
     
-    console.log('[PDF Import] Found ${rows.length} data rows');
+    console.log(`[PDF Import] Found ${rows.length} data rows`);
     
     return rows;
   },
@@ -924,7 +924,7 @@ export const PDFImportService = {
       const fileUri = `${cacheDir}parse-log-${Date.now()}.json`;
       
       await FileSystem.writeAsStringAsync(fileUri, json, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
       
       return fileUri;
@@ -980,7 +980,7 @@ export const PDFImportService = {
       const fileUri = `${cacheDir}import-rows-${Date.now()}.csv`;
       
       await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
       
       return fileUri;

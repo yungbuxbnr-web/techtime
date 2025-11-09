@@ -115,7 +115,7 @@ export default function PDFImportSummaryScreen() {
       
       const fileUri = `${cacheDir}import-${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
 
       // Share file
