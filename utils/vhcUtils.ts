@@ -8,6 +8,25 @@ export const VHC_COLORS: VHCColors = {
   red: '#EF4444',
 };
 
+// Map new VHC status format to old format
+export function mapVHCStatus(status?: string): VHCStatus | undefined {
+  if (!status) return undefined;
+  
+  const normalized = status.toLowerCase();
+  
+  switch (normalized) {
+    case 'red':
+      return 'red';
+    case 'orange':
+    case 'amber':
+      return 'amber';
+    case 'green':
+      return 'green';
+    default:
+      return undefined;
+  }
+}
+
 // Get VHC color based on status
 export function getVHCColor(status?: VHCStatus): string | null {
   if (!status) return null;

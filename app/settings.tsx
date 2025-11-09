@@ -1265,8 +1265,15 @@ export default function SettingsScreen() {
             disabled={isImportInProgress}
           >
             <Text style={styles.buttonText}>
-              {isImportInProgress ? '⏳ Importing...' : '📂 Import from File (JSON/PDF)'}
+              {isImportInProgress ? '⏳ Importing...' : '📂 Import from File (JSON)'}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.pdfImportButton]}
+            onPress={() => router.push('/pdf-import')}
+          >
+            <Text style={styles.buttonText}>📄 Import PDF → Jobs</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1835,6 +1842,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   filePickerButton: {
     backgroundColor: '#17a2b8',
+  },
+  pdfImportButton: {
+    backgroundColor: '#e91e63',
   },
   shareButton: {
     backgroundColor: '#28a745',
