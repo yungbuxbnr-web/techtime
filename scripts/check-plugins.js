@@ -10,12 +10,16 @@
  * is incorrectly included.
  */
 
-const fs = require('fs');
-const path = require('path');
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 try {
-  const appJsonPath = path.join(__dirname, '..', 'app.json');
-  const appJsonContent = fs.readFileSync(appJsonPath, 'utf8');
+  const appJsonPath = join(__dirname, '..', 'app.json');
+  const appJsonContent = readFileSync(appJsonPath, 'utf8');
   const appJson = JSON.parse(appJsonContent);
 
   const plugins = appJson.expo?.plugins || [];
