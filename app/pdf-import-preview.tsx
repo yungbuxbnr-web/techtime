@@ -11,15 +11,18 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
-import { ParsedJobRow, Job } from '../types';
+import { ParsedJobRow, Job, PDFImportResult } from '../types';
 import { StorageService } from '../utils/storage';
 import { PDFImportService } from '../utils/pdfImportService';
 import NotificationToast from '../components/NotificationToast';
 import * as Sharing from 'expo-sharing';
 import { Picker } from '@react-native-picker/picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TEMP_IMPORT_KEY = '@pdf_import_temp_data';
 
 interface BulkEditModalProps {
   visible: boolean;
@@ -115,7 +118,6 @@ const BulkEditModal: React.FC<BulkEditModalProps> = ({ visible, onClose, onApply
 
 export default function PDFImportPreviewScreen() {
   const { colors } = useTheme();
-  const params = useLocalSearchParams();
   
   const [rows, setRows] = useState<ParsedJobRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -125,6 +127,7 @@ export default function PDFImportPreviewScreen() {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [filename, setFilename] = useState('');
   const [hash, setHash] = useState('');
+  const [importResult, setImportResult] = useState<PDFImportResult | null>(null);
 
   useEffect(() => {
     loadPreviewData();
@@ -132,14 +135,27 @@ export default function PDFImportPreviewScreen() {
 
   const loadPreviewData = async () => {
     try {
-      // In a real implementation, this would load from a temporary storage
-      // For now, we'll show a message
-      console.log('Loading preview data...');
+      console.log('[Preview] Loading preview data...');
       
-      // This would be populated by the import flow
-      // For demonstration, we'll show empty state
+      const dataStr = await AsyncStorage.getItem(TEMP_IMPORT_KEY);
+      if (!dataStr) {
+        console.log('[Preview] No preview data found');
+        setNotification({
+          message: 'No import data found. Please import a PDF first.',
+          type: 'error',
+        });
+        return;
+      }
+      
+      const result: PDFImportResult = JSON.parse(dataStr);
+      console.log('[Preview] Loaded ${result.rows.length} rows');
+      
+      setImportResult(result);
+      setRows(result.rows);
+      setFilename(result.filename);
+      setHash(result.hash);
     } catch (error) {
-      console.error('Error loading preview data:', error);
+      console.error('[Preview] Error loading preview data:', error);
       setNotification({
         message: 'Failed to load preview data',
         type: 'error',
@@ -264,8 +280,10 @@ export default function PDFImportPreviewScreen() {
       }
       
       // Check for duplicate WIPs within import
-      const count = duplicateWIPs.get(row.wipNumber) || 0;
-      duplicateWIPs.set(row.wipNumber, count + 1);
+      if (row.wipNumber) {
+        const count = duplicateWIPs.get(row.wipNumber) || 0;
+        duplicateWIPs.set(row.wipNumber, count + 1);
+      }
     });
     
     // Check for duplicate WIPs
@@ -278,7 +296,7 @@ export default function PDFImportPreviewScreen() {
     if (errors.length > 0) {
       Alert.alert(
         'Validation Errors',
-        errors.join('\n\n'),
+        errors.slice(0, 5).join('\n\n') + (errors.length > 5 ? `\n\n...and ${errors.length - 5} more` : ''),
         [{ text: 'OK' }]
       );
       return;
@@ -329,6 +347,9 @@ export default function PDFImportPreviewScreen() {
       // Save jobs
       await StorageService.saveJobs(updatedJobs);
       
+      // Clear temp data
+      await AsyncStorage.removeItem(TEMP_IMPORT_KEY);
+      
       // Navigate to summary
       router.replace({
         pathname: '/pdf-import-summary',
@@ -339,7 +360,7 @@ export default function PDFImportPreviewScreen() {
         },
       });
     } catch (error) {
-      console.error('Error performing import:', error);
+      console.error('[Preview] Error performing import:', error);
       setNotification({
         message: 'Failed to import jobs',
         type: 'error',
@@ -351,10 +372,61 @@ export default function PDFImportPreviewScreen() {
 
   const downloadParseLog = async () => {
     try {
-      // This would export the parse log
-      Alert.alert('Info', 'Parse log export feature coming soon');
+      if (!importResult) {
+        Alert.alert('Error', 'No import data available');
+        return;
+      }
+      
+      const logUri = await PDFImportService.exportParseLog(
+        importResult.parseLog,
+        filename
+      );
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(logUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Export Parse Log',
+        });
+        
+        setNotification({
+          message: 'Parse log exported successfully',
+          type: 'success',
+        });
+      } else {
+        Alert.alert('Success', `Log saved to: ${logUri}`);
+      }
     } catch (error) {
-      console.error('Error downloading parse log:', error);
+      console.error('[Preview] Error downloading parse log:', error);
+      setNotification({
+        message: 'Failed to export parse log',
+        type: 'error',
+      });
+    }
+  };
+
+  const downloadRowsCSV = async () => {
+    try {
+      const csvUri = await PDFImportService.exportRowsCSV(rows, filename);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(csvUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export Rows CSV',
+        });
+        
+        setNotification({
+          message: 'CSV exported successfully',
+          type: 'success',
+        });
+      } else {
+        Alert.alert('Success', `CSV saved to: ${csvUri}`);
+      }
+    } catch (error) {
+      console.error('[Preview] Error downloading CSV:', error);
+      setNotification({
+        message: 'Failed to export CSV',
+        type: 'error',
+      });
     }
   };
 
@@ -388,6 +460,72 @@ export default function PDFImportPreviewScreen() {
     return '#F44336';
   };
 
+  if (rows.length === 0 && importResult) {
+    // Show parse log view when no rows found
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Text style={[styles.backButtonText, { color: colors.primary }]}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Parse Log</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <ScrollView style={styles.content}>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>No Data Found</Text>
+            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
+              Could not extract job data from the PDF. Review the parse log below to understand what went wrong.
+            </Text>
+
+            <View style={styles.exportButtons}>
+              <TouchableOpacity
+                style={[styles.exportButton, { backgroundColor: colors.primary }]}
+                onPress={downloadParseLog}
+              >
+                <Text style={styles.exportButtonText}>Download Parse Log</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={[styles.logCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.logTitle, { color: colors.text }]}>Parse Log:</Text>
+            {importResult.parseLog.map((entry, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.logEntry,
+                  {
+                    backgroundColor: colors.background,
+                    borderLeftColor:
+                      entry.level === 'error'
+                        ? '#F44336'
+                        : entry.level === 'warning'
+                        ? '#FFC107'
+                        : '#4CAF50',
+                  },
+                ]}
+              >
+                <Text style={[styles.logLevel, { color: colors.text }]}>
+                  {entry.level.toUpperCase()}
+                </Text>
+                <Text style={[styles.logMessage, { color: colors.textSecondary }]}>
+                  {entry.message}
+                </Text>
+                {entry.rawData && (
+                  <Text style={[styles.logRawData, { color: colors.textSecondary }]}>
+                    Raw: {entry.rawData}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -416,6 +554,13 @@ export default function PDFImportPreviewScreen() {
           disabled={selectedRows.size === 0}
         >
           <Text style={styles.toolButtonText}>Bulk Edit ({selectedRows.size})</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.toolButton, { backgroundColor: colors.primary }]}
+          onPress={downloadRowsCSV}
+        >
+          <Text style={styles.toolButtonText}>CSV</Text>
         </TouchableOpacity>
       </View>
 
@@ -594,6 +739,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  placeholder: {
+    width: 60,
+  },
   toolbar: {
     flexDirection: 'row',
     padding: 12,
@@ -755,5 +903,78 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  card: {
+    margin: 16,
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  cardDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  exportButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  exportButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  exportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  logCard: {
+    margin: 16,
+    borderRadius: 12,
+    padding: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  logTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  logEntry: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+  },
+  logLevel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  logMessage: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  logRawData: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });
