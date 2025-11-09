@@ -107,15 +107,15 @@ export default function PDFImportSummaryScreen() {
         ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
       ].join('\n');
 
-      // Save to file
-      const cacheDir = FileSystem.cacheDirectory;
+      // Save to file - use documentDirectory as fallback
+      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
       if (!cacheDir) {
-        throw new Error('Cache directory not available');
+        throw new Error('File system directory not available');
       }
       
       const fileUri = `${cacheDir}import-${Date.now()}.csv`;
       await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: 'utf8',
+        encoding: FileSystem.EncodingType.UTF8,
       });
 
       // Share file

@@ -916,15 +916,16 @@ export const PDFImportService = {
       
       const json = JSON.stringify(logData, null, 2);
       
-      const cacheDir = FileSystem.cacheDirectory;
+      // Use cacheDirectory with fallback to documentDirectory
+      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
       if (!cacheDir) {
-        throw new Error('Cache directory not available');
+        throw new Error('File system directory not available');
       }
       
       const fileUri = `${cacheDir}parse-log-${Date.now()}.json`;
       
       await FileSystem.writeAsStringAsync(fileUri, json, {
-        encoding: 'utf8',
+        encoding: FileSystem.EncodingType.UTF8,
       });
       
       return fileUri;
@@ -972,15 +973,16 @@ export const PDFImportService = {
         ...csvRows.map(row => row.map(cell => `"${cell}"`).join(',')),
       ].join('\n');
       
-      const cacheDir = FileSystem.cacheDirectory;
+      // Use cacheDirectory with fallback to documentDirectory
+      const cacheDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
       if (!cacheDir) {
-        throw new Error('Cache directory not available');
+        throw new Error('File system directory not available');
       }
       
       const fileUri = `${cacheDir}import-rows-${Date.now()}.csv`;
       
       await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: 'utf8',
+        encoding: FileSystem.EncodingType.UTF8,
       });
       
       return fileUri;
