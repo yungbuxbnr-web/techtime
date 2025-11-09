@@ -1,63 +1,27 @@
+
 {
-  "cli": {
-    "version": ">= 5.0.0"
-  },
+  "cli": { "version": ">= 5.0.0" },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "autoIncrement": true,
-      "image": "latest",
-      "ios": {
-        "simulator": true,
-        "buildConfiguration": "Debug"
-      },
-      "env": {
-        "NODE_ENV": "development"
-      }
+      "android": { "gradleCommand": ":app:assembleDebug" },
+      "ios": { "simulator": false }
     },
     "preview": {
       "distribution": "internal",
-      "autoIncrement": true,
-      "image": "latest",
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": false,
-        "buildConfiguration": "Release",
-        "resourceClass": "m-medium"
-      },
-      "env": {
-        "NODE_ENV": "production"
-      }
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": false }
     },
     "production": {
-      "autoIncrement": true,
-      "image": "latest",
-      "android": {
-        "buildType": "aab"
-      },
-      "ios": {
-        "simulator": false,
-        "buildConfiguration": "Release",
-        "resourceClass": "m-medium"
-      },
-      "env": {
-        "NODE_ENV": "production"
-      }
+      "android": { "buildType": "app-bundle" },
+      "ios": { "autoIncrement": true }
     }
   },
   "submit": {
     "production": {
-      "android": {
-        "serviceAccountKeyPath": "./service-account-key.json"
-      },
-      "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-apple-team-id"
-      }
+      "ios": {},
+      "android": { "track": "internal" }
     }
   }
 }
