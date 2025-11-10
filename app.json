@@ -1,7 +1,9 @@
+
 {
   "expo": {
-    "name": "techtime",
+    "name": "TechTime",
     "slug": "techtime",
+    "owner": "bnr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
@@ -13,9 +15,9 @@
       "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.buxrug.techtime",
-      "buildNumber": "1",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bnr.techtime",
+      "buildNumber": "1.0.0",
       "deploymentTarget": "13.4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -34,7 +36,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.techtracer",
+      "package": "com.bnr.techtime",
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
@@ -83,7 +85,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
     }
   }
 }

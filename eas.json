@@ -1,39 +1,50 @@
+
 {
   "cli": {
-    "version": ">= 5.0.0"
+    "version": ">= 12.8.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "credentialsSource": "remote",
       "android": {
         "gradleCommand": ":app:assembleDebug"
       },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "resourceClass": "m-medium"
       }
     },
     "preview": {
       "distribution": "internal",
+      "credentialsSource": "remote",
       "android": {
         "buildType": "apk"
       },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "resourceClass": "m-medium"
       }
     },
     "production": {
+      "autoIncrement": true,
+      "credentialsSource": "remote",
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {
-        "autoIncrement": true
+        "autoIncrement": true,
+        "resourceClass": "m-medium"
       }
     }
   },
   "submit": {
     "production": {
-      "ios": {},
+      "ios": {
+        "ascAppId": "REPLACE_IF_KNOWN"
+      },
       "android": {
         "track": "internal"
       }
