@@ -10,7 +10,10 @@
       "distribution": "internal",
       "credentialsSource": "remote",
       "android": {
-        "gradleCommand": ":app:assembleDebug"
+        "gradleCommand": ":app:assembleDebug",
+        "env": {
+          "GRADLE_OPTS": "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dorg.gradle.daemon=true -Dorg.gradle.jvmargs=-Xmx4g"
+        }
       },
       "ios": {
         "simulator": false,
@@ -21,7 +24,10 @@
       "distribution": "internal",
       "credentialsSource": "remote",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "GRADLE_OPTS": "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dorg.gradle.daemon=true -Dorg.gradle.jvmargs=-Xmx4g"
+        }
       },
       "ios": {
         "simulator": false,
@@ -32,7 +38,10 @@
       "autoIncrement": true,
       "credentialsSource": "remote",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "env": {
+          "GRADLE_OPTS": "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dorg.gradle.daemon=true -Dorg.gradle.jvmargs=-Xmx4g"
+        }
       },
       "ios": {
         "autoIncrement": true,

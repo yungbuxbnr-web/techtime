@@ -1,7 +1,7 @@
 
 {
   "expo": {
-    "name": "TechTime",
+    "name": "techtime",
     "slug": "techtime",
     "owner": "bnr",
     "version": "1.0.0",
@@ -36,7 +36,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.bnr.techtime",
+      "package": "com.brcarszw.techtracer",
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
@@ -78,7 +78,8 @@
         {
           "cameraPermission": "Allow TechTime to access your camera to scan vehicle registration plates and job cards for quick data entry."
         }
-      ]
+      ],
+      "./plugins/gradleWrapperConfig.plugin.js"
     ],
     "scheme": "techtime",
     "experiments": {

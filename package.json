@@ -1,7 +1,9 @@
+
 {
   "name": "techtime",
   "version": "1.0.0",
   "main": "index.ts",
+  "type": "module",
   "engines": {
     "node": ">=18 <23"
   },
@@ -9,7 +11,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "prebuild": "node scripts/check-plugins.js && expo prebuild -y",
+    "prebuild": "node scripts/check-plugins.js && expo prebuild -y && node scripts/fix-gradle-wrapper.js",
     "export": "expo export",
     "build:android": "expo run:android --variant release",
     "build:ios": "expo run:ios --configuration Release",
@@ -24,10 +26,11 @@
     "build:eas:all": "NODE_ENV=production eas build --platform all --profile production",
     "build:preview:android": "NODE_ENV=production eas build --platform android --profile preview",
     "build:preview:ios": "NODE_ENV=production eas build --platform ios --profile preview",
-    "prebuild:android": "NODE_ENV=production node scripts/check-plugins.js && expo prebuild -p android --clean",
+    "prebuild:android": "NODE_ENV=production node scripts/check-plugins.js && expo prebuild -p android --clean && node scripts/fix-gradle-wrapper.js",
     "prebuild:ios": "NODE_ENV=production node scripts/check-plugins.js && expo prebuild -p ios --clean",
     "submit:android": "eas submit --platform android",
     "submit:ios": "eas submit --platform ios",
+    "fix:gradle": "node scripts/fix-gradle-wrapper.js",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
