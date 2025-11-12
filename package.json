@@ -2,7 +2,7 @@
 {
   "name": "techtime",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "index.cjs",
   "type": "module",
   "engines": {
     "node": ">=18 <23"
