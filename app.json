@@ -1,8 +1,7 @@
-
 {
   "expo": {
-    "name": "techtime",
-    "slug": "techtime",
+    "name": "TechTime",
+    "slug": "TechTime",
     "owner": "bnr",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -91,5 +90,6 @@
         "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       }
     }
-  }
+  },
+  "scheme": "TechTime"
 }

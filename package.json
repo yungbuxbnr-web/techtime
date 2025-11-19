@@ -20,7 +20,7 @@
     "dev:android": "NODE_ENV=development EXPO_NO_TELEMETRY=1 expo start --android",
     "dev:ios": "NODE_ENV=development EXPO_NO_TELEMETRY=1 expo start --ios",
     "dev:web": "NODE_ENV=development EXPO_NO_TELEMETRY=1 expo start --web",
-    "build:web": "NODE_ENV=production expo export -p web && npx workbox generateSW workbox-config.js",
+    "build:web": "NODE_ENV=production expo export -p web && npx workbox generateSW workbox-config.cjs",
     "build:eas:android": "NODE_ENV=production eas build --platform android --profile production",
     "build:eas:ios": "NODE_ENV=production eas build --platform ios --profile production",
     "build:eas:all": "NODE_ENV=production eas build --platform all --profile production",
