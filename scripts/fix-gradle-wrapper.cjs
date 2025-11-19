@@ -68,6 +68,7 @@ try {
   }
 
   console.log('✅ Gradle configuration complete');
+  process.exit(0);
 } catch (error) {
   console.error('❌ Error fixing Gradle wrapper:', error.message);
   process.exit(1);

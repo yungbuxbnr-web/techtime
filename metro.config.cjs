@@ -5,12 +5,12 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// Use turborepo to restore the cache when possible
+// Use file-based cache for better performance
 config.cacheStores = [
   new FileStore({ root: path.join(__dirname, 'node_modules', '.cache', 'metro') }),
 ];
 
-// Increase memory limit for bundling
+// Optimize worker count for memory efficiency
 config.maxWorkers = 2;
 
 // Configure resolver for better module resolution
@@ -18,7 +18,6 @@ config.resolver = {
   ...config.resolver,
   sourceExts: [...(config.resolver?.sourceExts || []), 'cjs', 'mjs'],
   assetExts: config.resolver?.assetExts || [],
-  // Ensure node_modules are resolved correctly
   nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
 };
 
@@ -28,7 +27,6 @@ config.transformer = {
   minifierConfig: {
     ...config.transformer?.minifierConfig,
     compress: {
-      // Disable problematic optimizations that can cause issues
       drop_console: false,
       reduce_funcs: false,
     },
@@ -41,7 +39,7 @@ config.transformer = {
   }),
 };
 
-// Ensure we handle errors gracefully
+// Error handling middleware
 config.server = {
   ...config.server,
   enhanceMiddleware: (middleware) => {

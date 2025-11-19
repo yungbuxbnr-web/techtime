@@ -16,6 +16,7 @@
         "gradleCommand": ":app:assembleDevelopment"
       },
       "env": {
+        "NODE_ENV": "development",
         "NODE_OPTIONS": "--max-old-space-size=4096"
       }
     },
@@ -29,6 +30,7 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
+        "NODE_ENV": "production",
         "NODE_OPTIONS": "--max-old-space-size=4096"
       }
     },
@@ -44,6 +46,7 @@
         "gradleCommand": ":app:bundleRelease"
       },
       "env": {
+        "NODE_ENV": "production",
         "NODE_OPTIONS": "--max-old-space-size=4096"
       }
     }
