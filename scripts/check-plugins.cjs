@@ -6,7 +6,6 @@ console.log('🔍 Checking Expo config plugins...');
 
 const pluginsDir = path.join(__dirname, '..', 'plugins');
 const requiredPlugins = [
-  'gradleWrapperConfig.plugin.cjs',
   'imageManipulatorNoop.plugin.cjs'
 ];
 

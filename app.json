@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "techtime",
@@ -77,8 +78,7 @@
         {
           "cameraPermission": "Allow TechTime to access your camera to scan vehicle registration plates and job cards for quick data entry."
         }
-      ],
-      "./plugins/gradleWrapperConfig.plugin.cjs"
+      ]
     ],
     "scheme": "techtime",
     "experiments": {
@@ -87,6 +87,5 @@
     "extra": {
       "router": {}
     }
-  },
-  "scheme": "TechTime"
+  }
 }

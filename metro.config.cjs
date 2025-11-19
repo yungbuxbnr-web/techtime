@@ -39,19 +39,4 @@ config.transformer = {
   }),
 };
 
-// Error handling middleware
-config.server = {
-  ...config.server,
-  enhanceMiddleware: (middleware) => {
-    return (req, res, next) => {
-      try {
-        return middleware(req, res, next);
-      } catch (error) {
-        console.error('Metro middleware error:', error);
-        next(error);
-      }
-    };
-  },
-};
-
 module.exports = config;
