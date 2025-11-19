@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "techtime",
@@ -85,10 +86,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      }
+      "router": {}
     }
   },
   "scheme": "TechTime"

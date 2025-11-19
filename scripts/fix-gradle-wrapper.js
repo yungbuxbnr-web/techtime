@@ -1,101 +1,58 @@
 
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+const fs = require('fs');
+const path = require('path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, '..');
+console.log('🔧 Running Gradle wrapper fix script...');
 
-/**
- * Fix Gradle wrapper to use version 8.13 (minimum required version)
- * This prevents version compatibility errors with Android Gradle Plugin
- */
-function fixGradleWrapper() {
-  const androidPath = join(projectRoot, 'android');
-  const wrapperDir = join(androidPath, 'gradle', 'wrapper');
-  const wrapperPropertiesPath = join(wrapperDir, 'gradle-wrapper.properties');
+const androidPath = path.join(__dirname, '..', 'android');
+const wrapperPropertiesPath = path.join(androidPath, 'gradle', 'wrapper', 'gradle-wrapper.properties');
+const gradlePropertiesPath = path.join(androidPath, 'gradle.properties');
 
-  if (!existsSync(androidPath)) {
-    console.log('⚠️  Android folder not found. Run "npx expo prebuild" first.');
-    return;
+// Fix Gradle wrapper version
+if (fs.existsSync(wrapperPropertiesPath)) {
+  try {
+    let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
+    
+    // Replace Gradle version with 8.13
+    wrapperContent = wrapperContent.replace(
+      /distributionUrl=.*gradle-.*-bin\.zip/,
+      'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
+    );
+
+    fs.writeFileSync(wrapperPropertiesPath, wrapperContent, 'utf8');
+    console.log('✅ Gradle wrapper configured to use version 8.13');
+  } catch (error) {
+    console.error('❌ Error fixing Gradle wrapper:', error.message);
   }
+} else {
+  console.log('⚠️ Gradle wrapper properties file not found. Run prebuild first.');
+}
 
-  if (!existsSync(wrapperDir)) {
-    console.log('Creating gradle wrapper directory...');
-    mkdirSync(wrapperDir, { recursive: true });
-  }
-
-  if (!existsSync(wrapperPropertiesPath)) {
-    console.log('Creating gradle-wrapper.properties...');
-    const defaultContent = `distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip
-networkTimeout=120000
-validateDistributionUrl=true
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists`;
-    writeFileSync(wrapperPropertiesPath, defaultContent, 'utf8');
-    console.log('✅ Created gradle-wrapper.properties with Gradle 8.13');
-    return;
-  }
-
-  let content = readFileSync(wrapperPropertiesPath, 'utf8');
-  const originalContent = content;
-
-  // Replace Gradle version with 8.13 (minimum required version)
-  content = content.replace(
-    /distributionUrl=.*gradle-.*-bin\.zip/,
-    'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
-  );
-
-  // Add network timeout if not present
-  if (!content.includes('networkTimeout')) {
-    content += '\nnetworkTimeout=120000';
-  }
-
-  // Add distribution URL validation if not present
-  if (!content.includes('validateDistributionUrl')) {
-    content += '\nvalidateDistributionUrl=true';
-  }
-
-  if (content !== originalContent) {
-    writeFileSync(wrapperPropertiesPath, content, 'utf8');
-    console.log('✅ Fixed gradle-wrapper.properties to use Gradle 8.13 with network retry');
-  } else {
-    console.log('✅ Gradle wrapper already configured correctly');
-  }
-
-  // Also update gradle.properties with network settings
-  const gradlePropertiesPath = join(androidPath, 'gradle.properties');
-  if (existsSync(gradlePropertiesPath)) {
-    let gradleProps = readFileSync(gradlePropertiesPath, 'utf8');
-    const originalProps = gradleProps;
-
-    const networkSettings = [
-      'systemProp.org.gradle.internal.http.connectionTimeout=120000',
-      'systemProp.org.gradle.internal.http.socketTimeout=120000',
-      'systemProp.http.socketTimeout=120000',
-      'systemProp.http.connectionTimeout=120000'
-    ];
-
-    networkSettings.forEach(setting => {
-      const key = setting.split('=')[0];
-      if (!gradleProps.includes(key)) {
-        gradleProps += '\n' + setting;
-      }
-    });
-
-    if (gradleProps !== originalProps) {
-      writeFileSync(gradlePropertiesPath, gradleProps, 'utf8');
-      console.log('✅ Added network retry settings to gradle.properties');
+// Ensure gradle.properties has proper memory settings
+if (fs.existsSync(gradlePropertiesPath)) {
+  try {
+    let gradleContent = fs.readFileSync(gradlePropertiesPath, 'utf8');
+    
+    // Check if memory settings are present
+    if (!gradleContent.includes('org.gradle.jvmargs')) {
+      console.log('📝 Adding memory settings to gradle.properties...');
+      gradleContent += '\n# Memory settings for build stability\n';
+      gradleContent += 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC\n';
+      gradleContent += 'org.gradle.daemon=true\n';
+      gradleContent += 'org.gradle.parallel=true\n';
+      gradleContent += 'org.gradle.configureondemand=true\n';
+      gradleContent += 'org.gradle.workers.max=2\n';
+      
+      fs.writeFileSync(gradlePropertiesPath, gradleContent, 'utf8');
+      console.log('✅ Memory settings added to gradle.properties');
+    } else {
+      console.log('✅ Memory settings already present in gradle.properties');
     }
+  } catch (error) {
+    console.error('❌ Error updating gradle.properties:', error.message);
   }
+} else {
+  console.log('⚠️ gradle.properties file not found. Run prebuild first.');
 }
 
-try {
-  fixGradleWrapper();
-} catch (error) {
-  console.error('❌ Error fixing Gradle wrapper:', error.message);
-  process.exit(1);
-}
+console.log('✅ Gradle wrapper fix script completed');

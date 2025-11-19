@@ -18,6 +18,8 @@ config.resolver = {
   ...config.resolver,
   sourceExts: [...(config.resolver?.sourceExts || []), 'cjs', 'mjs'],
   assetExts: config.resolver?.assetExts || [],
+  // Ensure node_modules are resolved correctly
+  nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
 };
 
 // Configure transformer for production builds
@@ -37,6 +39,21 @@ config.transformer = {
       inlineRequires: true,
     },
   }),
+};
+
+// Ensure we handle errors gracefully
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware) => {
+    return (req, res, next) => {
+      try {
+        return middleware(req, res, next);
+      } catch (error) {
+        console.error('Metro middleware error:', error);
+        next(error);
+      }
+    };
+  },
 };
 
 module.exports = config;

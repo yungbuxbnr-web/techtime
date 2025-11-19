@@ -32,20 +32,25 @@ const withGradleWrapperConfig = (config) => {
 
   // Configure gradle wrapper properties
   config = withProjectBuildGradle(config, async (config) => {
-    const androidPath = path.join(config.modRequest.projectRoot, 'android');
-    const wrapperPropertiesPath = path.join(androidPath, 'gradle', 'wrapper', 'gradle-wrapper.properties');
+    try {
+      const androidPath = path.join(config.modRequest.projectRoot, 'android');
+      const wrapperPropertiesPath = path.join(androidPath, 'gradle', 'wrapper', 'gradle-wrapper.properties');
 
-    // This will be applied after prebuild creates the android folder
-    if (fs.existsSync(wrapperPropertiesPath)) {
-      let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
-      
-      // Replace Gradle version with 8.13 (minimum required version)
-      wrapperContent = wrapperContent.replace(
-        /distributionUrl=.*gradle-.*-bin\.zip/,
-        'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
-      );
+      // This will be applied after prebuild creates the android folder
+      if (fs.existsSync(wrapperPropertiesPath)) {
+        let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
+        
+        // Replace Gradle version with 8.13 (minimum required version)
+        wrapperContent = wrapperContent.replace(
+          /distributionUrl=.*gradle-.*-bin\.zip/,
+          'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
+        );
 
-      fs.writeFileSync(wrapperPropertiesPath, wrapperContent, 'utf8');
+        fs.writeFileSync(wrapperPropertiesPath, wrapperContent, 'utf8');
+        console.log('✅ Gradle wrapper configured to use version 8.13');
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not configure Gradle wrapper:', error.message);
     }
 
     return config;
