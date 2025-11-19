@@ -6,8 +6,7 @@ console.log('🔍 Checking Expo config plugins...');
 
 const pluginsDir = path.join(__dirname, '..', 'plugins');
 const requiredPlugins = [
-  'gradleWrapperConfig.plugin.cjs',
-  'imageManipulatorNoop.plugin.cjs'
+  'gradleWrapperConfig.plugin.cjs'
 ];
 
 let allPluginsExist = true;
@@ -16,6 +15,15 @@ for (const plugin of requiredPlugins) {
   const pluginPath = path.join(pluginsDir, plugin);
   if (fs.existsSync(pluginPath)) {
     console.log(`✅ Found plugin: ${plugin}`);
+    
+    // Verify the plugin can be required
+    try {
+      require(pluginPath);
+      console.log(`✅ Plugin ${plugin} is valid`);
+    } catch (error) {
+      console.error(`❌ Plugin ${plugin} has errors:`, error.message);
+      allPluginsExist = false;
+    }
   } else {
     console.warn(`⚠️ Missing plugin: ${plugin}`);
     allPluginsExist = false;
@@ -23,10 +31,10 @@ for (const plugin of requiredPlugins) {
 }
 
 if (allPluginsExist) {
-  console.log('✅ All required plugins are present');
+  console.log('✅ All required plugins are present and valid');
 } else {
-  console.warn('⚠️ Some plugins are missing, but continuing...');
+  console.warn('⚠️ Some plugins are missing or invalid');
 }
 
-// Don't fail the build, just warn
+// Always exit successfully to not block the build
 process.exit(0);

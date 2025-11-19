@@ -1,3 +1,4 @@
+
 {
   "name": "techtime",
   "version": "1.0.0",
@@ -10,7 +11,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "prebuild": "node scripts/check-plugins.js && expo prebuild -y && node scripts/fix-gradle-wrapper.js",
+    "prebuild": "node scripts/check-plugins.js && expo prebuild --clean && node scripts/fix-gradle-wrapper.js",
     "export": "expo export",
     "build:android": "NODE_OPTIONS='--max-old-space-size=4096' expo run:android --variant release",
     "build:ios": "expo run:ios --configuration Release",

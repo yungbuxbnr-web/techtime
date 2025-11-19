@@ -1,17 +1,16 @@
 
-const { withGradleProperties, withProjectBuildGradle } = require('@expo/config-plugins');
-const fs = require('fs');
-const path = require('path');
+const { withGradleProperties } = require('@expo/config-plugins');
 
 /**
- * Plugin to configure Gradle wrapper with version 8.13 and network retry settings
+ * Plugin to configure Gradle properties with network retry settings
+ * This plugin only modifies gradle.properties and does NOT touch gradle-wrapper.properties
+ * The gradle-wrapper.properties is handled by the fix-gradle-wrapper.js script after prebuild
  */
 const withGradleWrapperConfig = (config) => {
-  // Configure gradle.properties with network settings
-  config = withGradleProperties(config, (config) => {
+  return withGradleProperties(config, (config) => {
     config.modResults = config.modResults || [];
     
-    // Add network timeout settings
+    // Network timeout settings for better reliability
     const networkSettings = [
       { type: 'property', key: 'systemProp.org.gradle.internal.http.connectionTimeout', value: '120000' },
       { type: 'property', key: 'systemProp.org.gradle.internal.http.socketTimeout', value: '120000' },
@@ -19,44 +18,27 @@ const withGradleWrapperConfig = (config) => {
       { type: 'property', key: 'systemProp.http.connectionTimeout', value: '120000' },
     ];
 
-    // Remove existing network settings to avoid duplicates
+    // Memory settings for Gradle daemon
+    const memorySettings = [
+      { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError' },
+      { type: 'property', key: 'org.gradle.daemon', value: 'true' },
+      { type: 'property', key: 'org.gradle.parallel', value: 'true' },
+      { type: 'property', key: 'org.gradle.configureondemand', value: 'true' },
+      { type: 'property', key: 'org.gradle.caching', value: 'true' },
+    ];
+
+    const allSettings = [...networkSettings, ...memorySettings];
+
+    // Remove existing settings to avoid duplicates
     config.modResults = config.modResults.filter(
-      item => !networkSettings.some(setting => setting.key === item.key)
+      item => !allSettings.some(setting => setting.key === item.key)
     );
 
-    // Add network settings
-    config.modResults.push(...networkSettings);
+    // Add all settings
+    config.modResults.push(...allSettings);
 
     return config;
   });
-
-  // Configure gradle wrapper properties
-  config = withProjectBuildGradle(config, async (config) => {
-    try {
-      const androidPath = path.join(config.modRequest.projectRoot, 'android');
-      const wrapperPropertiesPath = path.join(androidPath, 'gradle', 'wrapper', 'gradle-wrapper.properties');
-
-      // This will be applied after prebuild creates the android folder
-      if (fs.existsSync(wrapperPropertiesPath)) {
-        let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
-        
-        // Replace Gradle version with 8.13 (minimum required version)
-        wrapperContent = wrapperContent.replace(
-          /distributionUrl=.*gradle-.*-bin\.zip/,
-          'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
-        );
-
-        fs.writeFileSync(wrapperPropertiesPath, wrapperContent, 'utf8');
-        console.log('✅ Gradle wrapper configured to use version 8.13');
-      }
-    } catch (error) {
-      console.warn('⚠️ Could not configure Gradle wrapper:', error.message);
-    }
-
-    return config;
-  });
-
-  return config;
 };
 
 module.exports = withGradleWrapperConfig;
