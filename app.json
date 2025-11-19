@@ -35,7 +35,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.trechtracer",
+      "package": "com.brcarszw.techtracer",
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",

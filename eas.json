@@ -1,3 +1,4 @@
+
 {
   "cli": {
     "version": ">= 12.8.0",
@@ -8,43 +9,39 @@
       "developmentClient": true,
       "distribution": "internal",
       "credentialsSource": "remote",
-      "android": {
-        "gradleCommand": ":app:assembleDebug",
-        "env": {
-          "GRADLE_OPTS": "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dorg.gradle.daemon=true -Dorg.gradle.jvmargs=-Xmx4g"
-        }
-      },
       "ios": {
-        "simulator": false,
         "resourceClass": "m-medium"
+      },
+      "android": {
+        "gradleCommand": ":app:assembleDevelopment"
       }
     },
     "preview": {
       "distribution": "internal",
       "credentialsSource": "remote",
-      "android": {
-        "buildType": "apk",
-        "env": {
-          "GRADLE_OPTS": "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dorg.gradle.daemon=true -Dorg.gradle.jvmargs=-Xmx4g"
-        }
-      },
       "ios": {
-        "simulator": false,
         "resourceClass": "m-medium"
+      },
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096"
       }
     },
     "production": {
       "autoIncrement": true,
       "credentialsSource": "remote",
+      "ios": {
+        "resourceClass": "m-medium",
+        "image": "latest"
+      },
       "android": {
         "buildType": "app-bundle",
-        "env": {
-          "GRADLE_OPTS": "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dorg.gradle.daemon=true -Dorg.gradle.jvmargs=-Xmx4g"
-        }
+        "gradleCommand": ":app:bundleRelease"
       },
-      "ios": {
-        "autoIncrement": true,
-        "resourceClass": "m-medium"
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=4096"
       }
     }
   },

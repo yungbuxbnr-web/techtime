@@ -1,3 +1,4 @@
+
 {
   "name": "techtime",
   "version": "1.0.0",
@@ -12,7 +13,7 @@
     "ios": "expo run:ios",
     "prebuild": "node scripts/check-plugins.js && expo prebuild -y && node scripts/fix-gradle-wrapper.js",
     "export": "expo export",
-    "build:android": "expo run:android --variant release",
+    "build:android": "NODE_OPTIONS='--max-old-space-size=4096' expo run:android --variant release",
     "build:ios": "expo run:ios --configuration Release",
     "prepare": "cross-env NODE_ENV=production node -e \"process.exit(0)\"",
     "dev": "NODE_ENV=development EXPO_NO_TELEMETRY=1 expo start --tunnel",
@@ -20,10 +21,10 @@
     "dev:ios": "NODE_ENV=development EXPO_NO_TELEMETRY=1 expo start --ios",
     "dev:web": "NODE_ENV=development EXPO_NO_TELEMETRY=1 expo start --web",
     "build:web": "NODE_ENV=production expo export -p web && npx workbox generateSW workbox-config.cjs",
-    "build:eas:android": "NODE_ENV=production eas build --platform android --profile production",
+    "build:eas:android": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform android --profile production",
     "build:eas:ios": "NODE_ENV=production eas build --platform ios --profile production",
-    "build:eas:all": "NODE_ENV=production eas build --platform all --profile production",
-    "build:preview:android": "NODE_ENV=production eas build --platform android --profile preview",
+    "build:eas:all": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform all --profile production",
+    "build:preview:android": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform android --profile preview",
     "build:preview:ios": "NODE_ENV=production eas build --platform ios --profile preview",
     "prebuild:android": "NODE_ENV=production node scripts/check-plugins.js && expo prebuild -p android --clean && node scripts/fix-gradle-wrapper.js",
     "prebuild:ios": "NODE_ENV=production node scripts/check-plugins.js && expo prebuild -p ios --clean",
