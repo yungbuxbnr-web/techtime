@@ -8,8 +8,8 @@ const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
 /**
- * Fix Gradle wrapper to use stable version 8.10.2
- * This prevents "Connection reset" errors when downloading Gradle
+ * Fix Gradle wrapper to use version 8.13 (minimum required version)
+ * This prevents version compatibility errors with Android Gradle Plugin
  */
 function fixGradleWrapper() {
   const androidPath = join(projectRoot, 'android');
@@ -30,23 +30,23 @@ function fixGradleWrapper() {
     console.log('Creating gradle-wrapper.properties...');
     const defaultContent = `distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
-distributionUrl=https\\://services.gradle.org/distributions/gradle-8.10.2-bin.zip
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip
 networkTimeout=120000
 validateDistributionUrl=true
 zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists`;
     writeFileSync(wrapperPropertiesPath, defaultContent, 'utf8');
-    console.log('✅ Created gradle-wrapper.properties with Gradle 8.10.2');
+    console.log('✅ Created gradle-wrapper.properties with Gradle 8.13');
     return;
   }
 
   let content = readFileSync(wrapperPropertiesPath, 'utf8');
   const originalContent = content;
 
-  // Replace Gradle version with stable 8.10.2
+  // Replace Gradle version with 8.13 (minimum required version)
   content = content.replace(
     /distributionUrl=.*gradle-.*-bin\.zip/,
-    'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.10.2-bin.zip'
+    'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
   );
 
   // Add network timeout if not present
@@ -61,7 +61,7 @@ zipStorePath=wrapper/dists`;
 
   if (content !== originalContent) {
     writeFileSync(wrapperPropertiesPath, content, 'utf8');
-    console.log('✅ Fixed gradle-wrapper.properties to use Gradle 8.10.2 with network retry');
+    console.log('✅ Fixed gradle-wrapper.properties to use Gradle 8.13 with network retry');
   } else {
     console.log('✅ Gradle wrapper already configured correctly');
   }

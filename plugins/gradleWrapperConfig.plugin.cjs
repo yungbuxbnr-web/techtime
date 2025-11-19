@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Plugin to configure Gradle wrapper with stable version and network retry settings
+ * Plugin to configure Gradle wrapper with version 8.13 and network retry settings
  */
 const withGradleWrapperConfig = (config) => {
   // Configure gradle.properties with network settings
@@ -39,10 +39,10 @@ const withGradleWrapperConfig = (config) => {
     if (fs.existsSync(wrapperPropertiesPath)) {
       let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
       
-      // Replace Gradle version with stable 8.10.2
+      // Replace Gradle version with 8.13 (minimum required version)
       wrapperContent = wrapperContent.replace(
         /distributionUrl=.*gradle-.*-bin\.zip/,
-        'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.10.2-bin.zip'
+        'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
       );
 
       fs.writeFileSync(wrapperPropertiesPath, wrapperContent, 'utf8');

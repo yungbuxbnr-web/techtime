@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "TechTime",
-    "slug": "TechTime",
+    "name": "techtime",
+    "slug": "techtime",
     "owner": "bnr",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -35,7 +35,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brcarszw.techtracer",
+      "package": "com.brcarszw.trechtracer",
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
