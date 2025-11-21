@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler, Alert, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, BackHandler, Alert, Platform, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,6 +12,9 @@ import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
 import * as Updates from 'expo-updates';
+import CameraModal from '../features/scan/CameraModal';
+import ScanResultSheet from '../features/scan/ScanResultSheet';
+import { scanJobCard } from '../services/scan/pipeline';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
@@ -34,6 +37,12 @@ export default function DashboardScreen() {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const backPressCount = useRef(0);
 
+  // Scanning states
+  const [showCamera, setShowCamera] = useState(false);
+  const [showScanResults, setShowScanResults] = useState(false);
+  const [isProcessingScan, setIsProcessingScan] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
   }, []);
@@ -50,29 +59,22 @@ export default function DashboardScreen() {
             try {
               console.log('Exiting app - resetting authentication...');
               
-              // Reset authentication to ensure fresh start next time
               const settings = await StorageService.getSettings();
               await StorageService.saveSettings({ ...settings, isAuthenticated: false });
               console.log('Authentication reset for fresh start');
               
-              // Close the app completely
               if (Platform.OS === 'android') {
-                // On Android, we can exit the app
                 BackHandler.exitApp();
               } else {
-                // On iOS, we can't programmatically exit, but we can reload the app
-                // This will effectively restart it
                 try {
                   await Updates.reloadAsync();
                 } catch (reloadError) {
                   console.log('Could not reload app:', reloadError);
-                  // If reload fails, just show a message
                   showNotification('Please close the app manually', 'info');
                 }
               }
             } catch (error) {
               console.log('Error during app exit:', error);
-              // If anything fails, still try to exit on Android
               if (Platform.OS === 'android') {
                 BackHandler.exitApp();
               } else {
@@ -103,7 +105,6 @@ export default function DashboardScreen() {
       }
     } catch (error) {
       console.log('[Dashboard] Error checking monthly reset:', error);
-      // Don't show error to user - this is a background operation
     }
   }, [showNotification]);
 
@@ -117,7 +118,6 @@ export default function DashboardScreen() {
       setJobs(jobsData);
       setTechnicianName(name || 'Technician');
       
-      // Get current month's absence hours (will be 0 if month was just reset)
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
       const absenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
@@ -150,10 +150,7 @@ export default function DashboardScreen() {
         return;
       }
       
-      // Check for monthly reset first
       await checkMonthlyReset();
-      
-      // Then load jobs
       await loadJobs();
     } catch (error) {
       console.log('Error checking auth:', error);
@@ -220,16 +217,68 @@ export default function DashboardScreen() {
     setShowOptionsMenu(!showOptionsMenu);
   };
 
+  // Scanning functions
+  const handleScanPress = () => {
+    console.log('[Dashboard] Opening camera for scanning');
+    setShowCamera(true);
+  };
+
+  const handleCameraCapture = async (imageUri: string) => {
+    console.log('[Dashboard] Image captured:', imageUri);
+    setShowCamera(false);
+    setIsProcessingScan(true);
+    
+    try {
+      showNotification('Processing image...', 'info');
+      const result = await scanJobCard(imageUri);
+      
+      console.log('[Dashboard] Scan result:', result);
+      setScanResult(result);
+      setIsProcessingScan(false);
+      
+      if (result.reg || result.wip || result.jobNo) {
+        setShowScanResults(true);
+      } else {
+        showNotification('No data detected. Please try again or enter manually.', 'error');
+      }
+    } catch (error: any) {
+      console.log('[Dashboard] Scan error:', error);
+      setIsProcessingScan(false);
+      
+      let errorMessage = 'Failed to scan document. Please try again.';
+      if (error.message === 'OCR_OFFLINE') {
+        errorMessage = 'No internet connection. Please check your connection and try again.';
+      } else if (error.message === 'OCR_NO_API_KEY') {
+        errorMessage = 'OCR not configured. Please contact support.';
+      }
+      
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const handleApplyScanResults = (data: { reg?: string; wip?: string; jobNo?: string }) => {
+    console.log('[Dashboard] Applying scan results and navigating to add-job');
+    
+    // Navigate to add-job with scan data
+    router.push({
+      pathname: '/add-job',
+      params: {
+        scannedReg: data.reg || '',
+        scannedWip: data.wip || '',
+      }
+    });
+    
+    showNotification('Scan data ready! Complete the job details.', 'success');
+  };
+
   const today = new Date();
   const dailyJobs = CalculationService.getDailyJobs(jobs, today);
   const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
 
-  // Get efficiency color
   const efficiency = monthlyStats.efficiency || 0;
   const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
   const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
 
-  // Calculate target hours progress percentage - FIXED: sold hours out of target hours
   const targetHoursPercentage = monthlyStats.targetHours > 0 
     ? Math.min((monthlyStats.totalSoldHours / monthlyStats.targetHours) * 100, 100)
     : 0;
@@ -251,12 +300,21 @@ export default function DashboardScreen() {
             <Text style={styles.welcomeText}>Technician Records</Text>
             <Text style={styles.nameText}>{technicianName}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.optionsButton}
-            onPress={toggleOptionsMenu}
-          >
-            <Text style={styles.optionsButtonText}>⋯</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.scanIconButton}
+              onPress={handleScanPress}
+              disabled={isProcessingScan}
+            >
+              <Text style={styles.scanIconText}>📷</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.optionsButton}
+              onPress={toggleOptionsMenu}
+            >
+              <Text style={styles.optionsButtonText}>⋯</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {showOptionsMenu && (
@@ -292,9 +350,7 @@ export default function DashboardScreen() {
         )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Two Progress Circles Side by Side */}
           <View style={styles.progressSection}>
-            {/* Monthly Target Hours Circle - FIXED: Shows sold hours out of target hours */}
             <TouchableOpacity 
               style={styles.progressCircleContainer}
               onPress={() => navigateToStats('hours')}
@@ -316,7 +372,6 @@ export default function DashboardScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Efficiency Circle */}
             <TouchableOpacity 
               style={styles.progressCircleContainer}
               onPress={() => navigateToStats('efficiency')}
@@ -342,7 +397,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Efficiency Details Card */}
           <View style={styles.efficiencyCard}>
             <Text style={styles.efficiencyCardTitle}>Monthly Breakdown</Text>
             <View style={styles.efficiencyRow}>
@@ -377,7 +431,6 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Stats Grid */}
           <View style={styles.statsGrid}>
             <TouchableOpacity 
               style={styles.statCard}
@@ -420,7 +473,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Today & Week Summary */}
           <View style={styles.summarySection}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>Today</Text>
@@ -443,7 +495,6 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Quick Actions */}
           <View style={styles.actionsSection}>
             <TouchableOpacity
               style={styles.primaryAction}
@@ -471,7 +522,7 @@ export default function DashboardScreen() {
         </ScrollView>
 
         <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem} onPress={() => {}}>
+          <TouchableOpacity style={styles.navItem} onPress={() => console.log('Already on Home')}>
             <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
@@ -485,6 +536,37 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <CameraModal
+        visible={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCameraCapture}
+        title="Scan Job Card"
+        subtitle="Position the job card in the frame"
+      />
+
+      {scanResult && (
+        <ScanResultSheet
+          visible={showScanResults}
+          onClose={() => setShowScanResults(false)}
+          onApply={handleApplyScanResults}
+          reg={scanResult.reg}
+          wip={scanResult.wip}
+          jobNo={scanResult.jobNo}
+          allCandidates={scanResult.allCandidates}
+        />
+      )}
+
+      {isProcessingScan && (
+        <View style={styles.processingOverlay}>
+          <View style={styles.processingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.processingText, { color: colors.text }]}>
+              Processing scan...
+            </Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -518,6 +600,24 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
     fontWeight: '700',
     color: colors.text,
     marginTop: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  scanIconButton: {
+    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  scanIconText: {
+    fontSize: 20,
   },
   optionsButton: {
     backgroundColor: colors.card,
@@ -775,5 +875,27 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
   navTextActive: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  processingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  processingContainer: {
+    backgroundColor: colors.card,
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  processingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
   },
 });
