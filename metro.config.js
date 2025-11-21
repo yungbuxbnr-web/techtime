@@ -3,7 +3,10 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { FileStore } = require('metro-cache');
 const path = require('path');
 
-const config = getDefaultConfig(__dirname);
+// Get default config with CSS enabled (for react-native-css-interop)
+const config = getDefaultConfig(__dirname, {
+  isCSSEnabled: true,
+});
 
 // Use file-based cache for better performance
 config.cacheStores = [
