@@ -12,6 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions, FlashMode } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -35,6 +36,7 @@ export default function CameraModal({
   const [flash, setFlash] = useState<FlashMode>('off');
   const [isProcessing, setIsProcessing] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+  const [mediaLibraryPermission, requestMediaLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
   const cameraRef = useRef<CameraView>(null);
 
   // Memoize the permission request function
@@ -74,6 +76,48 @@ export default function CameraModal({
       console.log('[Camera] Error taking picture:', error);
       Alert.alert('Error', 'Failed to take picture. Please try again.');
       setIsProcessing(false);
+    }
+  };
+
+  const handlePickFromGallery = async () => {
+    try {
+      // Check and request media library permission if needed
+      if (!mediaLibraryPermission?.granted) {
+        console.log('[Camera] Requesting media library permission');
+        const result = await requestMediaLibraryPermission();
+        if (!result.granted) {
+          Alert.alert(
+            'Permission Required',
+            'Please grant access to your photo library to select images.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings() }
+            ]
+          );
+          return;
+        }
+      }
+
+      // Haptic feedback
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      console.log('[Camera] Launching image picker');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        console.log('[Camera] Image selected from gallery:', imageUri);
+        onCapture(imageUri);
+      } else {
+        console.log('[Camera] Image picker canceled');
+      }
+    } catch (error) {
+      console.log('[Camera] Error picking image from gallery:', error);
+      Alert.alert('Error', 'Failed to pick image from gallery. Please try again.');
     }
   };
 
@@ -227,6 +271,17 @@ export default function CameraModal({
             </TouchableOpacity>
           </View>
 
+          {/* Gallery button */}
+          <View style={styles.galleryButtonContainer}>
+            <TouchableOpacity
+              style={styles.galleryButton}
+              onPress={handlePickFromGallery}
+              disabled={isProcessing}
+            >
+              <Text style={styles.galleryButtonText}>🖼️ Pick from Gallery</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Processing overlay */}
           {isProcessing && (
             <View style={styles.processingOverlay}>
@@ -336,7 +391,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingBottom: Platform.OS === 'ios' ? 40 : 30,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
     paddingHorizontal: 40,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
@@ -371,6 +426,25 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     backgroundColor: '#fff',
+  },
+  galleryButtonContainer: {
+    paddingHorizontal: 40,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  galleryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  galleryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,

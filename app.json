@@ -86,5 +86,6 @@
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "TechTime"
 }
