@@ -12,7 +12,9 @@ const LEGACY_VRM_PATTERNS = [
   /\b(?!OI|IO)([A-Z]{1,3})\s?(\d{1,3})\s?([A-Z]{1,3})\b/gi,
 ];
 
-const WIP_PATTERN = /\b(?:WIP\s*(?:No\.?|#|:)?\s*)([A-Z0-9-]{3,})\b/gi;
+// Updated WIP pattern to match Marshall job cards
+// Matches: "WIP No. 20705", "WIP NO: 88921", "WIPNo20705"
+const WIP_PATTERN = /\b(?:WIP\s*(?:No\.?|#|:)?\s*)([0-9]{3,})\b/gi;
 
 const JOB_PATTERN = /\b(?:Job\s*(?:No\.?|#|:)\s*)([A-Z0-9-]{3,})\b/gi;
 
@@ -76,28 +78,58 @@ export function extractReg(text: string): ParseResult[] {
   
   console.log('[Parser] Extracting registration from', lines.length, 'lines');
   
+  // First, try to find registration near "Reg" label
   lines.forEach((line) => {
-    const matches = Array.from(line.matchAll(MODERN_VRM_PATTERN));
-    matches.forEach(match => {
-      const raw = match[0];
-      const normalized = normalizeVRM(raw);
-      
-      if (!seenValues.has(normalized)) {
-        seenValues.add(normalized);
-        const confidence = calculateConfidence(match, 'modern', line);
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('reg')) {
+      const matches = Array.from(line.matchAll(MODERN_VRM_PATTERN));
+      matches.forEach(match => {
+        const raw = match[0];
+        const normalized = normalizeVRM(raw);
         
-        results.push({
-          value: formatVRM(normalized),
-          confidence,
-          sourceLine: line.trim(),
-          pattern: 'modern',
-        });
-        
-        console.log('[Parser] Found modern VRM:', normalized, 'confidence:', confidence.toFixed(2));
-      }
-    });
+        if (!seenValues.has(normalized)) {
+          seenValues.add(normalized);
+          const confidence = 0.95; // High confidence when near "Reg" label
+          
+          results.push({
+            value: formatVRM(normalized),
+            confidence,
+            sourceLine: line.trim(),
+            pattern: 'modern-labeled',
+          });
+          
+          console.log('[Parser] Found labeled VRM:', normalized, 'confidence:', confidence.toFixed(2));
+        }
+      });
+    }
   });
   
+  // Then, find all modern VRMs
+  if (results.length === 0) {
+    lines.forEach((line) => {
+      const matches = Array.from(line.matchAll(MODERN_VRM_PATTERN));
+      matches.forEach(match => {
+        const raw = match[0];
+        const normalized = normalizeVRM(raw);
+        
+        if (!seenValues.has(normalized)) {
+          seenValues.add(normalized);
+          const confidence = calculateConfidence(match, 'modern', line);
+          
+          results.push({
+            value: formatVRM(normalized),
+            confidence,
+            sourceLine: line.trim(),
+            pattern: 'modern',
+          });
+          
+          console.log('[Parser] Found modern VRM:', normalized, 'confidence:', confidence.toFixed(2));
+        }
+      });
+    });
+  }
+  
+  // Fallback to legacy patterns
   if (results.length === 0) {
     LEGACY_VRM_PATTERNS.forEach(pattern => {
       lines.forEach(line => {
@@ -146,14 +178,21 @@ export function extractWip(text: string): ParseResult[] {
     matches.forEach(match => {
       const value = match[1].trim();
       
+      // WIP numbers should be 3-10 digits
       if (value.length < 3 || value.length > 10) {
+        return;
+      }
+      
+      // Skip if it's all zeros
+      if (/^0+$/.test(value)) {
         return;
       }
       
       if (!seenValues.has(value)) {
         seenValues.add(value);
         
-        const confidence = line.toLowerCase().includes('wip') ? 0.9 : 0.7;
+        // Higher confidence when "WIP" is explicitly mentioned
+        const confidence = line.toLowerCase().includes('wip') ? 0.95 : 0.7;
         
         results.push({
           value,

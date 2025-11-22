@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
@@ -12,6 +13,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import CameraModal from '../features/scan/CameraModal';
 import ScanResultSheet from '../features/scan/ScanResultSheet';
 import { scanJobCard } from '../services/scan/pipeline';
+import { parseJobCardText } from '../utils/jobCardParser';
 
 interface JobSuggestion {
   wipNumber: string;
@@ -44,6 +46,11 @@ export default function AddJobScreen() {
   const [showScanResults, setShowScanResults] = useState(false);
   const [isProcessingScan, setIsProcessingScan] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
+
+  // Date/Time editing states
+  const [jobDate, setJobDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const wipRef = useRef<TextInput>(null);
   const vehicleRef = useRef<TextInput>(null);
@@ -95,6 +102,11 @@ export default function AddJobScreen() {
         setAwValue(jobToEdit.awValue);
         setNotes(jobToEdit.notes || '');
         setVhcColor(jobToEdit.vhcColor || null);
+        
+        // Set date/time from job
+        const jobDateTime = new Date(jobToEdit.dateCreated);
+        setJobDate(jobDateTime);
+        
         console.log('Loaded job for editing:', jobToEdit.wipNumber);
       } else {
         showNotification('Job not found', 'error');
@@ -402,10 +414,28 @@ export default function AddJobScreen() {
       const result = await scanJobCard(imageUri);
       
       console.log('[AddJob] Scan result:', result);
+      console.log('[AddJob] Raw OCR text:', result.ocrText);
+      
+      // Use the new parser
+      const parsed = parseJobCardText(result.ocrText);
+      console.log('[AddJob] Parsed result:', parsed);
+      
+      // Auto-fill the form with parsed data
+      if (parsed.jobNumber) {
+        setWipNumber(parsed.jobNumber);
+        console.log('[AddJob] Auto-filled WIP number:', parsed.jobNumber);
+      }
+      
+      if (parsed.regNumber) {
+        setVehicleRegistration(parsed.regNumber);
+        console.log('[AddJob] Auto-filled registration:', parsed.regNumber);
+      }
+      
       setScanResult(result);
       setIsProcessingScan(false);
       
-      if (result.reg || result.wip || result.jobNo) {
+      if (parsed.jobNumber || parsed.regNumber) {
+        showNotification('Scan successful! Data auto-filled.', 'success');
         setShowScanResults(true);
       } else {
         showNotification('No data detected. Please try again or enter manually.', 'error');
@@ -436,6 +466,39 @@ export default function AddJobScreen() {
     }
     
     showNotification('Scan data applied successfully!', 'success');
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      const newDate = new Date(jobDate);
+      newDate.setFullYear(selectedDate.getFullYear());
+      newDate.setMonth(selectedDate.getMonth());
+      newDate.setDate(selectedDate.getDate());
+      setJobDate(newDate);
+      console.log('[AddJob] Date changed:', newDate.toISOString());
+    }
+  };
+
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      const newDate = new Date(jobDate);
+      newDate.setHours(selectedTime.getHours());
+      newDate.setMinutes(selectedTime.getMinutes());
+      setJobDate(newDate);
+      console.log('[AddJob] Time changed:', newDate.toISOString());
+    }
+  };
+
+  const formatDateTime = (date: Date): string => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
   const validateForm = () => {
@@ -482,6 +545,7 @@ export default function AddJobScreen() {
           timeInMinutes,
           notes: notes.trim(),
           vhcColor: vhcColor,
+          dateCreated: jobDate.toISOString(),
           dateModified: new Date().toISOString(),
         };
 
@@ -497,7 +561,7 @@ export default function AddJobScreen() {
           timeInMinutes,
           notes: notes.trim(),
           vhcColor: vhcColor,
-          dateCreated: new Date().toISOString(),
+          dateCreated: jobDate.toISOString(),
         };
 
         await StorageService.saveJob(newJob);
@@ -521,6 +585,7 @@ export default function AddJobScreen() {
         setAwValue(1);
         setNotes('');
         setVhcColor(null);
+        setJobDate(new Date());
         router.back();
       }, 1500);
 
@@ -588,6 +653,51 @@ export default function AddJobScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.form}>
+            {/* Date/Time Section */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Job Date & Time</Text>
+              <View style={styles.dateTimeContainer}>
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={styles.dateTimeButtonText}>
+                    📅 {formatDateTime(jobDate).split(' ')[0]}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={styles.dateTimeButtonText}>
+                    🕐 {formatDateTime(jobDate).split(' ')[1]}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.helperText}>
+                {isEditing ? 'Edit the date and time for this job' : 'Set when this job was completed'}
+              </Text>
+            </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={jobDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+              />
+            )}
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={jobDate}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleTimeChange}
+              />
+            )}
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>WIP Number *</Text>
               <TextInput
@@ -1011,6 +1121,26 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  dateTimeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateTimeButton: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  dateTimeButtonText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
   },
   pickerContainer: {
     backgroundColor: colors.card,
