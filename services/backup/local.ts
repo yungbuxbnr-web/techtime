@@ -1,6 +1,6 @@
 
 import { Platform, Alert } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
@@ -10,9 +10,27 @@ import { StorageService } from '../../utils/storage';
 import { Job } from '../../types';
 import * as FS from '../storage/fs';
 
-// Type-safe access to FileSystem properties
-const DOC_DIR = FS.getDocumentDirectory();
-const CACHE_DIR = FS.getCacheDirectory();
+// Get base directories with proper null checks
+const getDocDir = () => {
+  try {
+    return FS.getDocumentDirectory();
+  } catch (error) {
+    console.error('[Backup] Document directory not available:', error);
+    return null;
+  }
+};
+
+const getCacheDir = () => {
+  try {
+    return FS.getCacheDirectory();
+  } catch (error) {
+    console.error('[Backup] Cache directory not available:', error);
+    return null;
+  }
+};
+
+const DOC_DIR = getDocDir();
+const CACHE_DIR = getCacheDir();
 const BACKUP_FOLDER = 'backups';
 const DATA_FOLDER = 'data';
 const RECORDS_FILE = 'records.json';
@@ -216,7 +234,7 @@ export const LocalBackupService = {
         return {
           success: true,
           message: '📱 iOS Backup Information\n\niOS doesn\'t allow permanent external folder access. Backups are saved to:\n\n📁 On My iPhone › TechTime › Documents › backups\n\nWhen exporting, you\'ll be prompted to choose a location each time (Files, iCloud Drive, etc.).',
-          uri: DOC_DIR
+          uri: DOC_DIR || undefined
         };
       }
     } catch (error) {
@@ -242,6 +260,14 @@ export const LocalBackupService = {
             type: 'saf'
           };
         }
+      }
+      
+      if (!DOC_DIR) {
+        return {
+          success: false,
+          location: 'Directory not available',
+          type: 'sandbox'
+        };
       }
       
       return {
@@ -291,6 +317,13 @@ export const LocalBackupService = {
   async testBackup(): Promise<{ success: boolean; message: string }> {
     try {
       console.log('=== TESTING BACKUP ===');
+      
+      if (!DOC_DIR) {
+        return {
+          success: false,
+          message: '❌ Document directory is not available. This may happen on web or in certain configurations.'
+        };
+      }
       
       // Create test data
       const testData = {
@@ -385,6 +418,13 @@ export const LocalBackupService = {
    */
   async ensureBackupDirectory(): Promise<{ success: boolean; path: string | null }> {
     try {
+      if (!DOC_DIR) {
+        return { 
+          success: false, 
+          path: null 
+        };
+      }
+      
       const backupDir = `${DOC_DIR}${BACKUP_FOLDER}/`;
       const dirInfo = await FileSystem.getInfoAsync(backupDir);
       
@@ -586,6 +626,14 @@ export const LocalBackupService = {
     try {
       console.log('=== CREATING LOCAL BACKUP ===');
       
+      // Check if document directory is available
+      if (!DOC_DIR) {
+        return {
+          success: false,
+          message: 'Document directory is not available. This may happen on web or in certain configurations.'
+        };
+      }
+      
       // Ensure backup directory exists
       const dirResult = await this.ensureBackupDirectory();
       if (!dirResult.success || !dirResult.path) {
@@ -712,6 +760,15 @@ export const LocalBackupService = {
         };
       }
       
+      // Get cache directory with fallback
+      const cacheDir = getCacheDir();
+      if (!cacheDir) {
+        return {
+          success: false,
+          message: 'Storage directory not available. Please try using the standard backup feature instead.'
+        };
+      }
+      
       // Get all app data
       const jobs = await StorageService.getJobs();
       const settings = await StorageService.getSettings();
@@ -736,15 +793,8 @@ export const LocalBackupService = {
       };
       
       // Create temporary file in cache directory
-      if (!CACHE_DIR) {
-        return {
-          success: false,
-          message: 'Cache directory not available'
-        };
-      }
-      
       const jsonFileName = `techtime-backup-${timestampForFile}.json`;
-      const jsonPath = `${CACHE_DIR}${jsonFileName}`;
+      const jsonPath = `${cacheDir}${jsonFileName}`;
       
       // Write JSON to cache
       await FileSystem.writeAsStringAsync(
@@ -1058,6 +1108,14 @@ export const LocalBackupService = {
         return {
           success: false,
           message: 'Sharing is not available on this device'
+        };
+      }
+      
+      // Check if document directory is available
+      if (!DOC_DIR) {
+        return {
+          success: false,
+          message: 'Document directory not available. Please try the "Share Backup" feature instead.'
         };
       }
       

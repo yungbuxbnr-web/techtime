@@ -1,11 +1,11 @@
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Type-safe access to FileSystem properties
-const DOC_DIR = (FileSystem as any).documentDirectory as string;
-const CACHE_DIR = (FileSystem as any).cacheDirectory as string;
+// Type-safe access to FileSystem properties with null checks
+const DOC_DIR = (FileSystem as any).documentDirectory as string | null;
+const CACHE_DIR = (FileSystem as any).cacheDirectory as string | null;
 const UTF8 = ((FileSystem as any).EncodingType?.UTF8 ?? 'utf8') as any;
 
 // Storage Access Framework helper (Android only)
@@ -19,10 +19,28 @@ const getStorageAccessFramework = () => {
 const SAF_URI_KEY = 'saf_backup_uri';
 
 /**
+ * Get a safe cache directory path, falling back to document directory if cache is not available
+ */
+export function getSafeCacheDirectory(): string {
+  if (CACHE_DIR) {
+    return CACHE_DIR;
+  }
+  if (DOC_DIR) {
+    console.log('[FS] Cache directory not available, using document directory');
+    return DOC_DIR;
+  }
+  throw new Error('Neither cache nor document directory is available');
+}
+
+/**
  * Ensure a directory exists, creating it if necessary
  */
 export async function ensureDir(dirPath: string): Promise<void> {
   try {
+    if (!FileSystem.getInfoAsync) {
+      throw new Error('FileSystem.getInfoAsync is not available');
+    }
+    
     const dirInfo = await FileSystem.getInfoAsync(dirPath);
     if (!dirInfo.exists) {
       console.log('[FS] Creating directory:', dirPath);
@@ -217,14 +235,17 @@ export async function clearSafUri(): Promise<void> {
  * Get document directory path
  */
 export function getDocumentDirectory(): string {
+  if (!DOC_DIR) {
+    throw new Error('Document directory is not available');
+  }
   return DOC_DIR;
 }
 
 /**
- * Get cache directory path
+ * Get cache directory path (with fallback to document directory)
  */
 export function getCacheDirectory(): string {
-  return CACHE_DIR;
+  return getSafeCacheDirectory();
 }
 
 /**
