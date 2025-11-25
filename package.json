@@ -1,3 +1,4 @@
+
 {
   "name": "techtime",
   "version": "1.0.0",
@@ -29,6 +30,9 @@
     "submit:android": "eas submit --platform android",
     "submit:ios": "eas submit --platform ios",
     "fix:gradle": "node scripts/fix-gradle-wrapper.cjs",
+    "gradle:stop": "cd android && ./gradlew --stop",
+    "gradle:clean": "cd android && ./gradlew clean --no-daemon",
+    "gradle:refresh": "npm run gradle:stop && npm run gradle:clean",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
