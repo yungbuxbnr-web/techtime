@@ -57,22 +57,18 @@ export default function TimeStatsScreen() {
 
   const formatTime = (seconds: number) => TimeTrackingService.formatTime(seconds);
 
-  // Calculate day progress (8 AM to 5 PM)
-  const dayStartHour = 8;
-  const dayEndHour = 17;
-  const currentHour = currentTime.getHours();
-  const currentMinute = currentTime.getMinutes();
-  const currentSecond = currentTime.getSeconds();
-  
-  const totalDaySeconds = (dayEndHour - dayStartHour) * 3600;
-  const elapsedDaySeconds = Math.max(0, 
-    (currentHour - dayStartHour) * 3600 + currentMinute * 60 + currentSecond
-  );
-  const remainingDaySeconds = Math.max(0, totalDaySeconds - elapsedDaySeconds);
-  const dayProgressPercentage = Math.min(100, (elapsedDaySeconds / totalDaySeconds) * 100);
+  // Calculate elapsed time from work start (stops at work end)
+  const elapsedFromWorkStart = stats.elapsedWorkSeconds + stats.elapsedLunchSeconds;
+  const totalDaySeconds = stats.totalWorkSeconds + stats.totalLunchSeconds;
+  const remainingFromWorkEnd = totalDaySeconds - elapsedFromWorkStart;
 
-  // Available hours (8 hours total, excluding 1 hour lunch)
-  const totalAvailableHours = 8;
+  // Calculate progress percentage
+  const dayProgressPercentage = totalDaySeconds > 0
+    ? Math.min(100, (elapsedFromWorkStart / totalDaySeconds) * 100)
+    : 0;
+
+  // Available hours (total work hours excluding lunch)
+  const totalAvailableHours = stats.totalWorkSeconds / 3600;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -147,7 +143,7 @@ export default function TimeStatsScreen() {
             <Text style={styles.availableHoursUnit}>hours</Text>
           </View>
           <Text style={styles.availableHoursNote}>
-            8:00 AM - 5:00 PM (excluding lunch)
+            {stats.workStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} - {stats.workEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} (excluding lunch)
           </Text>
         </View>
 
@@ -172,10 +168,10 @@ export default function TimeStatsScreen() {
           <View style={styles.timeCard}>
             <View style={styles.timeCardHeader}>
               <Text style={styles.timeCardIcon}>⏳</Text>
-              <Text style={styles.timeCardTitle}>Time Elapsed</Text>
+              <Text style={styles.timeCardTitle}>Time Elapsed (from work start)</Text>
             </View>
             <Text style={styles.timeCardValue}>
-              {formatTime(elapsedDaySeconds)}
+              {formatTime(elapsedFromWorkStart)}
             </Text>
             <View style={styles.progressBar}>
               <View 
@@ -188,15 +184,18 @@ export default function TimeStatsScreen() {
                 ]} 
               />
             </View>
+            <Text style={styles.timeCardNote}>
+              Stops at work end time
+            </Text>
           </View>
 
           <View style={styles.timeCard}>
             <View style={styles.timeCardHeader}>
               <Text style={styles.timeCardIcon}>⏰</Text>
-              <Text style={styles.timeCardTitle}>Time Remaining</Text>
+              <Text style={styles.timeCardTitle}>Time Remaining (until work end)</Text>
             </View>
             <Text style={styles.timeCardValue}>
-              {formatTime(remainingDaySeconds)}
+              {formatTime(remainingFromWorkEnd)}
             </Text>
             <View style={styles.progressBar}>
               <View 
@@ -205,6 +204,30 @@ export default function TimeStatsScreen() {
                   { 
                     width: `${100 - dayProgressPercentage}%`,
                     backgroundColor: colors.success 
+                  }
+                ]} 
+              />
+            </View>
+            <Text style={styles.timeCardNote}>
+              Resumes at work start next day
+            </Text>
+          </View>
+
+          <View style={styles.timeCard}>
+            <View style={styles.timeCardHeader}>
+              <Text style={styles.timeCardIcon}>💼</Text>
+              <Text style={styles.timeCardTitle}>Work Time (excluding lunch)</Text>
+            </View>
+            <Text style={styles.timeCardValue}>
+              {formatTime(stats.elapsedWorkSeconds)}
+            </Text>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressBarFill, 
+                  { 
+                    width: `${stats.workProgressPercentage}%`,
+                    backgroundColor: colors.primary 
                   }
                 ]} 
               />
@@ -275,6 +298,26 @@ export default function TimeStatsScreen() {
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* Info Box */}
+        <View style={styles.infoBox}>
+          <Text style={styles.infoTitle}>ℹ️ How Time Tracking Works</Text>
+          <Text style={styles.infoText}>
+            • Time elapsed starts at work start time ({stats.workStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })})
+          </Text>
+          <Text style={styles.infoText}>
+            • Time elapsed stops at work end time ({stats.workEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })})
+          </Text>
+          <Text style={styles.infoText}>
+            • Time elapsed resumes at work start the next day
+          </Text>
+          <Text style={styles.infoText}>
+            • Lunch time is tracked separately
+          </Text>
+          <Text style={styles.infoText}>
+            • Background notifications alert you for work events
+          </Text>
         </View>
 
         {/* Settings Button */}
@@ -462,6 +505,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+    flex: 1,
   },
   timeCardValue: {
     fontSize: 32,
@@ -469,6 +513,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.primary,
     marginBottom: 12,
     fontVariant: ['tabular-nums'],
+  },
+  timeCardNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   progressBar: {
     height: 8,
@@ -505,6 +555,26 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
     fontVariant: ['tabular-nums'],
+  },
+  infoBox: {
+    marginTop: 20,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 4,
   },
   settingsButton: {
     marginTop: 20,

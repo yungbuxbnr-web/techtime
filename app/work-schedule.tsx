@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { TimeTrackingService, WorkScheduleSettings } from '../utils/timeTrackingService';
+import { NotificationService } from '../utils/notificationService';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -105,7 +106,11 @@ export default function WorkScheduleScreen() {
 
       await TimeTrackingService.saveSettings(updatedSettings);
       setSettings(updatedSettings);
-      showNotification('Work schedule settings saved successfully', 'success');
+      
+      // Schedule background notifications
+      await NotificationService.scheduleWorkNotifications(updatedSettings);
+      
+      showNotification('Work schedule settings saved successfully. Notifications scheduled!', 'success');
       console.log('Work schedule settings saved:', updatedSettings);
     } catch (error) {
       console.log('Error saving work schedule settings:', error);
@@ -455,6 +460,39 @@ export default function WorkScheduleScreen() {
           </View>
         </View>
 
+        {/* Notifications Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔔 Background Notifications</Text>
+          <Text style={styles.sectionDescription}>
+            Automatic notifications will be sent for:
+          </Text>
+          
+          <View style={styles.notificationList}>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationIcon}>🏢</Text>
+              <Text style={styles.notificationText}>Work Start - When your work day begins</Text>
+            </View>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationIcon}>🍽️</Text>
+              <Text style={styles.notificationText}>Lunch Start - When your lunch break begins</Text>
+            </View>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationIcon}>⏰</Text>
+              <Text style={styles.notificationText}>Lunch End - When your lunch break ends</Text>
+            </View>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationIcon}>🎉</Text>
+              <Text style={styles.notificationText}>Work End - When your work day is complete</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              📱 Notifications are scheduled automatically when you save your work schedule
+            </Text>
+          </View>
+        </View>
+
         {/* Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 Schedule Summary</Text>
@@ -525,6 +563,9 @@ export default function WorkScheduleScreen() {
           </Text>
           <Text style={styles.infoText}>
             - Saturday frequency allows flexible scheduling
+          </Text>
+          <Text style={styles.infoText}>
+            - Background notifications alert you for work events
           </Text>
           <Text style={styles.infoText}>
             - View live stats by tapping the progress bar on the dashboard
@@ -771,6 +812,25 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.primary,
+  },
+  notificationList: {
+    marginTop: 8,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  notificationIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  notificationText: {
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
   },
   summaryBox: {
     backgroundColor: colors.backgroundAlt,

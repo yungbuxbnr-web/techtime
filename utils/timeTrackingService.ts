@@ -56,7 +56,7 @@ const DEFAULT_SETTINGS: WorkScheduleSettings = {
 
 export class TimeTrackingService {
   private static updateInterval: NodeJS.Timeout | null = null;
-  private static listeners: ((stats: TimeStats) => void)[] = [];
+  private static listeners: Array<(stats: TimeStats) => void> = [];
 
   // Get settings
   static async getSettings(): Promise<WorkScheduleSettings> {
@@ -152,6 +152,56 @@ export class TimeTrackingService {
     return settings.workDays.includes(today);
   }
 
+  // Calculate elapsed time that stops at work end and resumes at work start next day
+  private static calculateElapsedSeconds(
+    now: Date,
+    workStart: Date,
+    workEnd: Date,
+    lunchStart: Date,
+    lunchEnd: Date,
+    isWorkDay: boolean
+  ): { elapsedWorkSeconds: number; elapsedLunchSeconds: number } {
+    let elapsedWorkSeconds = 0;
+    let elapsedLunchSeconds = 0;
+
+    if (!isWorkDay) {
+      return { elapsedWorkSeconds, elapsedLunchSeconds };
+    }
+
+    // If before work start, no elapsed time
+    if (now < workStart) {
+      return { elapsedWorkSeconds, elapsedLunchSeconds };
+    }
+
+    // If after work end, count full day
+    if (now > workEnd) {
+      const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
+      const workAfterLunchMs = workEnd.getTime() - lunchEnd.getTime();
+      elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
+      elapsedLunchSeconds = (lunchEnd.getTime() - lunchStart.getTime()) / 1000;
+      return { elapsedWorkSeconds, elapsedLunchSeconds };
+    }
+
+    // Currently within work hours
+    if (now <= lunchStart) {
+      // Before lunch
+      elapsedWorkSeconds = (now.getTime() - workStart.getTime()) / 1000;
+    } else if (now <= lunchEnd) {
+      // During lunch
+      const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
+      elapsedWorkSeconds = workBeforeLunchMs / 1000;
+      elapsedLunchSeconds = (now.getTime() - lunchStart.getTime()) / 1000;
+    } else {
+      // After lunch
+      const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
+      const workAfterLunchMs = now.getTime() - lunchEnd.getTime();
+      elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
+      elapsedLunchSeconds = (lunchEnd.getTime() - lunchStart.getTime()) / 1000;
+    }
+
+    return { elapsedWorkSeconds, elapsedLunchSeconds };
+  }
+
   // Calculate time stats
   static calculateTimeStats(settings: WorkScheduleSettings): TimeStats {
     const now = new Date();
@@ -170,36 +220,15 @@ export class TimeTrackingService {
     const totalWorkSeconds = (totalWorkMs - lunchDurationMs) / 1000;
     const totalLunchSeconds = lunchDurationMs / 1000;
 
-    // Calculate elapsed seconds
-    let elapsedWorkSeconds = 0;
-    let elapsedLunchSeconds = 0;
-
-    if (isWorkDay && now >= workStart) {
-      if (now <= workEnd) {
-        // Currently within work hours
-        const elapsedMs = now.getTime() - workStart.getTime();
-        
-        if (now <= lunchStart) {
-          // Before lunch
-          elapsedWorkSeconds = elapsedMs / 1000;
-        } else if (now <= lunchEnd) {
-          // During lunch
-          const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
-          elapsedWorkSeconds = workBeforeLunchMs / 1000;
-          elapsedLunchSeconds = (now.getTime() - lunchStart.getTime()) / 1000;
-        } else {
-          // After lunch
-          const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
-          const workAfterLunchMs = now.getTime() - lunchEnd.getTime();
-          elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
-          elapsedLunchSeconds = totalLunchSeconds;
-        }
-      } else {
-        // Work day ended
-        elapsedWorkSeconds = totalWorkSeconds;
-        elapsedLunchSeconds = totalLunchSeconds;
-      }
-    }
+    // Calculate elapsed seconds (stops at work end, resumes at work start)
+    const { elapsedWorkSeconds, elapsedLunchSeconds } = this.calculateElapsedSeconds(
+      now,
+      workStart,
+      workEnd,
+      lunchStart,
+      lunchEnd,
+      isWorkDay
+    );
 
     // Calculate remaining seconds
     const remainingWorkSeconds = Math.max(0, totalWorkSeconds - elapsedWorkSeconds);

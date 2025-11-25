@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "TechTime",
@@ -39,7 +40,9 @@
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
-        "CAMERA"
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM"
       ],
       "intentFilters": [
         {
@@ -76,6 +79,15 @@
         "expo-camera",
         {
           "cameraPermission": "Allow TechTime to access your camera to scan vehicle registration plates and job cards for quick data entry."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
+          "color": "#ffffff",
+          "sounds": [],
+          "mode": "production"
         }
       ]
     ],
