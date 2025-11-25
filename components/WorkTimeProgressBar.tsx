@@ -35,6 +35,15 @@ export default function WorkTimeProgressBar() {
     }
   };
 
+  const handlePress = () => {
+    try {
+      console.log('[WorkTimeProgressBar] Navigating to time-stats');
+      router.push('/time-stats');
+    } catch (error) {
+      console.log('[WorkTimeProgressBar] Navigation error:', error);
+    }
+  };
+
   if (!stats || !stats.isWorkDay) {
     return null;
   }
@@ -59,7 +68,7 @@ export default function WorkTimeProgressBar() {
   return (
     <TouchableOpacity
       style={styles.container}
-      onPress={() => router.push('/time-stats')}
+      onPress={handlePress}
       activeOpacity={0.8}
     >
       <View style={styles.header}>

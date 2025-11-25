@@ -10,6 +10,7 @@ import { MonthlyResetService } from '../utils/monthlyReset';
 import { Job, MonthlyStats } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
+import LiveClock from '../components/LiveClock';
 import { useTheme } from '../contexts/ThemeContext';
 import * as Updates from 'expo-updates';
 import CameraModal from '../features/scan/CameraModal';
@@ -351,6 +352,9 @@ export default function DashboardScreen() {
         )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Live Clock */}
+          <LiveClock />
+
           {/* Work Time Progress Bar */}
           <WorkTimeProgressBar />
 
