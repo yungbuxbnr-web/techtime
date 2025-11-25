@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { StorageService } from './storage';
 import { Job, AppSettings } from '../types';
 import { Platform } from 'react-native';
+import * as FileSystemService from '../src/services/fileSystemService';
 
 const BACKUP_FOLDER_NAME = 'TechTraceData';
 const BACKUP_FILE_NAME = 'backup.json';
@@ -130,7 +131,7 @@ const checkDirectoryWritable = async (directoryPath: string): Promise<boolean> =
   try {
     const testFilePath = `${directoryPath}test_write_${Date.now()}.tmp`;
     await FileSystem.writeAsStringAsync(testFilePath, 'test', { 
-      encoding: 'utf8'
+      encoding: FileSystem.EncodingType.UTF8
     });
     await FileSystem.deleteAsync(testFilePath, { idempotent: true });
     console.log('Directory is writable:', directoryPath);
@@ -159,7 +160,7 @@ const verifyBackupFile = async (filePath: string): Promise<{ valid: boolean; mes
     
     // Read and parse file content
     const content = await FileSystem.readAsStringAsync(filePath, { 
-      encoding: 'utf8'
+      encoding: FileSystem.EncodingType.UTF8
     });
     const data = JSON.parse(content);
     
@@ -321,27 +322,39 @@ export const BackupService = {
       };
       console.log('✓ Backup data structure created');
 
-      // Step 6: Create backup files
-      console.log('Step 6: Writing backup files...');
+      // Step 6: Create backup files using centralized file system service
+      console.log('Step 6: Writing backup files using centralized service...');
+      const backupContent = JSON.stringify(backupData, null, 2);
+      const result = await FileSystemService.writeBackupFile(backupContent);
+      
+      if (!result.success) {
+        console.log('✗ Failed to write backup file:', result.message);
+        return {
+          success: false,
+          message: result.message || 'Failed to write backup file'
+        };
+      }
+      
+      console.log('✓ Backup file written:', result.path);
+
+      // Step 7: Also create a latest backup file in operating folder
+      console.log('Step 7: Creating latest backup file in operating folder...');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const backupFileName = `backup_${timestamp}.json`;
       const backupFilePath = `${folderResult.path}${backupFileName}`;
 
-      // Write timestamped backup file
       await FileSystem.writeAsStringAsync(
         backupFilePath,
-        JSON.stringify(backupData, null, 2),
-        { encoding: 'utf8' }
+        backupContent,
+        { encoding: FileSystem.EncodingType.UTF8 }
       );
       console.log('✓ Timestamped backup file written:', backupFileName);
 
-      // Step 7: Also create a latest backup file
-      console.log('Step 7: Creating latest backup file...');
       const latestBackupPath = `${folderResult.path}${BACKUP_FILE_NAME}`;
       await FileSystem.writeAsStringAsync(
         latestBackupPath,
-        JSON.stringify(backupData, null, 2),
-        { encoding: 'utf8' }
+        backupContent,
+        { encoding: FileSystem.EncodingType.UTF8 }
       );
       console.log('✓ Latest backup file written');
 
@@ -497,18 +510,23 @@ export const BackupService = {
       }
       console.log('✓ Backup file verified');
 
-      // Step 4: Read backup file
-      console.log('Step 4: Reading backup file...');
-      const backupContent = await FileSystem.readAsStringAsync(backupFilePath, {
-        encoding: 'utf8'
-      });
+      // Step 4: Read backup file using centralized service
+      console.log('Step 4: Reading backup file using centralized service...');
+      const readResult = await FileSystemService.readBackupFile(backupFilePath);
+      
+      if (!readResult.success || !readResult.data) {
+        console.log('✗ Failed to read backup file:', readResult.message);
+        return {
+          success: false,
+          message: readResult.message || 'Failed to read backup file'
+        };
+      }
+      
+      const backupData: BackupData = readResult.data;
+      console.log('✓ Backup file read successfully');
 
-      // Step 5: Parse backup data
-      console.log('Step 5: Parsing backup data...');
-      const backupData: BackupData = JSON.parse(backupContent);
-
-      // Step 6: Validate backup data structure
-      console.log('Step 6: Validating backup structure...');
+      // Step 5: Validate backup data structure
+      console.log('Step 5: Validating backup structure...');
       if (!backupData.jobs || !backupData.settings || !backupData.metadata) {
         console.log('✗ Invalid backup file structure');
         return { 
