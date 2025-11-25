@@ -12,6 +12,9 @@ export default function TimeStatsScreen() {
   const [stats, setStats] = useState<TimeStats | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Create styles at the top level so they're always available
+  const styles = createStyles(colors);
+
   useEffect(() => {
     // Load initial stats
     loadStats();
@@ -58,8 +61,6 @@ export default function TimeStatsScreen() {
 
   const formatTime = (seconds: number) => TimeTrackingService.formatTime(seconds);
   const formatTimeReadable = (seconds: number) => TimeTrackingService.formatTimeReadable(seconds);
-
-  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>

@@ -637,13 +637,22 @@ export default function AddJobScreen() {
           </Text>
           
           {!isEditing && (
-            <TouchableOpacity 
-              onPress={handleScanPress} 
-              style={styles.scanButton}
-              disabled={isProcessingScan}
-            >
-              <Text style={styles.scanButtonText}>📷 Scan</Text>
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity 
+                onPress={handleSaveJob} 
+                style={styles.saveHeaderButton}
+              >
+                <Text style={styles.saveHeaderButtonText}>💾 Save</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                onPress={handleScanPress} 
+                style={styles.scanButton}
+                disabled={isProcessingScan}
+              >
+                <Text style={styles.scanButtonText}>📷 Scan</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -1073,6 +1082,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.text,
     flex: 1,
     marginLeft: 12,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  saveHeaderButton: {
+    backgroundColor: colors.success,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  saveHeaderButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   scanButton: {
     backgroundColor: colors.primary,
