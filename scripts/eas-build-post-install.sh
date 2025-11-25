@@ -10,13 +10,23 @@ set -e
 echo "🚀 EAS Build Post-Install Hook"
 echo "=============================="
 
+# Ensure NODE_ENV is set
+if [ -z "$NODE_ENV" ]; then
+  if [ "$EAS_BUILD" = "true" ] || [ "$CI" = "true" ]; then
+    export NODE_ENV=production
+  else
+    export NODE_ENV=development
+  fi
+  echo "✅ Set NODE_ENV=$NODE_ENV"
+fi
+
 # Detect if we're in a CI/EAS environment
 if [ "$EAS_BUILD" = "true" ] || [ "$CI" = "true" ]; then
   echo "✅ Running in CI/EAS Build environment"
   
   # Run the fix-gradle-wrapper script
   echo "🔧 Configuring Gradle wrapper..."
-  node scripts/fix-gradle-wrapper.cjs
+  node scripts/fix-gradle-wrapper.cjs || echo "⚠️ fix-gradle-wrapper.cjs not found or failed"
   
   # Ensure android directory exists
   if [ -d "android" ]; then

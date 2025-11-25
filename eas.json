@@ -13,14 +13,14 @@
         "resourceClass": "m-medium"
       },
       "android": {
-        "gradleCommand": ":app:assembleDevelopment --no-daemon --no-parallel"
+        "gradleCommand": ":app:assembleDevelopment --no-daemon --no-parallel --no-configure-on-demand"
       },
       "env": {
         "NODE_ENV": "development",
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "CI": "true",
         "EAS_BUILD": "true",
-        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false"
       }
     },
     "preview": {
@@ -30,14 +30,14 @@
         "resourceClass": "m-medium"
       },
       "android": {
-        "gradleCommand": ":app:assembleRelease --no-daemon --no-parallel"
+        "gradleCommand": ":app:assembleRelease --no-daemon --no-parallel --no-configure-on-demand"
       },
       "env": {
         "NODE_ENV": "production",
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "CI": "true",
         "EAS_BUILD": "true",
-        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false"
       }
     },
     "production": {
@@ -49,14 +49,14 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease --no-daemon --no-parallel"
+        "gradleCommand": ":app:bundleRelease --no-daemon --no-parallel --no-configure-on-demand"
       },
       "env": {
         "NODE_ENV": "production",
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "CI": "true",
         "EAS_BUILD": "true",
-        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false"
       }
     }
   },

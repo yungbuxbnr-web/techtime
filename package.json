@@ -1,3 +1,4 @@
+
 {
   "name": "techtime",
   "version": "1.0.0",
@@ -9,7 +10,7 @@
     "start": "cross-env NODE_ENV=development expo start",
     "android": "cross-env NODE_ENV=development expo run:android",
     "ios": "cross-env NODE_ENV=development expo run:ios",
-    "prebuild": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && expo prebuild --clean && node scripts/fix-gradle-wrapper.cjs",
+    "prebuild": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && cross-env NODE_ENV=production expo prebuild --clean && node scripts/fix-gradle-wrapper.cjs",
     "export": "cross-env NODE_ENV=production expo export",
     "build:android": "cross-env NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' expo run:android --variant release",
     "build:ios": "cross-env NODE_ENV=production expo run:ios --configuration Release",
@@ -24,8 +25,8 @@
     "build:eas:all": "cross-env NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform all --profile production",
     "build:preview:android": "cross-env NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform android --profile preview",
     "build:preview:ios": "cross-env NODE_ENV=production eas build --platform ios --profile preview",
-    "prebuild:android": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && expo prebuild -p android --clean && node scripts/fix-gradle-wrapper.cjs",
-    "prebuild:ios": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && expo prebuild -p ios --clean",
+    "prebuild:android": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && cross-env NODE_ENV=production expo prebuild -p android --clean && node scripts/fix-gradle-wrapper.cjs",
+    "prebuild:ios": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && cross-env NODE_ENV=production expo prebuild -p ios --clean",
     "submit:android": "eas submit --platform android",
     "submit:ios": "eas submit --platform ios",
     "fix:gradle": "node scripts/fix-gradle-wrapper.cjs",
@@ -107,6 +108,7 @@
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "babel-plugin-module-resolver": "^5.0.2",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-preset-expo": "~54.0.7",
     "cross-env": "^7.0.3",
     "eas-cli": "^14.7.1",

@@ -14,6 +14,14 @@ echo "=============================="
 if [ "$EAS_BUILD" = "true" ] || [ "$CI" = "true" ]; then
   echo "✅ Running in CI/EAS Build environment"
   
+  # Set NODE_ENV if not already set
+  if [ -z "$NODE_ENV" ]; then
+    export NODE_ENV=production
+    echo "✅ Set NODE_ENV=production"
+  else
+    echo "✅ NODE_ENV already set to: $NODE_ENV"
+  fi
+  
   # Kill any stale Gradle daemons
   echo "🛑 Killing any stale Gradle daemon processes..."
   pkill -9 -f '.*GradleDaemon.*' || true
@@ -34,6 +42,12 @@ if [ "$EAS_BUILD" = "true" ] || [ "$CI" = "true" ]; then
   echo "✅ Gradle environment cleaned and configured for CI"
 else
   echo "ℹ️ Not in CI environment, skipping cleanup"
+  
+  # Still set NODE_ENV if not set
+  if [ -z "$NODE_ENV" ]; then
+    export NODE_ENV=development
+    echo "✅ Set NODE_ENV=development"
+  fi
 fi
 
 echo "=============================="
