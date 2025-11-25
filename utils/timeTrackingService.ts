@@ -11,6 +11,8 @@ export interface WorkScheduleSettings {
   lunchEndTime: string; // HH:mm format (e.g., "13:00")
   workDays: number[]; // 0-6 (Sunday-Saturday)
   enabled: boolean;
+  saturdayFrequency?: number; // 0 = never, 1 = every week, 2 = every 2 weeks, 3 = every 3 weeks, etc.
+  nextSaturday?: string; // ISO date string of next working Saturday
 }
 
 export interface TimeTrackingState {
@@ -48,6 +50,8 @@ const DEFAULT_SETTINGS: WorkScheduleSettings = {
   lunchEndTime: '13:00',
   workDays: [1, 2, 3, 4, 5], // Monday-Friday
   enabled: true,
+  saturdayFrequency: 0,
+  nextSaturday: undefined,
 };
 
 export class TimeTrackingService {
@@ -94,6 +98,31 @@ export class TimeTrackingService {
     return date;
   }
 
+  // Check if today is a Saturday work day based on frequency
+  private static isSaturdayWorkDay(settings: WorkScheduleSettings): boolean {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    
+    // Not Saturday
+    if (dayOfWeek !== 6) return false;
+    
+    // No Saturday frequency set
+    if (!settings.saturdayFrequency || settings.saturdayFrequency === 0) return false;
+    
+    // Every Saturday
+    if (settings.saturdayFrequency === 1) return true;
+    
+    // Check if today matches the next Saturday
+    if (settings.nextSaturday) {
+      const nextSat = new Date(settings.nextSaturday);
+      const todayStr = today.toDateString();
+      const nextSatStr = nextSat.toDateString();
+      return todayStr === nextSatStr;
+    }
+    
+    return false;
+  }
+
   // Check if current time is within work hours
   static isWorkTime(settings: WorkScheduleSettings): boolean {
     const now = new Date();
@@ -113,6 +142,13 @@ export class TimeTrackingService {
   // Check if today is a work day
   static isWorkDay(settings: WorkScheduleSettings): boolean {
     const today = new Date().getDay();
+    
+    // Check if it's a Saturday work day
+    if (today === 6) {
+      return this.isSaturdayWorkDay(settings);
+    }
+    
+    // Check regular work days
     return settings.workDays.includes(today);
   }
 

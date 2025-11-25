@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Picker } from '@react-native-picker/picker';
 import { TimeTrackingService, WorkScheduleSettings } from '../utils/timeTrackingService';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,8 +17,11 @@ export default function WorkScheduleScreen() {
     lunchEndTime: '13:00',
     workDays: [1, 2, 3, 4, 5],
     enabled: true,
+    saturdayFrequency: 0,
+    nextSaturday: undefined,
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
+  const [showSaturdayPicker, setShowSaturdayPicker] = useState(false);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ visible: true, message, type });
@@ -40,6 +44,22 @@ export default function WorkScheduleScreen() {
       console.log('Error loading work schedule settings:', error);
       showNotification('Error loading settings', 'error');
     }
+  };
+
+  const calculateNextSaturday = (frequency: number): string | undefined => {
+    if (frequency === 0) return undefined;
+    
+    const today = new Date();
+    const currentDay = today.getDay();
+    
+    // Calculate days until next Saturday (6 = Saturday)
+    let daysUntilSaturday = (6 - currentDay + 7) % 7;
+    if (daysUntilSaturday === 0) daysUntilSaturday = 7; // If today is Saturday, get next Saturday
+    
+    const nextSat = new Date(today);
+    nextSat.setDate(today.getDate() + daysUntilSaturday);
+    
+    return nextSat.toISOString();
   };
 
   const handleSaveSettings = async () => {
@@ -72,15 +92,21 @@ export default function WorkScheduleScreen() {
         return;
       }
 
-      // Check if at least one work day is selected
-      if (settings.workDays.length === 0) {
+      // Check if at least one work day is selected (excluding Saturday if it's frequency-based)
+      const regularWorkDays = settings.workDays.filter(d => d !== 6);
+      if (regularWorkDays.length === 0 && settings.saturdayFrequency === 0) {
         showNotification('Please select at least one work day', 'error');
         return;
       }
 
-      await TimeTrackingService.saveSettings(settings);
+      // Calculate next Saturday if frequency is set
+      const nextSaturday = calculateNextSaturday(settings.saturdayFrequency || 0);
+      const updatedSettings = { ...settings, nextSaturday };
+
+      await TimeTrackingService.saveSettings(updatedSettings);
+      setSettings(updatedSettings);
       showNotification('Work schedule settings saved successfully', 'success');
-      console.log('Work schedule settings saved:', settings);
+      console.log('Work schedule settings saved:', updatedSettings);
     } catch (error) {
       console.log('Error saving work schedule settings:', error);
       showNotification('Error saving settings', 'error');
@@ -88,11 +114,39 @@ export default function WorkScheduleScreen() {
   };
 
   const toggleWorkDay = (day: number) => {
+    // Don't allow toggling Saturday directly if frequency is set
+    if (day === 6 && settings.saturdayFrequency && settings.saturdayFrequency > 0) {
+      showNotification('Saturday is managed by frequency setting', 'info');
+      return;
+    }
+
     setSettings(prev => {
       const workDays = prev.workDays.includes(day)
         ? prev.workDays.filter(d => d !== day)
         : [...prev.workDays, day].sort();
       return { ...prev, workDays };
+    });
+  };
+
+  const handleSaturdayFrequencyChange = (frequency: number) => {
+    setSettings(prev => {
+      let workDays = [...prev.workDays];
+      
+      if (frequency === 0) {
+        // Remove Saturday from work days
+        workDays = workDays.filter(d => d !== 6);
+      } else {
+        // Add Saturday to work days if not already there
+        if (!workDays.includes(6)) {
+          workDays = [...workDays, 6].sort();
+        }
+      }
+      
+      return { 
+        ...prev, 
+        saturdayFrequency: frequency,
+        workDays 
+      };
     });
   };
 
@@ -111,6 +165,26 @@ export default function WorkScheduleScreen() {
     }
 
     setSettings(prev => ({ ...prev, [field]: formattedValue }));
+  };
+
+  const getSaturdayFrequencyLabel = (frequency: number): string => {
+    if (frequency === 0) return 'Never work Saturdays';
+    if (frequency === 1) return 'Every Saturday';
+    return `Every ${frequency} weeks (1 in ${frequency})`;
+  };
+
+  const formatNextSaturday = (): string => {
+    if (!settings.nextSaturday || !settings.saturdayFrequency || settings.saturdayFrequency === 0) {
+      return 'N/A';
+    }
+    
+    const date = new Date(settings.nextSaturday);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   const styles = createStyles(colors);
@@ -244,12 +318,16 @@ export default function WorkScheduleScreen() {
           <View style={styles.daysGrid}>
             {[0, 1, 2, 3, 4, 5, 6].map(day => {
               const isSelected = settings.workDays.includes(day);
+              const isSaturday = day === 6;
+              const isSaturdayManaged = isSaturday && settings.saturdayFrequency && settings.saturdayFrequency > 0;
+              
               return (
                 <TouchableOpacity
                   key={day}
                   style={[
                     styles.dayButton,
                     isSelected && styles.dayButtonSelected,
+                    isSaturdayManaged && styles.dayButtonManaged,
                     { borderColor: colors.border }
                   ]}
                   onPress={() => toggleWorkDay(day)}
@@ -261,6 +339,9 @@ export default function WorkScheduleScreen() {
                   ]}>
                     {TimeTrackingService.getShortDayName(day)}
                   </Text>
+                  {isSaturdayManaged && (
+                    <Text style={styles.dayButtonBadge}>📅</Text>
+                  )}
                 </TouchableOpacity>
               );
             })}
@@ -269,6 +350,107 @@ export default function WorkScheduleScreen() {
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               📌 Selected days: {settings.workDays.map(d => TimeTrackingService.getDayName(d)).join(', ') || 'None'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Saturday Frequency */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📆 Saturday Work Frequency</Text>
+          <Text style={styles.sectionDescription}>
+            Configure how often you work on Saturdays (e.g., 1 in 3 weeks)
+          </Text>
+
+          {Platform.OS === 'ios' ? (
+            <>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowSaturdayPicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {getSaturdayFrequencyLabel(settings.saturdayFrequency || 0)}
+                </Text>
+                <Text style={styles.pickerButtonIcon}>▼</Text>
+              </TouchableOpacity>
+              
+              <Modal
+                visible={showSaturdayPicker}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowSaturdayPicker(false)}
+              >
+                <TouchableOpacity 
+                  style={styles.modalOverlay}
+                  activeOpacity={1}
+                  onPress={() => setShowSaturdayPicker(false)}
+                >
+                  <TouchableOpacity 
+                    style={styles.modalContent}
+                    activeOpacity={1}
+                    onPress={(e) => e.stopPropagation()}
+                  >
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Saturday Frequency</Text>
+                      <TouchableOpacity
+                        style={styles.modalDoneButton}
+                        onPress={() => setShowSaturdayPicker(false)}
+                      >
+                        <Text style={styles.modalDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Picker
+                      selectedValue={settings.saturdayFrequency || 0}
+                      onValueChange={(itemValue) => handleSaturdayFrequencyChange(itemValue)}
+                      style={styles.iosPicker}
+                      itemStyle={styles.iosPickerItem}
+                    >
+                      <Picker.Item label="Never work Saturdays" value={0} />
+                      <Picker.Item label="Every Saturday" value={1} />
+                      <Picker.Item label="Every 2 weeks (1 in 2)" value={2} />
+                      <Picker.Item label="Every 3 weeks (1 in 3)" value={3} />
+                      <Picker.Item label="Every 4 weeks (1 in 4)" value={4} />
+                      <Picker.Item label="Every 5 weeks (1 in 5)" value={5} />
+                      <Picker.Item label="Every 6 weeks (1 in 6)" value={6} />
+                    </Picker>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </Modal>
+            </>
+          ) : (
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={settings.saturdayFrequency || 0}
+                onValueChange={(itemValue) => handleSaturdayFrequencyChange(itemValue)}
+                style={styles.picker}
+                dropdownIconColor={colors.text}
+              >
+                <Picker.Item label="Never work Saturdays" value={0} color={colors.text} />
+                <Picker.Item label="Every Saturday" value={1} color={colors.text} />
+                <Picker.Item label="Every 2 weeks (1 in 2)" value={2} color={colors.text} />
+                <Picker.Item label="Every 3 weeks (1 in 3)" value={3} color={colors.text} />
+                <Picker.Item label="Every 4 weeks (1 in 4)" value={4} color={colors.text} />
+                <Picker.Item label="Every 5 weeks (1 in 5)" value={5} color={colors.text} />
+                <Picker.Item label="Every 6 weeks (1 in 6)" value={6} color={colors.text} />
+              </Picker>
+            </View>
+          )}
+
+          {settings.saturdayFrequency && settings.saturdayFrequency > 0 && (
+            <View style={styles.nextSaturdayBox}>
+              <Text style={styles.nextSaturdayLabel}>📅 Next Working Saturday:</Text>
+              <Text style={styles.nextSaturdayValue}>{formatNextSaturday()}</Text>
+            </View>
+          )}
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              💡 Set to &quot;Never&quot; if you don&apos;t work Saturdays
+            </Text>
+            <Text style={styles.infoText}>
+              📆 Set to &quot;Every 3 weeks&quot; for 1 in 3 Saturday rotation
+            </Text>
+            <Text style={styles.infoText}>
+              🔄 The app will automatically track your Saturday schedule
             </Text>
           </View>
         </View>
@@ -298,6 +480,13 @@ export default function WorkScheduleScreen() {
                 {settings.workDays.length} days/week
               </Text>
             </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Saturday Frequency:</Text>
+              <Text style={styles.summaryValue}>
+                {getSaturdayFrequencyLabel(settings.saturdayFrequency || 0)}
+              </Text>
+            </View>
             
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Status:</Text>
@@ -323,19 +512,22 @@ export default function WorkScheduleScreen() {
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>ℹ️ How Time Tracking Works</Text>
           <Text style={styles.infoText}>
-            • Time tracking runs automatically in the background
+            - Time tracking runs automatically in the background
           </Text>
           <Text style={styles.infoText}>
-            • Progress is calculated second by second
+            - Progress is calculated second by second
           </Text>
           <Text style={styles.infoText}>
-            • Lunch time is shown in a different color
+            - Lunch time is shown in a different color
           </Text>
           <Text style={styles.infoText}>
-            • Only tracks time on selected work days
+            - Only tracks time on selected work days
           </Text>
           <Text style={styles.infoText}>
-            • View live stats by tapping the progress bar on the dashboard
+            - Saturday frequency allows flexible scheduling
+          </Text>
+          <Text style={styles.infoText}>
+            - View live stats by tapping the progress bar on the dashboard
           </Text>
         </View>
       </ScrollView>
@@ -462,10 +654,15 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+    position: 'relative',
   },
   dayButtonSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+  },
+  dayButtonManaged: {
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
   },
   dayButtonText: {
     fontSize: 14,
@@ -473,6 +670,107 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   dayButtonTextSelected: {
     color: '#ffffff',
+  },
+  dayButtonBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    fontSize: 10,
+  },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+    color: colors.text,
+  },
+  pickerButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 50,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  pickerButtonIcon: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalDoneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  modalDoneText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  iosPicker: {
+    width: '100%',
+    height: 216,
+  },
+  iosPickerItem: {
+    fontSize: 18,
+    height: 216,
+    color: colors.text,
+  },
+  nextSaturdayBox: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  nextSaturdayLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  nextSaturdayValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
   },
   summaryBox: {
     backgroundColor: colors.backgroundAlt,

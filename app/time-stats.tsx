@@ -62,6 +62,24 @@ export default function TimeStatsScreen() {
   const formatTime = (seconds: number) => TimeTrackingService.formatTime(seconds);
   const formatTimeReadable = (seconds: number) => TimeTrackingService.formatTimeReadable(seconds);
 
+  // Calculate total day progress (8 AM to 5 PM)
+  const dayStartHour = 8;
+  const dayEndHour = 17;
+  const currentHour = currentTime.getHours();
+  const currentMinute = currentTime.getMinutes();
+  const currentSecond = currentTime.getSeconds();
+  
+  const totalDaySeconds = (dayEndHour - dayStartHour) * 3600;
+  const elapsedDaySeconds = Math.max(0, 
+    (currentHour - dayStartHour) * 3600 + currentMinute * 60 + currentSecond
+  );
+  const remainingDaySeconds = Math.max(0, totalDaySeconds - elapsedDaySeconds);
+  const dayProgressPercentage = Math.min(100, (elapsedDaySeconds / totalDaySeconds) * 100);
+
+  // Calculate available hours (8 AM to 5 PM = 9 hours total, minus 1 hour lunch = 8 hours)
+  const totalAvailableSeconds = 8 * 3600; // 8 hours in seconds
+  const availableHours = totalAvailableSeconds / 3600; // Convert to hours
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
@@ -72,8 +90,9 @@ export default function TimeStatsScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Current Time */}
+        {/* Current Time - Synced with Home Page Clock */}
         <View style={styles.section}>
+          <Text style={styles.clockIcon}>🕐</Text>
           <Text style={styles.currentTime}>
             {currentTime.toLocaleTimeString('en-US', { 
               hour: '2-digit', 
@@ -89,6 +108,21 @@ export default function TimeStatsScreen() {
               month: 'long', 
               day: 'numeric' 
             })}
+          </Text>
+        </View>
+
+        {/* Available Hours Timer - Live Counting */}
+        <View style={[styles.section, styles.availableHoursSection]}>
+          <Text style={styles.availableHoursTitle}>⏰ Total Available Hours Today</Text>
+          <Text style={styles.availableHoursSubtitle}>8:00 AM - 5:00 PM (excluding lunch)</Text>
+          <View style={styles.availableHoursDisplay}>
+            <Text style={styles.availableHoursValue}>
+              {availableHours.toFixed(6)}
+            </Text>
+            <Text style={styles.availableHoursUnit}>hours</Text>
+          </View>
+          <Text style={styles.availableHoursNote}>
+            💡 This represents your total available work hours for today
           </Text>
         </View>
 
@@ -125,18 +159,21 @@ export default function TimeStatsScreen() {
           </View>
         </View>
 
-        {/* Progress Circles */}
+        {/* Main Progress Circles */}
         <View style={styles.progressSection}>
           <View style={styles.progressCard}>
             <ProgressCircle
-              percentage={stats.progressPercentage}
+              percentage={dayProgressPercentage}
               size={160}
               strokeWidth={14}
               color={colors.primary}
             />
-            <Text style={styles.progressLabel}>Overall Progress</Text>
+            <Text style={styles.progressLabel}>Day Progress</Text>
             <Text style={styles.progressValue}>
-              {stats.progressPercentage.toFixed(1)}%
+              {dayProgressPercentage.toFixed(1)}%
+            </Text>
+            <Text style={styles.progressSubtext}>
+              8 AM - 5 PM
             </Text>
           </View>
 
@@ -151,25 +188,85 @@ export default function TimeStatsScreen() {
             <Text style={styles.progressValue}>
               {stats.workProgressPercentage.toFixed(1)}%
             </Text>
-          </View>
-
-          <View style={styles.progressCard}>
-            <ProgressCircle
-              percentage={stats.lunchProgressPercentage}
-              size={160}
-              strokeWidth={14}
-              color={colors.warning}
-            />
-            <Text style={styles.progressLabel}>Lunch Progress</Text>
-            <Text style={styles.progressValue}>
-              {stats.lunchProgressPercentage.toFixed(1)}%
+            <Text style={styles.progressSubtext}>
+              Excluding Lunch
             </Text>
           </View>
         </View>
 
-        {/* Time Details */}
+        {/* Time Elapsed & Remaining - Live Ticking */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⏱️ Work Time Details</Text>
+          <Text style={styles.sectionTitle}>⏱️ Day Time Breakdown</Text>
+          
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailCard}>
+              <Text style={styles.detailLabel}>⏳ Time Elapsed Today</Text>
+              <Text style={styles.detailValue}>
+                {formatTime(elapsedDaySeconds)}
+              </Text>
+              <Text style={styles.detailSubtext}>
+                {formatTimeReadable(elapsedDaySeconds)}
+              </Text>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { 
+                      width: `${dayProgressPercentage}%`,
+                      backgroundColor: colors.primary 
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+
+            <View style={styles.detailCard}>
+              <Text style={styles.detailLabel}>⏰ Time Remaining Today</Text>
+              <Text style={styles.detailValue}>
+                {formatTime(remainingDaySeconds)}
+              </Text>
+              <Text style={styles.detailSubtext}>
+                {formatTimeReadable(remainingDaySeconds)}
+              </Text>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { 
+                      width: `${100 - dayProgressPercentage}%`,
+                      backgroundColor: colors.error 
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+
+            <View style={styles.detailCard}>
+              <Text style={styles.detailLabel}>📊 Total Day Duration</Text>
+              <Text style={styles.detailValue}>
+                {formatTime(totalDaySeconds)}
+              </Text>
+              <Text style={styles.detailSubtext}>
+                9 hours total
+              </Text>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { 
+                      width: '100%',
+                      backgroundColor: colors.success 
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Work Time Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💼 Work Time Details</Text>
           
           <View style={styles.detailsGrid}>
             <View style={styles.detailCard}>
@@ -199,43 +296,6 @@ export default function TimeStatsScreen() {
               </Text>
               <Text style={styles.detailSubtext}>
                 {formatTimeReadable(stats.totalWorkSeconds)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Lunch Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🍽️ Lunch Break Details</Text>
-          
-          <View style={styles.detailsGrid}>
-            <View style={styles.detailCard}>
-              <Text style={styles.detailLabel}>Elapsed Lunch Time</Text>
-              <Text style={styles.detailValue}>
-                {formatTime(stats.elapsedLunchSeconds)}
-              </Text>
-              <Text style={styles.detailSubtext}>
-                {formatTimeReadable(stats.elapsedLunchSeconds)}
-              </Text>
-            </View>
-
-            <View style={styles.detailCard}>
-              <Text style={styles.detailLabel}>Remaining Lunch Time</Text>
-              <Text style={styles.detailValue}>
-                {formatTime(stats.remainingLunchSeconds)}
-              </Text>
-              <Text style={styles.detailSubtext}>
-                {formatTimeReadable(stats.remainingLunchSeconds)}
-              </Text>
-            </View>
-
-            <View style={styles.detailCard}>
-              <Text style={styles.detailLabel}>Total Lunch Time</Text>
-              <Text style={styles.detailValue}>
-                {formatTime(stats.totalLunchSeconds)}
-              </Text>
-              <Text style={styles.detailSubtext}>
-                {formatTimeReadable(stats.totalLunchSeconds)}
               </Text>
             </View>
           </View>
@@ -290,6 +350,29 @@ export default function TimeStatsScreen() {
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* Live Stats Info */}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoTitle}>ℹ️ Live Stats Information</Text>
+          <Text style={styles.infoText}>
+            - All times update every second in real-time
+          </Text>
+          <Text style={styles.infoText}>
+            - Available hours timer shows total work hours (8 AM - 5 PM)
+          </Text>
+          <Text style={styles.infoText}>
+            - Time elapsed shows how much of the day has passed
+          </Text>
+          <Text style={styles.infoText}>
+            - Time remaining shows how much of the day is left
+          </Text>
+          <Text style={styles.infoText}>
+            - Clock is synchronized with your device time
+          </Text>
+          <Text style={styles.infoText}>
+            - Progress circles update automatically
+          </Text>
         </View>
 
         {/* Settings Button */}
@@ -351,17 +434,63 @@ const createStyles = (colors: any) => StyleSheet.create({
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 2,
   },
+  clockIcon: {
+    fontSize: 48,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   currentTime: {
     fontSize: 48,
     fontWeight: '700',
     color: colors.primary,
     textAlign: 'center',
     marginBottom: 8,
+    fontVariant: ['tabular-nums'],
   },
   currentDate: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  availableHoursSection: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  availableHoursTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  availableHoursSubtitle: {
+    fontSize: 14,
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 16,
+    opacity: 0.9,
+  },
+  availableHoursDisplay: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  availableHoursValue: {
+    fontSize: 56,
+    fontWeight: '700',
+    color: '#ffffff',
+    fontVariant: ['tabular-nums'],
+  },
+  availableHoursUnit: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: '600',
+    opacity: 0.9,
+  },
+  availableHoursNote: {
+    fontSize: 13,
+    color: '#ffffff',
+    textAlign: 'center',
+    opacity: 0.85,
   },
   statusSection: {
     marginTop: 24,
@@ -412,6 +541,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  progressSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -445,11 +580,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
     marginBottom: 4,
+    fontVariant: ['tabular-nums'],
   },
   detailSubtext: {
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   scheduleBox: {
     backgroundColor: colors.backgroundAlt,
@@ -475,9 +623,31 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  infoSection: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 4,
   },
   settingsButton: {
-    marginTop: 24,
+    marginTop: 8,
     marginBottom: 32,
     paddingVertical: 16,
     borderRadius: 12,
