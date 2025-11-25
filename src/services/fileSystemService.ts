@@ -1,10 +1,11 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 
 // Type definitions
 export type FsResult = { success: boolean; message?: string };
 
-// Base paths
+// Base paths - using legacy API
 const BASE_DIR = FileSystem.documentDirectory + 'techtrace/';
 const BACKUP_DIR = BASE_DIR + 'backups/';
 const PDF_DIR = BASE_DIR + 'pdfs/';
@@ -43,7 +44,7 @@ export async function ensureDirectoriesExist(): Promise<FsResult> {
     console.log('[FileSystem] All directories ready');
     return { success: true, message: 'All directories created successfully' };
   } catch (error: any) {
-    console.log('[FileSystem] Error ensuring directories:', error);
+    console.error('[FileSystem] Error ensuring directories:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to create directories' 
@@ -88,7 +89,7 @@ export async function writeBackupFile(content: string): Promise<FsResult & { pat
       message: `Backup created successfully (${(info.size / 1024).toFixed(2)} KB)` 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error writing backup file:', error);
+    console.error('[FileSystem] Error writing backup file:', error);
     return { 
       success: false, 
       message: error?.message || 'Unknown backup write error' 
@@ -121,7 +122,7 @@ export async function listBackupFiles(): Promise<string[]> {
     console.log('[FileSystem] Found', fullPaths.length, 'backup files');
     return fullPaths;
   } catch (error) {
-    console.log('[FileSystem] Error listing backup files:', error);
+    console.error('[FileSystem] Error listing backup files:', error);
     return [];
   }
 }
@@ -163,7 +164,7 @@ export async function readBackupFile(path: string): Promise<{ success: boolean; 
       message: 'Backup loaded successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error reading backup file:', error);
+    console.error('[FileSystem] Error reading backup file:', error);
     
     if (error instanceof SyntaxError) {
       return { 
@@ -176,6 +177,22 @@ export async function readBackupFile(path: string): Promise<{ success: boolean; 
       success: false, 
       message: error?.message || 'Backup read error' 
     };
+  }
+}
+
+/**
+ * Get the latest backup file path
+ */
+export async function getLatestBackupFile(): Promise<string | null> {
+  try {
+    const backupFiles = await listBackupFiles();
+    if (backupFiles.length === 0) {
+      return null;
+    }
+    return backupFiles[0]; // Already sorted newest first
+  } catch (error) {
+    console.error('[FileSystem] Error getting latest backup:', error);
+    return null;
   }
 }
 
@@ -221,7 +238,7 @@ export async function writePDFFile(pdfUri: string, filename?: string): Promise<F
       message: `PDF saved successfully (${(info.size / 1024).toFixed(2)} KB)` 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error writing PDF file:', error);
+    console.error('[FileSystem] Error writing PDF file:', error);
     return { 
       success: false, 
       message: error?.message || 'Unknown PDF write error' 
@@ -254,7 +271,7 @@ export async function listPDFFiles(): Promise<string[]> {
     console.log('[FileSystem] Found', fullPaths.length, 'PDF files');
     return fullPaths;
   } catch (error) {
-    console.log('[FileSystem] Error listing PDF files:', error);
+    console.error('[FileSystem] Error listing PDF files:', error);
     return [];
   }
 }
@@ -284,7 +301,7 @@ export async function deleteFile(path: string): Promise<FsResult> {
       message: 'File deleted successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error deleting file:', error);
+    console.error('[FileSystem] Error deleting file:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to delete file' 
@@ -315,7 +332,7 @@ export async function getFileInfo(path: string): Promise<{ success: boolean; inf
       message: 'File info retrieved successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error getting file info:', error);
+    console.error('[FileSystem] Error getting file info:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to get file info' 
@@ -348,7 +365,7 @@ export async function copyFile(from: string, to: string): Promise<FsResult> {
       message: 'File copied successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error copying file:', error);
+    console.error('[FileSystem] Error copying file:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to copy file' 
@@ -381,7 +398,7 @@ export async function moveFile(from: string, to: string): Promise<FsResult> {
       message: 'File moved successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error moving file:', error);
+    console.error('[FileSystem] Error moving file:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to move file' 
@@ -413,7 +430,7 @@ export async function writeStringToFile(path: string, content: string): Promise<
       message: 'File written successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error writing string to file:', error);
+    console.error('[FileSystem] Error writing string to file:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to write file' 
@@ -447,7 +464,7 @@ export async function readStringFromFile(path: string): Promise<{ success: boole
       message: 'File read successfully' 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error reading string from file:', error);
+    console.error('[FileSystem] Error reading string from file:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to read file' 
@@ -476,7 +493,7 @@ export async function exists(path: string): Promise<boolean> {
     const info = await FileSystem.getInfoAsync(path);
     return info.exists;
   } catch (error) {
-    console.log('[FileSystem] Error checking existence:', error);
+    console.error('[FileSystem] Error checking existence:', error);
     return false;
   }
 }
@@ -517,7 +534,7 @@ export async function getDirectorySize(dirPath: string): Promise<{ success: bool
       message: `Directory size: ${(totalSize / 1024).toFixed(2)} KB` 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error calculating directory size:', error);
+    console.error('[FileSystem] Error calculating directory size:', error);
     return { 
       success: false, 
       message: error?.message || 'Failed to calculate directory size' 
@@ -562,7 +579,7 @@ export async function cleanOldBackups(keepCount: number = 10): Promise<FsResult 
       message: `Deleted ${deletedCount} old backup files` 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error cleaning old backups:', error);
+    console.error('[FileSystem] Error cleaning old backups:', error);
     return { 
       success: false, 
       deletedCount: 0,
@@ -608,11 +625,128 @@ export async function cleanOldPDFs(keepCount: number = 20): Promise<FsResult & {
       message: `Deleted ${deletedCount} old PDF files` 
     };
   } catch (error: any) {
-    console.log('[FileSystem] Error cleaning old PDFs:', error);
+    console.error('[FileSystem] Error cleaning old PDFs:', error);
     return { 
       success: false, 
       deletedCount: 0,
       message: error?.message || 'Failed to clean old PDFs' 
+    };
+  }
+}
+
+/**
+ * Validate backup data structure
+ */
+export function validateBackupData(data: any): { valid: boolean; error?: string } {
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: 'Invalid data format' };
+  }
+
+  if (!data.version && !data.backupVersion) {
+    return { valid: false, error: 'Missing version field' };
+  }
+
+  if (!data.timestamp && !data.createdAt) {
+    return { valid: false, error: 'Missing timestamp field' };
+  }
+
+  if (!Array.isArray(data.jobs)) {
+    return { valid: false, error: 'Invalid jobs data - must be an array' };
+  }
+
+  if (!data.settings || typeof data.settings !== 'object') {
+    return { valid: false, error: 'Invalid settings data' };
+  }
+
+  if (!data.metadata || typeof data.metadata !== 'object') {
+    return { valid: false, error: 'Invalid metadata' };
+  }
+
+  // Validate each job has required fields
+  for (let i = 0; i < data.jobs.length; i++) {
+    const job = data.jobs[i];
+    if (!job.id || !job.wipNumber || !job.vehicleRegistration || typeof job.awValue !== 'number') {
+      return { valid: false, error: `Invalid job at index ${i}: missing required fields` };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Create a backup data structure from app data
+ */
+export function createBackupData(jobs: any[], settings: any, technicianName?: string): any {
+  const timestamp = new Date().toISOString();
+  const totalAWs = jobs.reduce((sum, job) => sum + (job.awValue || 0), 0);
+  
+  return {
+    version: '1.0.0',
+    backupVersion: '1.0.0',
+    timestamp,
+    createdAt: timestamp,
+    jobs,
+    settings: {
+      ...settings,
+      isAuthenticated: false, // Never backup auth state
+      technicianName
+    },
+    metadata: {
+      totalJobs: jobs.length,
+      totalAWs,
+      exportDate: timestamp,
+      appVersion: '1.0.0',
+      platform: Platform.OS
+    }
+  };
+}
+
+/**
+ * Get backup statistics
+ */
+export async function getBackupStatistics(): Promise<{
+  success: boolean;
+  stats?: {
+    backupCount: number;
+    pdfCount: number;
+    totalBackupSize: number;
+    totalPdfSize: number;
+    oldestBackup?: string;
+    newestBackup?: string;
+  };
+  message?: string;
+}> {
+  try {
+    console.log('[FileSystem] Getting backup statistics...');
+    
+    // Get backup files
+    const backupFiles = await listBackupFiles();
+    const pdfFiles = await listPDFFiles();
+    
+    // Calculate sizes
+    const backupSizeResult = await getDirectorySize(BACKUP_DIR);
+    const pdfSizeResult = await getDirectorySize(PDF_DIR);
+    
+    const stats = {
+      backupCount: backupFiles.length,
+      pdfCount: pdfFiles.length,
+      totalBackupSize: backupSizeResult.size || 0,
+      totalPdfSize: pdfSizeResult.size || 0,
+      oldestBackup: backupFiles.length > 0 ? backupFiles[backupFiles.length - 1] : undefined,
+      newestBackup: backupFiles.length > 0 ? backupFiles[0] : undefined
+    };
+    
+    console.log('[FileSystem] Backup statistics:', stats);
+    return {
+      success: true,
+      stats,
+      message: 'Statistics retrieved successfully'
+    };
+  } catch (error: any) {
+    console.error('[FileSystem] Error getting backup statistics:', error);
+    return {
+      success: false,
+      message: error?.message || 'Failed to get backup statistics'
     };
   }
 }
