@@ -1,3 +1,4 @@
+
 {
   "cli": {
     "version": ">= 12.8.0",
@@ -12,11 +13,14 @@
         "resourceClass": "m-medium"
       },
       "android": {
-        "gradleCommand": ":app:assembleDevelopment"
+        "gradleCommand": ":app:assembleDevelopment --no-daemon --no-parallel"
       },
       "env": {
         "NODE_ENV": "development",
-        "NODE_OPTIONS": "--max-old-space-size=4096"
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "CI": "true",
+        "EAS_BUILD": "true",
+        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
       }
     },
     "preview": {
@@ -26,11 +30,14 @@
         "resourceClass": "m-medium"
       },
       "android": {
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleRelease --no-daemon --no-parallel"
       },
       "env": {
         "NODE_ENV": "production",
-        "NODE_OPTIONS": "--max-old-space-size=4096"
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "CI": "true",
+        "EAS_BUILD": "true",
+        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
       }
     },
     "production": {
@@ -42,11 +49,14 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease"
+        "gradleCommand": ":app:bundleRelease --no-daemon --no-parallel"
       },
       "env": {
         "NODE_ENV": "production",
-        "NODE_OPTIONS": "--max-old-space-size=4096"
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "CI": "true",
+        "EAS_BUILD": "true",
+        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
       }
     }
   },

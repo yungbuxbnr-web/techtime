@@ -7,14 +7,17 @@ console.log('🔧 Fixing Gradle wrapper configuration...');
 
 const androidPath = path.join(__dirname, '..', 'android');
 const wrapperPropertiesPath = path.join(androidPath, 'gradle', 'wrapper', 'gradle-wrapper.properties');
+const gradlePropertiesPath = path.join(androidPath, 'gradle.properties');
+
+// Detect CI environment
+const isCI = process.env.CI === 'true' || 
+             process.env.EAS_BUILD === 'true' || 
+             process.env.CONTINUOUS_INTEGRATION === 'true';
+
+console.log(`📦 Environment: ${isCI ? 'CI/EAS Build' : 'Local Development'}`);
 
 if (!fs.existsSync(androidPath)) {
   console.log('⚠️ Android folder not found. Run prebuild first.');
-  process.exit(0);
-}
-
-if (!fs.existsSync(wrapperPropertiesPath)) {
-  console.log('⚠️ Gradle wrapper properties file not found.');
   process.exit(0);
 }
 
@@ -24,45 +27,74 @@ try {
   try {
     execSync('cd android && ./gradlew --stop', { 
       cwd: path.join(__dirname, '..'),
-      stdio: 'inherit' 
+      stdio: 'inherit',
+      timeout: 30000
     });
     console.log('✅ Gradle daemons stopped');
   } catch (error) {
     console.log('⚠️ Could not stop Gradle daemons (may not be running)');
   }
 
-  let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
-  
-  // Replace Gradle version with 8.13 (minimum required version)
-  const newContent = wrapperContent.replace(
-    /distributionUrl=.*gradle-.*-bin\.zip/,
-    'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
-  );
-
-  if (newContent !== wrapperContent) {
-    fs.writeFileSync(wrapperPropertiesPath, newContent, 'utf8');
-    console.log('✅ Gradle wrapper configured to use version 8.13');
-  } else {
-    console.log('✅ Gradle wrapper already configured correctly');
+  // Clean Gradle cache in CI to prevent lock issues
+  if (isCI) {
+    console.log('🧹 Cleaning Gradle cache for CI build...');
+    try {
+      execSync('cd android && ./gradlew clean --no-daemon', { 
+        cwd: path.join(__dirname, '..'),
+        stdio: 'inherit',
+        timeout: 120000
+      });
+      console.log('✅ Gradle cache cleaned');
+    } catch (error) {
+      console.log('⚠️ Could not clean Gradle cache:', error.message);
+    }
   }
 
-  // Also update gradle.properties if it exists
-  const gradlePropertiesPath = path.join(androidPath, 'gradle.properties');
+  // Update gradle-wrapper.properties
+  if (fs.existsSync(wrapperPropertiesPath)) {
+    let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
+    
+    // Replace Gradle version with 8.13 (minimum required version)
+    const newContent = wrapperContent.replace(
+      /distributionUrl=.*gradle-.*-bin\.zip/,
+      'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
+    );
+
+    if (newContent !== wrapperContent) {
+      fs.writeFileSync(wrapperPropertiesPath, newContent, 'utf8');
+      console.log('✅ Gradle wrapper configured to use version 8.13');
+    } else {
+      console.log('✅ Gradle wrapper already configured correctly');
+    }
+  }
+
+  // Update gradle.properties with environment-specific settings
   if (fs.existsSync(gradlePropertiesPath)) {
     let gradleProps = fs.readFileSync(gradlePropertiesPath, 'utf8');
     
-    // Ensure proper memory settings and daemon configuration
+    // Define settings based on environment
     const memorySettings = [
       'org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8',
+    ];
+
+    const ciSettings = isCI ? [
+      'org.gradle.daemon=false',
+      'org.gradle.parallel=false',
+      'org.gradle.configureondemand=false',
+      'org.gradle.caching=false',
+      'org.gradle.vfs.watch=false',
+    ] : [
       'org.gradle.daemon=true',
       'org.gradle.parallel=true',
       'org.gradle.configureondemand=true',
       'org.gradle.caching=true',
-      'org.gradle.daemon.idletimeout=3600000'
+      'org.gradle.daemon.idletimeout=3600000',
     ];
 
+    const allSettings = [...memorySettings, ...ciSettings];
+
     let modified = false;
-    for (const setting of memorySettings) {
+    for (const setting of allSettings) {
       const [key] = setting.split('=');
       const regex = new RegExp(`^${key}=.*$`, 'm');
       
@@ -80,16 +112,26 @@ try {
 
     if (modified) {
       fs.writeFileSync(gradlePropertiesPath, gradleProps, 'utf8');
-      console.log('✅ Gradle properties updated with memory settings');
+      console.log(`✅ Gradle properties updated for ${isCI ? 'CI' : 'local'} environment`);
     }
   }
 
   console.log('✅ Gradle configuration complete');
-  console.log('');
-  console.log('📝 Next steps:');
-  console.log('   1. Run: cd android && ./gradlew --stop');
-  console.log('   2. Run: npm run prebuild');
-  console.log('   3. Run: npm run build:android');
+  
+  if (isCI) {
+    console.log('');
+    console.log('🚀 CI Build Configuration:');
+    console.log('   ✓ Daemons disabled');
+    console.log('   ✓ Parallel builds disabled');
+    console.log('   ✓ Cache locking prevention enabled');
+    console.log('   ✓ Fresh Gradle state ensured');
+  } else {
+    console.log('');
+    console.log('📝 Next steps:');
+    console.log('   1. Run: npm run gradle:stop');
+    console.log('   2. Run: npm run build:android');
+  }
+  
   console.log('');
   process.exit(0);
 } catch (error) {

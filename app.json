@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "techtime",
@@ -88,7 +89,8 @@
           "sounds": [],
           "mode": "production"
         }
-      ]
+      ],
+      "./plugins/gradleWrapperConfig.plugin.cjs"
     ],
     "scheme": "techtime",
     "experiments": {
