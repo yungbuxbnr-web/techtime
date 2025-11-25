@@ -34,9 +34,9 @@ org.gradle.configureondemand=true
 # Limit maximum number of worker processes to 2 to prevent OOM
 org.gradle.workers.max=2
 
-# Increase JVM memory for Gradle daemon to 3GB with 768MB Metaspace
+# INCREASED MEMORY: 4GB heap with 2GB Metaspace to fix Metaspace OOM
 # This fixes Metaspace OOM in :expo-updates:kspReleaseKotlin and lintVitalAnalyzeRelease
-org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC
+org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=2g -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC
 
 # Enable incremental compilation for Kotlin
 kotlin.incremental=true
@@ -44,8 +44,8 @@ kotlin.incremental=true
 # Use in-process execution strategy for Kotlin compiler to reduce memory overhead
 kotlin.compiler.execution.strategy=in-process
 
-# Increase Kotlin daemon memory to 2GB
-kotlin.daemon.jvm.options=-Xmx2g
+# INCREASED: Kotlin daemon memory to 4GB to match Gradle heap
+kotlin.daemon.jvm.options=-Xmx4g -XX:MaxMetaspaceSize=2g
 
 # ============================================================================
 # KSP (Kotlin Symbol Processing) CONFIGURATION
