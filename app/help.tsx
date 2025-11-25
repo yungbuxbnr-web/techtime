@@ -981,7 +981,7 @@ export default function HelpScreen() {
           
           <Text style={styles.subsectionTitle}>💾 Backup Issues</Text>
           <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Backup fails:</strong> Check storage space and permissions. Use &quot;Test Backup&quot;.
+            <Text style={styles.bold}>Backup fails:</Text> Check storage space and permissions. Use &quot;Test Backup&quot;.
           </Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>Import fails:</Text> Verify file format and integrity.

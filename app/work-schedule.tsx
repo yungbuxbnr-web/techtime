@@ -31,11 +31,7 @@ export default function WorkScheduleScreen() {
     setNotification(prev => ({ ...prev, visible: false }));
   }, []);
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const loadedSettings = await TimeTrackingService.getSettings();
       setSettings(loadedSettings);
@@ -44,7 +40,11 @@ export default function WorkScheduleScreen() {
       console.log('Error loading work schedule settings:', error);
       showNotification('Error loading settings', 'error');
     }
-  };
+  }, [showNotification]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const calculateNextSaturday = (frequency: number): string | undefined => {
     if (frequency === 0) return undefined;
