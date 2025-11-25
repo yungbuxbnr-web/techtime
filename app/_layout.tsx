@@ -79,6 +79,8 @@ export default function RootLayout() {
             <Stack.Screen name="settings" />
             <Stack.Screen name="export" />
             <Stack.Screen name="stats" />
+            <Stack.Screen name="work-schedule" />
+            <Stack.Screen name="time-stats" />
           </Stack>
         </GestureHandlerRootView>
       </ThemeProvider>

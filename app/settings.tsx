@@ -1336,6 +1336,17 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Work Schedule & Time Tracking */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⏰ Work Schedule & Time Tracking</Text>
+          <Text style={styles.sectionDescription}>
+            Configure your work hours, lunch breaks, and work days. Enable automatic time tracking to monitor your daily progress.
+          </Text>
+          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => router.push('/work-schedule')}>
+            <Text style={styles.buttonText}>📅 Edit Work Schedule</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Metrics & Formulas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📐 Metrics & Formulas</Text>

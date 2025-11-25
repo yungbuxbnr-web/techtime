@@ -15,6 +15,7 @@ import * as Updates from 'expo-updates';
 import CameraModal from '../features/scan/CameraModal';
 import ScanResultSheet from '../features/scan/ScanResultSheet';
 import { scanJobCard } from '../services/scan/pipeline';
+import WorkTimeProgressBar from '../components/WorkTimeProgressBar';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
@@ -350,6 +351,9 @@ export default function DashboardScreen() {
         )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Work Time Progress Bar */}
+          <WorkTimeProgressBar />
+
           <View style={styles.progressSection}>
             <TouchableOpacity 
               style={styles.progressCircleContainer}
