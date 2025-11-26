@@ -620,7 +620,8 @@ export const LocalBackupService = {
   },
 
   /**
-   * Create local backup (JSON + PDF) with optional SAF export
+   * Create local backup (JSON + PDF) - ALWAYS works, no folder setup required
+   * Saves to sandbox Documents/backups/ and optionally to SAF if configured
    */
   async createLocalBackup(): Promise<LocalBackupResult> {
     try {
@@ -691,7 +692,7 @@ export const LocalBackupService = {
       await FS.moveFile(pdfResult.uri, pdfPath);
       console.log('✓ PDF summary created:', pdfPath);
       
-      // Android: Also export to SAF if configured
+      // Android: Also export to SAF if configured (optional, non-blocking)
       let safExported = false;
       if (Platform.OS === 'android') {
         const safUri = await FS.getSafUri();
@@ -1115,7 +1116,7 @@ export const LocalBackupService = {
       if (!DOC_DIR) {
         return {
           success: false,
-          message: 'Document directory not available. Please try the "Share Backup" feature instead.'
+          message: 'Document directory not available. Please try the "Create JSON Backup for Sharing" feature instead.'
         };
       }
       

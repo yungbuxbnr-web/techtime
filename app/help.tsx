@@ -276,7 +276,7 @@ export default function HelpScreen() {
       <p>Use the scan feature to automatically extract job information:</p>
       <ol>
         <li>Tap the <strong>"Scan Job Card"</strong> button</li>
-        <li>Take a photo of the Marshall job card</li>
+        <li>Take a photo of the job card</li>
         <li>The app will automatically extract WIP number and registration</li>
         <li>Review and edit the extracted information</li>
         <li>Add AWs and save</li>
@@ -813,7 +813,7 @@ export default function HelpScreen() {
           <View style={styles.featureBox}>
             <Text style={styles.featureTitle}>📸 Job Card Scanning</Text>
             <Text style={styles.paragraph}>
-              Use the scan feature to automatically extract job information from Marshall job cards. 
+              Use the scan feature to automatically extract job information from job cards. 
               The app will extract WIP number and registration, then you can add AWs and save.
             </Text>
           </View>
