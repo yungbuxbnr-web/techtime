@@ -9,6 +9,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "credentialsSource": "remote",
+      "node": "18.20.5",
       "ios": {
         "resourceClass": "m-medium"
       },
@@ -26,6 +27,7 @@
     "preview": {
       "distribution": "internal",
       "credentialsSource": "remote",
+      "node": "18.20.5",
       "ios": {
         "resourceClass": "m-medium"
       },
@@ -43,6 +45,7 @@
     "production": {
       "autoIncrement": true,
       "credentialsSource": "remote",
+      "node": "18.20.5",
       "ios": {
         "resourceClass": "m-medium",
         "image": "latest"

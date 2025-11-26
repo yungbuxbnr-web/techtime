@@ -4,15 +4,21 @@
  * 
  * This file replaces app.json to provide better environment variable handling
  * and prevent build failures when NODE_ENV or other variables are not set.
+ * 
+ * IMPORTANT: This config is designed to NEVER throw errors, even if environment
+ * variables are missing. All env vars have safe fallbacks.
  */
 
-// Safely get NODE_ENV with fallback
+// Safely get NODE_ENV with fallback - NEVER throw if missing
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const isProduction = NODE_ENV === 'production';
 const isDevelopment = NODE_ENV === 'development';
 
-// Log configuration for debugging (only in development)
-if (isDevelopment) {
+// Safely check if we're in CI
+const isCI = process.env.CI === 'true' || process.env.EAS_BUILD === 'true';
+
+// Log configuration for debugging (only in development and not in CI)
+if (isDevelopment && !isCI) {
   console.log('📱 Expo Config - Environment:', NODE_ENV);
   console.log('📱 Expo Config - CI:', process.env.CI || 'false');
   console.log('📱 Expo Config - EAS_BUILD:', process.env.EAS_BUILD || 'false');
@@ -119,5 +125,4 @@ module.exports = {
       },
     },
   },
-  scheme: 'TechTime',
 };
