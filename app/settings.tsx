@@ -1347,6 +1347,17 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Notification Preferences */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔔 Notification Preferences</Text>
+          <Text style={styles.sectionDescription}>
+            Customize notification settings, choose which notifications to receive, and test notification delivery.
+          </Text>
+          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => router.push('/notification-settings')}>
+            <Text style={styles.buttonText}>🔔 Notification Settings</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Metrics & Formulas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📐 Metrics & Formulas</Text>
@@ -1460,7 +1471,7 @@ export default function SettingsScreen() {
             Professional job tracking for vehicle technicians
           </Text>
           <Text style={styles.aboutText}>
-            GDPR Compliant • Secure • Reliable
+            Privacy Focused • Secure • Reliable
           </Text>
           <Text style={styles.signature}>
             ✍️ Digitally signed by {technicianName || 'Technician'}

@@ -7,6 +7,7 @@ import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StorageService } from '../utils/storage';
 import { ThemeProvider } from '../contexts/ThemeContext';
+import { initializeBackgroundTasks } from '../utils/backgroundTasks';
 
 const STORAGE_KEY = 'emulated_device';
 
@@ -21,6 +22,15 @@ export default function RootLayout() {
 
     // Reset authentication on app launch to require PIN entry
     resetAuthentication();
+
+    // Initialize background tasks for time tracking and notifications
+    if (Platform.OS !== 'web') {
+      initializeBackgroundTasks().then(result => {
+        console.log('[App] Background tasks initialization:', result.message);
+      }).catch(error => {
+        console.log('[App] Error initializing background tasks:', error);
+      });
+    }
 
     if (Platform.OS === 'web') {
       // If there's a new emulate parameter, store it
@@ -80,6 +90,8 @@ export default function RootLayout() {
             <Stack.Screen name="export" />
             <Stack.Screen name="stats" />
             <Stack.Screen name="work-schedule" />
+            <Stack.Screen name="work-schedule-calendar" />
+            <Stack.Screen name="notification-settings" />
             <Stack.Screen name="time-stats" />
           </Stack>
         </GestureHandlerRootView>

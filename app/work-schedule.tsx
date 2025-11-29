@@ -460,6 +460,30 @@ export default function WorkScheduleScreen() {
           </View>
         </View>
 
+        {/* Work Calendar */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📅 Work Calendar</Text>
+          <Text style={styles.sectionDescription}>
+            Mark specific days for annual leave, external training, or custom work schedules
+          </Text>
+          
+          <TouchableOpacity
+            style={[styles.calendarButton, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/work-schedule-calendar')}
+          >
+            <Text style={styles.calendarButtonText}>📆 Open Work Calendar</Text>
+          </TouchableOpacity>
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              💡 Use the calendar to mark days you&apos;re on annual leave or external training
+            </Text>
+            <Text style={styles.infoText}>
+              📊 The calendar helps you track non-working days throughout the year
+            </Text>
+          </View>
+        </View>
+
         {/* Notifications Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔔 Background Notifications</Text>
@@ -489,6 +513,9 @@ export default function WorkScheduleScreen() {
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               📱 Notifications are scheduled automatically when you save your work schedule
+            </Text>
+            <Text style={styles.infoText}>
+              ⚙️ Customize notification settings in Settings → Notification Preferences
             </Text>
           </View>
         </View>
@@ -855,6 +882,20 @@ const createStyles = (colors: any) => StyleSheet.create({
   summaryValue: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  calendarButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    elevation: 3,
+  },
+  calendarButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
     marginTop: 24,

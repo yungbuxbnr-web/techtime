@@ -736,7 +736,7 @@ export default function HelpScreen() {
             <Text style={styles.bulletPoint}>• Live time tracking with second-by-second updates</Text>
             <Text style={styles.bulletPoint}>• Professional PDF and Excel reports</Text>
             <Text style={styles.bulletPoint}>• Monthly progress monitoring (180-hour target)</Text>
-            <Text style={styles.bulletPoint}>• GDPR compliant data storage</Text>
+            <Text style={styles.bulletPoint}>• Privacy-focused data storage (no personal customer data)</Text>
             <Text style={styles.bulletPoint}>• PIN and biometric authentication</Text>
             <Text style={styles.bulletPoint}>• Multiple backup options including Google Drive</Text>
           </View>
@@ -1048,7 +1048,7 @@ export default function HelpScreen() {
         {/* Footer */}
         <View style={styles.footerSection}>
           <Text style={styles.footerTitle}>TechTime - Professional Job Tracking</Text>
-          <Text style={styles.footerText}>Version 1.0.0 | GDPR Compliant | Secure | Reliable</Text>
+          <Text style={styles.footerText}>Version 1.0.0 | Privacy Focused | Secure | Reliable</Text>
           <Text style={styles.footerText}>© {new Date().getFullYear()} TechTime. All rights reserved.</Text>
           <Text style={styles.footerDate}>
             Guide generated on {new Date().toLocaleDateString('en-US', { 
