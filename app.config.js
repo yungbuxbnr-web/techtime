@@ -26,8 +26,8 @@ if (isDevelopment && !isCI) {
 
 module.exports = {
   expo: {
-    name: process.env.APP_NAME || 'techtime',
-    slug: process.env.APP_SLUG || 'techtime',
+    name: process.env.APP_NAME || 'TechTime',
+    slug: process.env.APP_SLUG || 'TechTime',
     owner: process.env.EXPO_OWNER || 'bnr',
     version: process.env.APP_VERSION || '1.0.0',
     orientation: 'portrait',
@@ -62,6 +62,7 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       package: process.env.ANDROID_PACKAGE || 'com.brcarszw.techtracer',
+      versionCode: parseInt(process.env.ANDROID_VERSION_CODE || '2', 10),
       permissions: [
         'USE_BIOMETRIC',
         'USE_FINGERPRINT',
