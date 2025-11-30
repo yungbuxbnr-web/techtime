@@ -43,21 +43,16 @@ interface Job {
 function normaliseVhc(vhcStatusRaw: string): 'GREEN' | 'ORANGE' | 'RED' | 'NONE' {
   const normalised = vhcStatusRaw?.toUpperCase().replace(/\//g, '').replace(/\s/g, '').trim();
   
-  switch (normalised) {
-    case 'GREEN':
-      return 'GREEN';
-    case 'ORANGE':
-    case 'AMBER':
-      return 'ORANGE';
-    case 'RED':
-      return 'RED';
-    case 'N':
-    case 'NA':
-    case 'N/A':
-    case 'NA':
-      return 'NONE';
-    default:
-      return 'NONE';
+  if (normalised === 'GREEN') {
+    return 'GREEN';
+  } else if (normalised === 'ORANGE' || normalised === 'AMBER') {
+    return 'ORANGE';
+  } else if (normalised === 'RED') {
+    return 'RED';
+  } else if (normalised === 'N' || normalised === 'NA') {
+    return 'NONE';
+  } else {
+    return 'NONE';
   }
 }
 
@@ -261,18 +256,14 @@ export function convertJobInputToJob(jobInput: PdfJobInput): Job {
   const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   let vhcStatus: 'Red' | 'Orange' | 'Green' | 'N/A' = 'N/A';
-  switch (jobInput.vhcStatus) {
-    case 'RED':
-      vhcStatus = 'Red';
-      break;
-    case 'ORANGE':
-      vhcStatus = 'Orange';
-      break;
-    case 'GREEN':
-      vhcStatus = 'Green';
-      break;
-    default:
-      vhcStatus = 'N/A';
+  if (jobInput.vhcStatus === 'RED') {
+    vhcStatus = 'Red';
+  } else if (jobInput.vhcStatus === 'ORANGE') {
+    vhcStatus = 'Orange';
+  } else if (jobInput.vhcStatus === 'GREEN') {
+    vhcStatus = 'Green';
+  } else {
+    vhcStatus = 'N/A';
   }
   
   const job: Job = {

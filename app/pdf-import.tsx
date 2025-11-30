@@ -5,32 +5,35 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
-import { StorageService } from '../utils/storage';
 import NotificationToast from '../components/NotificationToast';
 import * as DocumentPicker from 'expo-document-picker';
 import {
-  parseTechRecordsPdf,
-  isDuplicateJob,
-  convertJobInputToJob,
+  importPdfProgressively,
+  ImportProgress,
   PdfJobInput,
-} from '../src/services/pdfImportService';
+} from '../src/services/progressivePdfImportService';
 
 export default function PDFImportScreen() {
   const { colors } = useTheme();
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<string>('');
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info'; visible: boolean }>({
+    message: '',
+    type: 'info',
+    visible: false,
+  });
+  const [recentJobs, setRecentJobs] = useState<PdfJobInput[]>([]);
 
   const handlePickAndImportPDF = useCallback(async () => {
     try {
-      setLoading(true);
-      setProgress('Selecting PDF file...');
+      setImporting(true);
+      setRecentJobs([]);
       
       console.log('[PDF Import] Opening document picker...');
       const result = await DocumentPicker.getDocumentAsync({
@@ -40,7 +43,7 @@ export default function PDFImportScreen() {
 
       if (result.canceled) {
         console.log('[PDF Import] Document picker cancelled');
-        setLoading(false);
+        setImporting(false);
         return;
       }
 
@@ -48,77 +51,83 @@ export default function PDFImportScreen() {
         setNotification({
           message: 'No file selected',
           type: 'error',
+          visible: true,
         });
-        setLoading(false);
+        setImporting(false);
         return;
       }
 
       const file = result.assets[0];
       console.log('[PDF Import] PDF file selected:', file.name, file.uri);
       
-      setProgress('Parsing PDF...');
-      
-      const jobs: PdfJobInput[] = await parseTechRecordsPdf(file.uri);
-      
-      console.log('[PDF Import] Total jobs parsed:', jobs.length);
-      
-      if (jobs.length > 0) {
-        console.log('[PDF Import] First job example:', jobs[0]);
-      }
-      
-      if (jobs.length === 0) {
-        setNotification({
-          message: 'No jobs found in this PDF – check parser or file format',
-          type: 'error',
-        });
-        setLoading(false);
-        return;
-      }
-      
-      setProgress('Checking for duplicates...');
-      
-      const existingJobs = await StorageService.getJobs();
-      
-      let importedCount = 0;
-      let skippedCount = 0;
-      
-      for (const jobInput of jobs) {
-        if (isDuplicateJob(jobInput, existingJobs)) {
-          console.log(`[PDF Import] Skipping duplicate: WIP ${jobInput.wipNumber}, Date ${jobInput.jobDateTime}`);
-          skippedCount++;
-          continue;
+      // Start progressive import
+      const importResult = await importPdfProgressively(
+        file.uri,
+        (progressUpdate: ImportProgress) => {
+          setProgress(progressUpdate);
+          
+          // Keep track of last 5 jobs for display
+          if (progressUpdate.currentJobData && progressUpdate.status === 'importing') {
+            setRecentJobs(prev => {
+              const updated = [progressUpdate.currentJobData!, ...prev];
+              return updated.slice(0, 5);
+            });
+          }
         }
-        
-        const job = convertJobInputToJob(jobInput);
-        
-        await StorageService.saveJob(job);
-        importedCount++;
-        
-        setProgress(`Importing jobs: ${importedCount}/${jobs.length - skippedCount}`);
-      }
-      
-      console.log(`[PDF Import] Import complete: ${importedCount} imported, ${skippedCount} skipped`);
+      );
+
+      console.log('[PDF Import] Import complete:', importResult);
       
       setNotification({
-        message: `Imported ${importedCount} jobs from PDF (${skippedCount} skipped as duplicates)`,
+        message: `Successfully imported ${importResult.imported} jobs! (${importResult.skipped} skipped, ${importResult.errors} errors)`,
         type: 'success',
+        visible: true,
       });
       
+      // Navigate to jobs screen after a short delay
       setTimeout(() => {
         router.replace('/jobs');
-      }, 2000);
+      }, 2500);
       
     } catch (error) {
       console.error('[PDF Import] Error importing PDF:', error);
       setNotification({
         message: error instanceof Error ? error.message : 'Failed to import PDF',
         type: 'error',
+        visible: true,
       });
     } finally {
-      setLoading(false);
-      setProgress('');
+      setImporting(false);
     }
   }, []);
+
+  const getStatusColor = (status: ImportProgress['status']) => {
+    switch (status) {
+      case 'parsing':
+        return colors.primary;
+      case 'importing':
+        return colors.success;
+      case 'complete':
+        return colors.success;
+      case 'error':
+        return colors.error;
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const getVhcColor = (vhcStatus: string) => {
+    switch (vhcStatus) {
+      case 'GREEN':
+        return '#10b981';
+      case 'ORANGE':
+        return '#f59e0b';
+      case 'RED':
+        return '#ef4444';
+      default:
+        return colors.textSecondary;
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -130,15 +139,13 @@ export default function PDFImportScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardIcon, { color: colors.primary }]}>📄</Text>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            {loading ? 'Importing...' : 'Import PDF'}
-          </Text>
-          
-          {!loading && (
-            <>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        {!importing && !progress && (
+          <>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cardIcon, { color: colors.primary }]}>📄</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Import PDF</Text>
+              
               <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
                 Upload a technician PDF to automatically create job records with the exact original date & time, WIP, reg, VHC, description and AWs.
               </Text>
@@ -163,75 +170,134 @@ export default function PDFImportScreen() {
               >
                 <Text style={styles.buttonText}>📄 Select & Import PDF</Text>
               </TouchableOpacity>
-            </>
-          )}
+            </View>
 
-          {loading && (
-            <>
-              <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
-              
-              {progress && (
-                <Text style={[styles.progressText, { color: colors.text }]}>
-                  {progress}
+            <View style={[styles.featuresCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.featuresTitle, { color: colors.text }]}>Features:</Text>
+              <View style={styles.featuresList}>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ Real-time progress tracking
                 </Text>
-              )}
-            </>
-          )}
-        </View>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ Job-by-job import with live display
+                </Text>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ Automatic duplicate detection
+                </Text>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ Preserves original date & time
+                </Text>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ VHC status mapping
+                </Text>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ Automatic AWS to time conversion
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
 
-        <View style={[styles.featuresCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.featuresTitle, { color: colors.text }]}>Features:</Text>
-          <View style={styles.featuresList}>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ Automatic data extraction from PDF tables
+        {importing && progress && (
+          <View style={[styles.progressCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.progressTitle, { color: colors.text }]}>
+              {progress.status === 'parsing' && '📖 Parsing PDF...'}
+              {progress.status === 'importing' && '⚙️ Importing Jobs...'}
+              {progress.status === 'complete' && '✅ Import Complete!'}
+              {progress.status === 'error' && '❌ Import Failed'}
             </Text>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ Preserves original date & time from records
-            </Text>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ Duplicate detection (same WIP + date)
-            </Text>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ VHC status mapping (Green/Orange/Red/N/A)
-            </Text>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ Automatic AWS to time conversion (1 AW = 5 min)
-            </Text>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ UK registration plate validation
-            </Text>
-            <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-              ✓ Detailed import logging
-            </Text>
-          </View>
-        </View>
 
-        <View style={[styles.exampleCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.exampleTitle, { color: colors.text }]}>Example PDF Row:</Text>
-          <View style={[styles.exampleBox, { backgroundColor: colors.background }]}>
-            <Text style={[styles.exampleText, { color: colors.textSecondary }]}>
-              26173 L4JSG Green Seatbelt recall, vhc 6 0h 30m 17/11/2025 15:49
+            {/* Progress Bar */}
+            <View style={[styles.progressBarContainer, { backgroundColor: colors.background }]}>
+              <Animated.View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    backgroundColor: getStatusColor(progress.status),
+                    width: `${progress.percentage}%`,
+                  },
+                ]}
+              />
+            </View>
+
+            <Text style={[styles.progressPercentage, { color: colors.text }]}>
+              {progress.percentage}%
             </Text>
+
+            {progress.totalJobs > 0 && (
+              <Text style={[styles.progressCount, { color: colors.textSecondary }]}>
+                {progress.currentJob} / {progress.totalJobs} jobs processed
+              </Text>
+            )}
+
+            <Text style={[styles.progressMessage, { color: colors.textSecondary }]}>
+              {progress.message}
+            </Text>
+
+            {/* Recent Jobs Display */}
+            {recentJobs.length > 0 && (
+              <View style={styles.recentJobsContainer}>
+                <Text style={[styles.recentJobsTitle, { color: colors.text }]}>
+                  Recently Added:
+                </Text>
+                {recentJobs.map((job, index) => (
+                  <View
+                    key={`${job.wipNumber}-${index}`}
+                    style={[
+                      styles.jobItem,
+                      { backgroundColor: colors.background, borderColor: colors.border },
+                    ]}
+                  >
+                    <View style={styles.jobItemHeader}>
+                      <Text style={[styles.jobItemWip, { color: colors.text }]}>
+                        WIP: {job.wipNumber}
+                      </Text>
+                      <View
+                        style={[
+                          styles.vhcBadge,
+                          { backgroundColor: getVhcColor(job.vhcStatus) },
+                        ]}
+                      >
+                        <Text style={styles.vhcBadgeText}>{job.vhcStatus}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.jobItemReg, { color: colors.textSecondary }]}>
+                      {job.vehicleReg}
+                    </Text>
+                    <Text
+                      style={[styles.jobItemDesc, { color: colors.textSecondary }]}
+                      numberOfLines={1}
+                    >
+                      {job.description}
+                    </Text>
+                    <View style={styles.jobItemFooter}>
+                      <Text style={[styles.jobItemAws, { color: colors.primary }]}>
+                        {job.aws} AWs
+                      </Text>
+                      <Text style={[styles.jobItemTime, { color: colors.textSecondary }]}>
+                        {new Date(job.jobDateTime).toLocaleString('en-GB', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-          <Text style={[styles.exampleDescription, { color: colors.textSecondary }]}>
-            This will create a job with:{'\n'}
-            • WIP: 26173{'\n'}
-            • Reg: L4JSG{'\n'}
-            • VHC: Green{'\n'}
-            • Description: Seatbelt recall, vhc{'\n'}
-            • AWS: 6{'\n'}
-            • Date/Time: 17/11/2025 15:49
-          </Text>
-        </View>
+        )}
       </ScrollView>
 
-      {notification && (
-        <NotificationToast
-          message={notification.message}
-          type={notification.type}
-          onHide={() => setNotification(null)}
-        />
-      )}
+      <NotificationToast
+        message={notification.message}
+        type={notification.type}
+        visible={notification.visible}
+        onHide={() => setNotification({ ...notification, visible: false })}
+      />
     </SafeAreaView>
   );
 }
@@ -264,6 +330,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 100,
   },
   card: {
     margin: 16,
@@ -320,15 +389,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  loader: {
-    marginVertical: 24,
-  },
-  progressText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 16,
-    textAlign: 'center',
-  },
   featuresCard: {
     marginHorizontal: 16,
     marginBottom: 16,
@@ -352,33 +412,101 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  exampleCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+  progressCard: {
+    margin: 16,
     borderRadius: 12,
-    padding: 20,
+    padding: 24,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  exampleTitle: {
+  progressTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  progressBarContainer: {
+    height: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  progressPercentage: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressCount: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    fontStyle: 'italic',
+  },
+  recentJobsContainer: {
+    marginTop: 24,
+  },
+  recentJobsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
   },
-  exampleBox: {
+  jobItem: {
     padding: 12,
     borderRadius: 8,
-    marginBottom: 12,
+    marginBottom: 8,
+    borderWidth: 1,
   },
-  exampleText: {
-    fontSize: 14,
-    fontFamily: 'monospace',
+  jobItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  exampleDescription: {
+  jobItemWip: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  vhcBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  vhcBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  jobItemReg: {
     fontSize: 14,
-    lineHeight: 20,
+    marginBottom: 4,
+  },
+  jobItemDesc: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  jobItemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  jobItemAws: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  jobItemTime: {
+    fontSize: 12,
   },
 });
