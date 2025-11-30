@@ -18,7 +18,7 @@ import {
   parseTechRecordsPdf,
   isDuplicateJob,
   convertJobInputToJob,
-  JobInput,
+  PdfJobInput,
 } from '../src/services/pdfImportService';
 
 export default function PDFImportScreen() {
@@ -32,7 +32,6 @@ export default function PDFImportScreen() {
       setLoading(true);
       setProgress('Selecting PDF file...');
       
-      // Pick PDF file
       console.log('[PDF Import] Opening document picker...');
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/pdf',
@@ -59,8 +58,7 @@ export default function PDFImportScreen() {
       
       setProgress('Parsing PDF...');
       
-      // Parse PDF using centralized service
-      const jobs: JobInput[] = await parseTechRecordsPdf(file.uri);
+      const jobs: PdfJobInput[] = await parseTechRecordsPdf(file.uri);
       
       console.log('[PDF Import] Total jobs parsed:', jobs.length);
       
@@ -79,25 +77,20 @@ export default function PDFImportScreen() {
       
       setProgress('Checking for duplicates...');
       
-      // Load existing jobs
       const existingJobs = await StorageService.getJobs();
       
-      // Import jobs with duplicate handling
       let importedCount = 0;
       let skippedCount = 0;
       
       for (const jobInput of jobs) {
-        // Check for duplicates
         if (isDuplicateJob(jobInput, existingJobs)) {
           console.log(`[PDF Import] Skipping duplicate: WIP ${jobInput.wipNumber}, Date ${jobInput.jobDateTime}`);
           skippedCount++;
           continue;
         }
         
-        // Convert to Job object
         const job = convertJobInputToJob(jobInput);
         
-        // Save job
         await StorageService.saveJob(job);
         importedCount++;
         
@@ -106,13 +99,11 @@ export default function PDFImportScreen() {
       
       console.log(`[PDF Import] Import complete: ${importedCount} imported, ${skippedCount} skipped`);
       
-      // Show success message
       setNotification({
         message: `Imported ${importedCount} jobs from PDF (${skippedCount} skipped as duplicates)`,
         type: 'success',
       });
       
-      // Navigate to jobs screen after a delay
       setTimeout(() => {
         router.replace('/jobs');
       }, 2000);

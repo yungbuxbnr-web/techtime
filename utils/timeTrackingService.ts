@@ -56,7 +56,7 @@ const DEFAULT_SETTINGS: WorkScheduleSettings = {
 
 export class TimeTrackingService {
   private static updateInterval: NodeJS.Timeout | null = null;
-  private static listeners: Array<(stats: TimeStats) => void> = [];
+  private static listeners: ((stats: TimeStats) => void)[] = [];
 
   // Get settings
   static async getSettings(): Promise<WorkScheduleSettings> {
