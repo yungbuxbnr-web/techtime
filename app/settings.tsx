@@ -24,6 +24,7 @@ export default function SettingsScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
+  const [securityEnabled, setSecurityEnabled] = useState(true);
 
   // Absence logger dropdown states
   const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
@@ -59,6 +60,11 @@ export default function SettingsScreen() {
       setNewPin(settingsData.pin);
       setConfirmPin(settingsData.pin);
       setTargetHours(String(settingsData.targetHours || 180));
+      
+      // Check if security is enabled (PIN is not empty and not disabled)
+      const isSecurityEnabled = settingsData.pin && settingsData.pin !== 'DISABLED';
+      setSecurityEnabled(isSecurityEnabled);
+      
       console.log('Settings and jobs loaded successfully');
     } catch (error) {
       console.log('Error loading data:', error);
@@ -69,7 +75,9 @@ export default function SettingsScreen() {
   const checkAuthAndLoadData = useCallback(async () => {
     try {
       const settingsData = await StorageService.getSettings();
-      if (!settingsData.isAuthenticated) {
+      
+      // Only check authentication if security is enabled
+      if (settingsData.pin && settingsData.pin !== 'DISABLED' && !settingsData.isAuthenticated) {
         console.log('User not authenticated, redirecting to auth');
         router.replace('/auth');
         return;
@@ -83,7 +91,6 @@ export default function SettingsScreen() {
         }
       } catch (resetError) {
         console.log('[Settings] Error checking monthly reset:', resetError);
-        // Don't block loading if reset check fails
       }
       
       await loadData();
@@ -169,6 +176,7 @@ export default function SettingsScreen() {
       const updatedSettings = { ...settings, pin: newPin };
       await StorageService.saveSettings(updatedSettings);
       setSettings(updatedSettings);
+      setSecurityEnabled(true);
       showNotification('PIN updated successfully', 'success');
       console.log('PIN updated successfully');
     } catch (error) {
@@ -176,6 +184,58 @@ export default function SettingsScreen() {
       showNotification('Error updating PIN', 'error');
     }
   }, [newPin, confirmPin, settings, showNotification]);
+
+  const handleToggleSecurity = useCallback(async () => {
+    if (securityEnabled) {
+      // Disable security
+      Alert.alert(
+        'Disable Security',
+        'This will remove PIN protection and biometric authentication from the app. Anyone with access to your device will be able to view your job records.\n\nAre you sure you want to disable all security?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable Security',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const updatedSettings = { 
+                  ...settings, 
+                  pin: 'DISABLED',
+                  biometricEnabled: false,
+                  isAuthenticated: true 
+                };
+                await StorageService.saveSettings(updatedSettings);
+                setSettings(updatedSettings);
+                setSecurityEnabled(false);
+                setNewPin('');
+                setConfirmPin('');
+                showNotification('Security disabled. App is now accessible without PIN.', 'success');
+                console.log('Security disabled');
+              } catch (error) {
+                console.log('Error disabling security:', error);
+                showNotification('Error disabling security', 'error');
+              }
+            }
+          }
+        ]
+      );
+    } else {
+      // Enable security - prompt for new PIN
+      Alert.alert(
+        'Enable Security',
+        'To enable security, you need to set a new PIN. This will protect your job records and data.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Set PIN',
+            onPress: () => {
+              showNotification('Please enter a new PIN below', 'info');
+            }
+          }
+        ]
+      );
+    }
+  }, [securityEnabled, settings, showNotification]);
 
   const handleUpdateTargetHours = useCallback(async () => {
     const hours = parseFloat(targetHours);
@@ -214,16 +274,13 @@ export default function SettingsScreen() {
       ? `${numberOfAbsentDays} ${absenceTypeText}` 
       : `${numberOfAbsentDays} ${absenceTypeText}s`;
     
-    // Check if we need to reset absence hours for a new month
     let currentAbsenceHours = settings.absenceHours || 0;
     if (settings.absenceMonth !== currentMonth || settings.absenceYear !== currentYear) {
-      // New month, reset absence hours
       currentAbsenceHours = 0;
       console.log('New month detected, resetting absence hours');
     }
     
     if (deductionType === 'monthly') {
-      // Deduct from monthly target hours
       const currentTarget = settings.targetHours || 180;
       const newTargetHours = Math.max(0, currentTarget - absenceHours);
       
@@ -257,7 +314,6 @@ export default function SettingsScreen() {
         ]
       );
     } else {
-      // Deduct from total available hours (for efficiency calculations)
       const newAbsenceHours = currentAbsenceHours + absenceHours;
       
       Alert.alert(
@@ -331,9 +387,13 @@ export default function SettingsScreen() {
   }, [showNotification]);
 
   const handleToggleBiometric = useCallback(async () => {
+    if (!securityEnabled) {
+      showNotification('Please enable security first to use biometric authentication', 'error');
+      return;
+    }
+
     try {
       if (settings.biometricEnabled) {
-        // Disable biometric
         const result = await BiometricService.disableBiometricLogin();
         if (result.success) {
           const updatedSettings = { ...settings, biometricEnabled: false };
@@ -344,7 +404,6 @@ export default function SettingsScreen() {
           showNotification(result.message, 'error');
         }
       } else {
-        // Enable biometric
         const result = await BiometricService.enableBiometricLogin();
         if (result.success) {
           const updatedSettings = { ...settings, biometricEnabled: true };
@@ -359,7 +418,7 @@ export default function SettingsScreen() {
       console.log('Error toggling biometric:', error);
       showNotification('Error updating biometric settings', 'error');
     }
-  }, [settings, showNotification]);
+  }, [settings, securityEnabled, showNotification]);
 
   const navigateToExport = useCallback(() => {
     router.push('/export');
@@ -378,7 +437,6 @@ export default function SettingsScreen() {
   const totalMinutes = totalAWs * 5;
   const totalTime = CalculationService.formatTime(totalMinutes);
 
-  // Get current month's absence hours
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   const currentMonthAbsenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
@@ -887,58 +945,98 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* PIN Settings */}
+        {/* Security Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔐 Security Settings</Text>
-          <Text style={styles.label}>New PIN</Text>
-          <TextInput
-            style={styles.input}
-            value={newPin}
-            onChangeText={setNewPin}
-            placeholder="Enter new PIN"
-            placeholderTextColor={colors.textSecondary}
-            secureTextEntry
-            keyboardType="numeric"
-            maxLength={6}
-          />
-          
-          <Text style={styles.label}>Confirm PIN</Text>
-          <TextInput
-            style={styles.input}
-            value={confirmPin}
-            onChangeText={setConfirmPin}
-            placeholder="Confirm new PIN"
-            placeholderTextColor={colors.textSecondary}
-            secureTextEntry
-            keyboardType="numeric"
-            maxLength={6}
-          />
-          
-          <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdatePin}>
-            <Text style={styles.buttonText}>🔄 Update PIN</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionDescription}>
+            Manage PIN protection and biometric authentication. You can enable or disable security features to control access to your job records.
+          </Text>
 
-          {/* Biometric Authentication */}
-          {biometricAvailable && (
-            <View style={styles.biometricSection}>
-              <View style={styles.biometricHeader}>
-                <View style={styles.biometricInfo}>
-                  <Text style={styles.biometricTitle}>
-                    {biometricTypes.includes('Face ID') ? '👤' : '👆'} Biometric Login
-                  </Text>
-                  <Text style={styles.biometricSubtext}>
-                    {biometricTypes.join(' or ')} available
+          {/* Security Toggle */}
+          <View style={styles.securityToggleContainer}>
+            <View style={styles.securityToggleInfo}>
+              <Text style={styles.securityToggleTitle}>
+                {securityEnabled ? '🔒 Security Enabled' : '🔓 Security Disabled'}
+              </Text>
+              <Text style={styles.securityToggleSubtext}>
+                {securityEnabled 
+                  ? 'PIN protection is active' 
+                  : 'App is accessible without PIN'}
+              </Text>
+            </View>
+            <Switch
+              value={securityEnabled}
+              onValueChange={handleToggleSecurity}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={securityEnabled ? colors.background : colors.background}
+            />
+          </View>
+
+          {securityEnabled && (
+            <>
+              <Text style={styles.label}>New PIN</Text>
+              <TextInput
+                style={styles.input}
+                value={newPin}
+                onChangeText={setNewPin}
+                placeholder="Enter new PIN"
+                placeholderTextColor={colors.textSecondary}
+                secureTextEntry
+                keyboardType="numeric"
+                maxLength={6}
+              />
+              
+              <Text style={styles.label}>Confirm PIN</Text>
+              <TextInput
+                style={styles.input}
+                value={confirmPin}
+                onChangeText={setConfirmPin}
+                placeholder="Confirm new PIN"
+                placeholderTextColor={colors.textSecondary}
+                secureTextEntry
+                keyboardType="numeric"
+                maxLength={6}
+              />
+              
+              <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdatePin}>
+                <Text style={styles.buttonText}>🔄 Update PIN</Text>
+              </TouchableOpacity>
+
+              {/* Biometric Authentication */}
+              {biometricAvailable && (
+                <View style={styles.biometricSection}>
+                  <View style={styles.biometricHeader}>
+                    <View style={styles.biometricInfo}>
+                      <Text style={styles.biometricTitle}>
+                        {biometricTypes.includes('Face ID') ? '👤' : '👆'} Biometric Login
+                      </Text>
+                      <Text style={styles.biometricSubtext}>
+                        {biometricTypes.join(' or ')} available
+                      </Text>
+                    </View>
+                    <Switch
+                      value={settings.biometricEnabled || false}
+                      onValueChange={handleToggleBiometric}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor={settings.biometricEnabled ? colors.background : colors.background}
+                    />
+                  </View>
+                  <Text style={styles.biometricDescription}>
+                    Enable biometric authentication for quick and secure access to the app. You can still use your PIN as a fallback.
                   </Text>
                 </View>
-                <Switch
-                  value={settings.biometricEnabled || false}
-                  onValueChange={handleToggleBiometric}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={settings.biometricEnabled ? colors.background : colors.background}
-                />
-              </View>
-              <Text style={styles.biometricDescription}>
-                Enable biometric authentication for quick and secure access to the app. You can still use your PIN as a fallback.
+              )}
+            </>
+          )}
+
+          {!securityEnabled && (
+            <View style={styles.securityWarning}>
+              <Text style={styles.securityWarningTitle}>⚠️ Security Disabled</Text>
+              <Text style={styles.securityWarningText}>
+                Your job records are currently accessible without any authentication. Anyone with access to your device can view, edit, or delete your data.
+              </Text>
+              <Text style={styles.securityWarningText}>
+                To enable security, toggle the switch above and set a new PIN.
               </Text>
             </View>
           )}
@@ -962,9 +1060,11 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚠️ Danger Zone</Text>
           
-          <TouchableOpacity style={[styles.button, styles.signOutButton]} onPress={handleSignOut}>
-            <Text style={styles.buttonText}>🚪 Sign Out</Text>
-          </TouchableOpacity>
+          {securityEnabled && (
+            <TouchableOpacity style={[styles.button, styles.signOutButton]} onPress={handleSignOut}>
+              <Text style={styles.buttonText}>🚪 Sign Out</Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity style={[styles.button, styles.dangerButton]} onPress={handleClearAllData}>
             <Text style={styles.buttonText}>🗑️ Clear All Data</Text>
@@ -975,7 +1075,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>❓ Help & Support</Text>
           <Text style={styles.sectionDescription}>
-            Access the complete user guide with detailed instructions on how to use every feature of the app. Export the guide as PDF for offline reference or sharing.
+            Access the complete user guide with detailed instructions on how to use every feature of the app, including security settings.
           </Text>
           <TouchableOpacity style={[styles.button, styles.helpButton]} onPress={() => router.push('/help')}>
             <Text style={styles.buttonText}>📖 Open User Guide</Text>
@@ -1087,6 +1187,50 @@ const createStyles = (colors: any) => StyleSheet.create({
   themeToggleSubtext: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  securityToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  securityToggleInfo: {
+    flex: 1,
+  },
+  securityToggleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  securityToggleSubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  securityWarning: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  securityWarningTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7f1d1d',
+    marginBottom: 8,
+  },
+  securityWarningText: {
+    fontSize: 14,
+    color: '#7f1d1d',
+    lineHeight: 20,
+    marginBottom: 6,
   },
   statsGrid: {
     flexDirection: 'row',

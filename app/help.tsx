@@ -171,15 +171,16 @@ export default function HelpScreen() {
   <div class="toc">
     <div class="toc-title">📋 Table of Contents</div>
     <div class="toc-item">1. Introduction & Overview</div>
-    <div class="toc-item">2. Getting Started</div>
-    <div class="toc-item">3. Dashboard & Home Screen</div>
-    <div class="toc-item">4. Job Management</div>
-    <div class="toc-item">5. Time Tracking & Work Schedule</div>
-    <div class="toc-item">6. Reports & Export</div>
-    <div class="toc-item">7. Backup & Data Management</div>
-    <div class="toc-item">8. Settings & Customization</div>
-    <div class="toc-item">9. Tips & Best Practices</div>
-    <div class="toc-item">10. Troubleshooting</div>
+    <div class="toc-item">2. Getting Started & Security Setup</div>
+    <div class="toc-item">3. Security Features & PIN Management</div>
+    <div class="toc-item">4. Dashboard & Home Screen</div>
+    <div class="toc-item">5. Job Management</div>
+    <div class="toc-item">6. Time Tracking & Work Schedule</div>
+    <div class="toc-item">7. Reports & Export</div>
+    <div class="toc-item">8. Backup & Data Management</div>
+    <div class="toc-item">9. Settings & Customization</div>
+    <div class="toc-item">10. Tips & Best Practices</div>
+    <div class="toc-item">11. Troubleshooting</div>
   </div>
 
   <div class="section">
@@ -202,18 +203,32 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>2. Getting Started</h2>
+    <h2>2. Getting Started & Security Setup</h2>
     
-    <h3>🔐 First Launch & Authentication</h3>
-    <p>When you first launch TechTime, you'll be prompted to set up your account:</p>
-    <ol>
-      <li><strong>Set Your Name:</strong> Enter your full name (e.g., "Buckston Rugge")</li>
-      <li><strong>Create PIN:</strong> Set a 4-6 digit PIN for security (default: 3101)</li>
-      <li><strong>Enable Biometrics (Optional):</strong> Use Face ID or fingerprint for quick access</li>
-    </ol>
+    <h3>🔐 First Launch Setup</h3>
+    <p>When you first launch TechTime, you'll go through a two-step setup process:</p>
     
-    <div class="tip-box">
-      <strong>💡 Tip:</strong> Write down your PIN in a secure location. If you forget it, you'll need to reinstall the app and lose all data.
+    <div class="feature-box">
+      <h3>Step 1: Set Your Name</h3>
+      <ul>
+        <li>Enter your full name (e.g., "Buckston Rugge")</li>
+        <li>This name appears throughout the app and on all exported reports</li>
+        <li>You can change your name anytime in Settings</li>
+      </ul>
+    </div>
+    
+    <div class="feature-box">
+      <h3>Step 2: Create Your Security PIN</h3>
+      <ul>
+        <li>Choose a 4-6 digit PIN that you'll remember</li>
+        <li>Enter the PIN twice to confirm</li>
+        <li>This PIN protects all your job records and data</li>
+        <li>Write down your PIN in a secure location</li>
+      </ul>
+    </div>
+    
+    <div class="warning-box">
+      <strong>⚠️ Important:</strong> If you forget your PIN, there is no recovery option. You will need to reinstall the app, which will result in the loss of all data unless you have a backup.
     </div>
     
     <h3>📱 Navigation</h3>
@@ -226,7 +241,100 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>3. Dashboard & Home Screen</h2>
+    <h2>3. Security Features & PIN Management</h2>
+    
+    <h3>🔒 Security Overview</h3>
+    <p>TechTime provides comprehensive security features to protect your job records and sensitive data:</p>
+    
+    <div class="feature-box">
+      <h3>Security Features</h3>
+      <ul>
+        <li><strong>PIN Protection:</strong> 4-6 digit PIN required to access the app</li>
+        <li><strong>Biometric Authentication:</strong> Optional Face ID or fingerprint login</li>
+        <li><strong>Session Management:</strong> Automatic sign-out when app is closed</li>
+        <li><strong>Data Encryption:</strong> All data stored securely on your device</li>
+        <li><strong>Privacy Focused:</strong> No personal customer data stored (GDPR compliant)</li>
+      </ul>
+    </div>
+    
+    <h3>🔐 Managing Your PIN</h3>
+    <p>You can manage your PIN and security settings in Settings → Security Settings:</p>
+    
+    <h4>Changing Your PIN</h4>
+    <ol>
+      <li>Go to <strong>Settings → Security Settings</strong></li>
+      <li>Ensure security is enabled (toggle should be ON)</li>
+      <li>Enter your new PIN (4-6 digits)</li>
+      <li>Confirm your new PIN</li>
+      <li>Tap <strong>"Update PIN"</strong></li>
+    </ol>
+    
+    <h4>Enabling Biometric Authentication</h4>
+    <ol>
+      <li>Ensure your device has Face ID or fingerprint configured</li>
+      <li>Go to <strong>Settings → Security Settings</strong></li>
+      <li>Toggle <strong>"Biometric Login"</strong> to ON</li>
+      <li>Authenticate with your biometric to confirm</li>
+      <li>You can now use biometric login instead of PIN</li>
+    </ol>
+    
+    <div class="tip-box">
+      <strong>💡 Tip:</strong> Even with biometric authentication enabled, you can always use your PIN as a fallback if biometric authentication fails.
+    </div>
+    
+    <h3>🔓 Disabling Security (Not Recommended)</h3>
+    <p>You can disable all security features if you prefer unrestricted access to the app. However, this is <strong>not recommended</strong> as it leaves your job records unprotected.</p>
+    
+    <div class="warning-box">
+      <strong>⚠️ Security Warning:</strong> When security is disabled, anyone with access to your device can view, edit, or delete your job records without any authentication.
+    </div>
+    
+    <h4>To Disable Security:</h4>
+    <ol>
+      <li>Go to <strong>Settings → Security Settings</strong></li>
+      <li>Toggle the <strong>"Security Enabled"</strong> switch to OFF</li>
+      <li>Confirm the warning dialog</li>
+      <li>Security will be disabled and the app will be accessible without PIN</li>
+    </ol>
+    
+    <h4>To Re-enable Security:</h4>
+    <ol>
+      <li>Go to <strong>Settings → Security Settings</strong></li>
+      <li>Toggle the <strong>"Security Enabled"</strong> switch to ON</li>
+      <li>Set a new PIN when prompted</li>
+      <li>Confirm your PIN</li>
+      <li>Security will be re-enabled</li>
+    </ol>
+    
+    <h3>🔑 Security Best Practices</h3>
+    <ul>
+      <li><strong>Choose a Strong PIN:</strong> Use a PIN that's not easily guessable (avoid 1234, 0000, etc.)</li>
+      <li><strong>Keep Your PIN Private:</strong> Don't share your PIN with anyone</li>
+      <li><strong>Write It Down Securely:</strong> Store your PIN in a secure location (not on your device)</li>
+      <li><strong>Enable Biometrics:</strong> Use Face ID or fingerprint for convenience and security</li>
+      <li><strong>Regular Backups:</strong> Create backups regularly in case you need to reinstall</li>
+      <li><strong>Keep Security Enabled:</strong> Only disable security if absolutely necessary</li>
+      <li><strong>Sign Out When Needed:</strong> Use the sign-out feature if sharing your device</li>
+    </ul>
+    
+    <h3>🛡️ What Happens When Security is Disabled?</h3>
+    <p>When you disable security:</p>
+    <ul>
+      <li>The app will no longer require a PIN to access</li>
+      <li>Biometric authentication will be automatically disabled</li>
+      <li>The app will open directly to the dashboard</li>
+      <li>Anyone with access to your device can view all job records</li>
+      <li>The "Sign Out" option will be hidden (not needed without security)</li>
+      <li>You can re-enable security at any time by setting a new PIN</li>
+    </ul>
+    
+    <div class="tip-box">
+      <strong>💡 Use Case for Disabled Security:</strong> You might disable security if you're the only user of your device and it's already protected by device-level security (device PIN, Face ID, etc.). However, keeping app-level security provides an additional layer of protection.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Dashboard & Home Screen</h2>
     
     <h3>📊 Overview</h3>
     <p>The dashboard provides a comprehensive view of your work statistics:</p>
@@ -258,7 +366,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>4. Job Management</h2>
+    <h2>5. Job Management</h2>
     
     <h3>➕ Adding a New Job</h3>
     <p>To add a new job record:</p>
@@ -315,7 +423,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>5. Time Tracking & Work Schedule</h2>
+    <h2>6. Time Tracking & Work Schedule</h2>
     
     <h3>⚙️ Configuring Work Schedule</h3>
     <p>Set up your work schedule in Settings → Edit Work Schedule:</p>
@@ -359,7 +467,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>6. Reports & Export</h2>
+    <h2>7. Reports & Export</h2>
     
     <h3>📄 Export Options</h3>
     <p>Generate professional reports from Settings → Export Reports:</p>
@@ -401,7 +509,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>7. Backup & Data Management</h2>
+    <h2>8. Backup & Data Management</h2>
     
     <h3>💾 Backup Options</h3>
     <p>TechTime offers multiple backup solutions to keep your data safe:</p>
@@ -446,7 +554,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>8. Settings & Customization</h2>
+    <h2>9. Settings & Customization</h2>
     
     <h3>👤 Technician Profile</h3>
     <ul>
@@ -493,7 +601,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>9. Tips & Best Practices</h2>
+    <h2>10. Tips & Best Practices</h2>
     
     <div class="tip-box">
       <h3>💡 Pro Tips</h3>
@@ -520,7 +628,7 @@ export default function HelpScreen() {
   </div>
 
   <div class="section">
-    <h2>10. Troubleshooting</h2>
+    <h2>11. Troubleshooting</h2>
     
     <h3>❓ Common Issues</h3>
     
@@ -708,15 +816,16 @@ export default function HelpScreen() {
           <Text style={styles.sectionTitle}>📋 Table of Contents</Text>
           <View style={styles.tocList}>
             <Text style={styles.tocItem}>1. Introduction & Overview</Text>
-            <Text style={styles.tocItem}>2. Getting Started</Text>
-            <Text style={styles.tocItem}>3. Dashboard & Home Screen</Text>
-            <Text style={styles.tocItem}>4. Job Management</Text>
-            <Text style={styles.tocItem}>5. Time Tracking & Work Schedule</Text>
-            <Text style={styles.tocItem}>6. Reports & Export</Text>
-            <Text style={styles.tocItem}>7. Backup & Data Management</Text>
-            <Text style={styles.tocItem}>8. Settings & Customization</Text>
-            <Text style={styles.tocItem}>9. Tips & Best Practices</Text>
-            <Text style={styles.tocItem}>10. Troubleshooting</Text>
+            <Text style={styles.tocItem}>2. Getting Started & Security Setup</Text>
+            <Text style={styles.tocItem}>3. Security Features & PIN Management</Text>
+            <Text style={styles.tocItem}>4. Dashboard & Home Screen</Text>
+            <Text style={styles.tocItem}>5. Job Management</Text>
+            <Text style={styles.tocItem}>6. Time Tracking & Work Schedule</Text>
+            <Text style={styles.tocItem}>7. Reports & Export</Text>
+            <Text style={styles.tocItem}>8. Backup & Data Management</Text>
+            <Text style={styles.tocItem}>9. Settings & Customization</Text>
+            <Text style={styles.tocItem}>10. Tips & Best Practices</Text>
+            <Text style={styles.tocItem}>11. Troubleshooting</Text>
           </View>
         </View>
 
@@ -744,20 +853,32 @@ export default function HelpScreen() {
 
         {/* Getting Started */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Getting Started</Text>
+          <Text style={styles.sectionTitle}>2. Getting Started & Security Setup</Text>
           
-          <Text style={styles.subsectionTitle}>🔐 First Launch & Authentication</Text>
+          <Text style={styles.subsectionTitle}>🔐 First Launch Setup</Text>
           <Text style={styles.paragraph}>
-            When you first launch TechTime, you&apos;ll be prompted to set up your account:
+            When you first launch TechTime, you&apos;ll go through a two-step setup process:
           </Text>
-          <Text style={styles.bulletPoint}>1. Set Your Name: Enter your full name</Text>
-          <Text style={styles.bulletPoint}>2. Create PIN: Set a 4-6 digit PIN (default: 3101)</Text>
-          <Text style={styles.bulletPoint}>3. Enable Biometrics: Optional Face ID or fingerprint</Text>
           
-          <View style={styles.tipBox}>
-            <Text style={styles.tipText}>
-              💡 Tip: Write down your PIN in a secure location. If you forget it, you&apos;ll need to 
-              reinstall the app and lose all data.
+          <View style={styles.featureBox}>
+            <Text style={styles.featureTitle}>Step 1: Set Your Name</Text>
+            <Text style={styles.bulletPoint}>• Enter your full name (e.g., &quot;Buckston Rugge&quot;)</Text>
+            <Text style={styles.bulletPoint}>• This name appears throughout the app and on all reports</Text>
+            <Text style={styles.bulletPoint}>• You can change your name anytime in Settings</Text>
+          </View>
+          
+          <View style={styles.featureBox}>
+            <Text style={styles.featureTitle}>Step 2: Create Your Security PIN</Text>
+            <Text style={styles.bulletPoint}>• Choose a 4-6 digit PIN that you&apos;ll remember</Text>
+            <Text style={styles.bulletPoint}>• Enter the PIN twice to confirm</Text>
+            <Text style={styles.bulletPoint}>• This PIN protects all your job records and data</Text>
+            <Text style={styles.bulletPoint}>• Write down your PIN in a secure location</Text>
+          </View>
+          
+          <View style={styles.warningBox}>
+            <Text style={styles.warningText}>
+              ⚠️ Important: If you forget your PIN, there is no recovery option. You will need to 
+              reinstall the app, which will result in the loss of all data unless you have a backup.
             </Text>
           </View>
           
@@ -770,9 +891,106 @@ export default function HelpScreen() {
           <Text style={styles.bulletPoint}>• ⚙️ Settings: Configure app and backup</Text>
         </View>
 
+        {/* Security Features */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>3. Security Features & PIN Management</Text>
+          
+          <Text style={styles.subsectionTitle}>🔒 Security Overview</Text>
+          <Text style={styles.paragraph}>
+            TechTime provides comprehensive security features to protect your job records:
+          </Text>
+          
+          <View style={styles.featureBox}>
+            <Text style={styles.featureTitle}>Security Features</Text>
+            <Text style={styles.bulletPoint}>• PIN Protection: 4-6 digit PIN required to access</Text>
+            <Text style={styles.bulletPoint}>• Biometric Authentication: Optional Face ID or fingerprint</Text>
+            <Text style={styles.bulletPoint}>• Session Management: Automatic sign-out when app closes</Text>
+            <Text style={styles.bulletPoint}>• Data Encryption: All data stored securely on device</Text>
+            <Text style={styles.bulletPoint}>• Privacy Focused: No personal customer data (GDPR compliant)</Text>
+          </View>
+          
+          <Text style={styles.subsectionTitle}>🔐 Managing Your PIN</Text>
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>Changing Your PIN:</Text>
+          </Text>
+          <Text style={styles.bulletPoint}>1. Go to Settings → Security Settings</Text>
+          <Text style={styles.bulletPoint}>2. Ensure security is enabled (toggle ON)</Text>
+          <Text style={styles.bulletPoint}>3. Enter your new PIN (4-6 digits)</Text>
+          <Text style={styles.bulletPoint}>4. Confirm your new PIN</Text>
+          <Text style={styles.bulletPoint}>5. Tap &quot;Update PIN&quot;</Text>
+          
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>Enabling Biometric Authentication:</Text>
+          </Text>
+          <Text style={styles.bulletPoint}>1. Ensure device has Face ID or fingerprint configured</Text>
+          <Text style={styles.bulletPoint}>2. Go to Settings → Security Settings</Text>
+          <Text style={styles.bulletPoint}>3. Toggle &quot;Biometric Login&quot; to ON</Text>
+          <Text style={styles.bulletPoint}>4. Authenticate with biometric to confirm</Text>
+          
+          <View style={styles.tipBox}>
+            <Text style={styles.tipText}>
+              💡 Tip: Even with biometric enabled, you can always use your PIN as a fallback.
+            </Text>
+          </View>
+          
+          <Text style={styles.subsectionTitle}>🔓 Disabling Security (Not Recommended)</Text>
+          <Text style={styles.paragraph}>
+            You can disable all security features if you prefer unrestricted access. However, this is 
+            <Text style={styles.bold}> not recommended</Text> as it leaves your job records unprotected.
+          </Text>
+          
+          <View style={styles.warningBox}>
+            <Text style={styles.warningText}>
+              ⚠️ Security Warning: When security is disabled, anyone with access to your device can 
+              view, edit, or delete your job records without any authentication.
+            </Text>
+          </View>
+          
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>To Disable Security:</Text>
+          </Text>
+          <Text style={styles.bulletPoint}>1. Go to Settings → Security Settings</Text>
+          <Text style={styles.bulletPoint}>2. Toggle &quot;Security Enabled&quot; switch to OFF</Text>
+          <Text style={styles.bulletPoint}>3. Confirm the warning dialog</Text>
+          <Text style={styles.bulletPoint}>4. Security will be disabled</Text>
+          
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>To Re-enable Security:</Text>
+          </Text>
+          <Text style={styles.bulletPoint}>1. Go to Settings → Security Settings</Text>
+          <Text style={styles.bulletPoint}>2. Toggle &quot;Security Enabled&quot; switch to ON</Text>
+          <Text style={styles.bulletPoint}>3. Set a new PIN when prompted</Text>
+          <Text style={styles.bulletPoint}>4. Confirm your PIN</Text>
+          
+          <Text style={styles.subsectionTitle}>🔑 Security Best Practices</Text>
+          <Text style={styles.bulletPoint}>• Choose a strong PIN (avoid 1234, 0000, etc.)</Text>
+          <Text style={styles.bulletPoint}>• Keep your PIN private - don&apos;t share it</Text>
+          <Text style={styles.bulletPoint}>• Write it down securely (not on your device)</Text>
+          <Text style={styles.bulletPoint}>• Enable biometrics for convenience and security</Text>
+          <Text style={styles.bulletPoint}>• Create regular backups in case you need to reinstall</Text>
+          <Text style={styles.bulletPoint}>• Keep security enabled unless absolutely necessary</Text>
+          <Text style={styles.bulletPoint}>• Sign out when sharing your device</Text>
+          
+          <Text style={styles.subsectionTitle}>🛡️ What Happens When Security is Disabled?</Text>
+          <Text style={styles.bulletPoint}>• App no longer requires PIN to access</Text>
+          <Text style={styles.bulletPoint}>• Biometric authentication automatically disabled</Text>
+          <Text style={styles.bulletPoint}>• App opens directly to dashboard</Text>
+          <Text style={styles.bulletPoint}>• Anyone with device access can view all records</Text>
+          <Text style={styles.bulletPoint}>• &quot;Sign Out&quot; option hidden (not needed)</Text>
+          <Text style={styles.bulletPoint}>• Can re-enable security anytime by setting new PIN</Text>
+          
+          <View style={styles.tipBox}>
+            <Text style={styles.tipText}>
+              💡 Use Case: You might disable security if you&apos;re the only user of your device and 
+              it&apos;s already protected by device-level security. However, keeping app-level security 
+              provides an additional layer of protection.
+            </Text>
+          </View>
+        </View>
+
         {/* Dashboard */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Dashboard & Home Screen</Text>
+          <Text style={styles.sectionTitle}>4. Dashboard & Home Screen</Text>
           
           <Text style={styles.paragraph}>
             The dashboard provides a comprehensive view of your work statistics:
@@ -800,7 +1018,7 @@ export default function HelpScreen() {
 
         {/* Job Management */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Job Management</Text>
+          <Text style={styles.sectionTitle}>5. Job Management</Text>
           
           <Text style={styles.subsectionTitle}>➕ Adding a New Job</Text>
           <Text style={styles.bulletPoint}>1. Tap &quot;Add Job&quot; button</Text>
@@ -833,7 +1051,7 @@ export default function HelpScreen() {
 
         {/* Time Tracking */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. Time Tracking & Work Schedule</Text>
+          <Text style={styles.sectionTitle}>6. Time Tracking & Work Schedule</Text>
           
           <Text style={styles.subsectionTitle}>⚙️ Configuring Work Schedule</Text>
           <Text style={styles.paragraph}>
@@ -862,7 +1080,7 @@ export default function HelpScreen() {
 
         {/* Reports & Export */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>6. Reports & Export</Text>
+          <Text style={styles.sectionTitle}>7. Reports & Export</Text>
           
           <Text style={styles.paragraph}>
             Generate professional reports from Settings → Export Reports:
@@ -889,7 +1107,7 @@ export default function HelpScreen() {
 
         {/* Backup */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Backup & Data Management</Text>
+          <Text style={styles.sectionTitle}>8. Backup & Data Management</Text>
           
           <View style={styles.featureBox}>
             <Text style={styles.featureTitle}>Backup Methods</Text>
@@ -919,7 +1137,7 @@ export default function HelpScreen() {
 
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>8. Settings & Customization</Text>
+          <Text style={styles.sectionTitle}>9. Settings & Customization</Text>
           
           <Text style={styles.subsectionTitle}>👤 Technician Profile</Text>
           <Text style={styles.bulletPoint}>• Update your name</Text>
@@ -945,7 +1163,7 @@ export default function HelpScreen() {
 
         {/* Tips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>9. Tips & Best Practices</Text>
+          <Text style={styles.sectionTitle}>10. Tips & Best Practices</Text>
           
           <View style={styles.tipBox}>
             <Text style={styles.featureTitle}>💡 Pro Tips</Text>
@@ -961,7 +1179,7 @@ export default function HelpScreen() {
 
         {/* Troubleshooting */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>10. Troubleshooting</Text>
+          <Text style={styles.sectionTitle}>11. Troubleshooting</Text>
           
           <Text style={styles.subsectionTitle}>🔐 Authentication Issues</Text>
           <Text style={styles.paragraph}>
