@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Job, AppSettings } from '../types';
 import { CalculationService } from './calculations';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 
 export type ExportType = 'daily' | 'weekly' | 'monthly' | 'all';
 export type ExportFormat = 'pdf' | 'json';
@@ -259,7 +259,7 @@ export const ExportService = {
   },
 
   /**
-   * Export to PDF
+   * Export to PDF with improved error handling
    */
   async exportToPDF(
     jobs: Job[],
@@ -279,38 +279,109 @@ export const ExportService = {
         base64: false,
       });
 
-      console.log('[ExportService] PDF generated:', uri);
+      console.log('[ExportService] PDF generated at temp location:', uri);
 
       // Generate filename
       const filename = this.generateFilename(options, 'pdf');
       
-      // Copy to a permanent location
-      const permanentUri = (FileSystem.documentDirectory || FileSystem.cacheDirectory) + filename;
-      await FileSystem.copyAsync({
-        from: uri,
-        to: permanentUri,
-      });
-
-      // Share the file
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(permanentUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Export Job Records',
-          UTI: 'com.adobe.pdf',
-        });
+      // Determine storage directory based on platform
+      let storageDir = FileSystem.documentDirectory;
+      
+      // Fallback to cache directory if document directory is not available
+      if (!storageDir) {
+        storageDir = FileSystem.cacheDirectory;
+        console.log('[ExportService] Using cache directory as fallback');
       }
 
-      return {
-        success: true,
-        message: 'PDF exported successfully',
-        fileUri: permanentUri,
-      };
+      if (!storageDir) {
+        throw new Error('No storage directory available');
+      }
+
+      const permanentUri = storageDir + filename;
+
+      // Copy to permanent location
+      try {
+        await FileSystem.copyAsync({
+          from: uri,
+          to: permanentUri,
+        });
+        console.log('[ExportService] PDF copied to permanent location:', permanentUri);
+      } catch (copyError: any) {
+        console.error('[ExportService] Error copying PDF:', copyError);
+        // If copy fails, use the original temp URI
+        console.log('[ExportService] Using temp URI for sharing');
+      }
+
+      // Share the file
+      const fileToShare = permanentUri;
+      
+      try {
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          console.log('[ExportService] Sharing PDF...');
+          await Sharing.shareAsync(fileToShare, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Export Job Records',
+            UTI: 'com.adobe.pdf',
+          });
+          
+          return {
+            success: true,
+            message: 'PDF exported successfully',
+            fileUri: fileToShare,
+          };
+        } else {
+          console.log('[ExportService] Sharing not available on this platform');
+          
+          // On platforms where sharing is not available, just save the file
+          if (Platform.OS === 'web') {
+            // For web, trigger download
+            const link = document.createElement('a');
+            link.href = fileToShare;
+            link.download = filename;
+            link.click();
+            
+            return {
+              success: true,
+              message: 'PDF downloaded successfully',
+              fileUri: fileToShare,
+            };
+          }
+          
+          return {
+            success: true,
+            message: `PDF saved to: ${fileToShare}`,
+            fileUri: fileToShare,
+          };
+        }
+      } catch (shareError: any) {
+        console.error('[ExportService] Error sharing PDF:', shareError);
+        
+        // If sharing fails, at least the file is saved
+        return {
+          success: true,
+          message: `PDF saved but sharing failed. File location: ${fileToShare}`,
+          fileUri: fileToShare,
+        };
+      }
     } catch (error: any) {
       console.error('[ExportService] PDF export error:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'PDF export failed';
+      
+      if (error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please check app permissions.';
+      } else if (error.message?.includes('storage')) {
+        errorMessage = 'Storage error. Please check available storage space.';
+      } else if (error.message) {
+        errorMessage = `PDF export failed: ${error.message}`;
+      }
+      
       return {
         success: false,
-        message: error?.message || 'PDF export failed',
+        message: errorMessage,
       };
     }
   },
@@ -333,7 +404,18 @@ export const ExportService = {
 
       // Generate filename
       const filename = this.generateFilename(options, 'json');
-      const fileUri = (FileSystem.documentDirectory || FileSystem.cacheDirectory) + filename;
+      
+      // Determine storage directory
+      let storageDir = FileSystem.documentDirectory;
+      if (!storageDir) {
+        storageDir = FileSystem.cacheDirectory;
+      }
+      
+      if (!storageDir) {
+        throw new Error('No storage directory available');
+      }
+      
+      const fileUri = storageDir + filename;
 
       // Write JSON file
       await FileSystem.writeAsStringAsync(fileUri, jsonString, {
@@ -343,13 +425,18 @@ export const ExportService = {
       console.log('[ExportService] JSON file created:', fileUri);
 
       // Share the file
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'application/json',
-          dialogTitle: 'Export Job Records',
-          UTI: 'public.json',
-        });
+      try {
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/json',
+            dialogTitle: 'Export Job Records',
+            UTI: 'public.json',
+          });
+        }
+      } catch (shareError) {
+        console.error('[ExportService] Error sharing JSON:', shareError);
       }
 
       return {

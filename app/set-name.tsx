@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
@@ -92,7 +92,7 @@ export default function SetNameScreen() {
   const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <NotificationToast
         message={notification.message}
         type={notification.type}
@@ -101,146 +101,154 @@ export default function SetNameScreen() {
       />
       
       <KeyboardAvoidingView 
-        style={styles.content}
+        style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {step === 'name' ? (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.icon}>👤</Text>
-              <Text style={styles.title}>Welcome to Technician Records</Text>
-              <Text style={styles.subtitle}>
-                Let&apos;s get started by setting up your profile
-              </Text>
-              <View style={styles.stepIndicator}>
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-                <View style={styles.stepDot} />
-              </View>
-              <Text style={styles.stepText}>Step 1 of 2</Text>
-            </View>
-
-            <View style={styles.form}>
-              <Text style={styles.label}>What&apos;s your name?</Text>
-              <Text style={styles.description}>
-                This will be displayed throughout the app and on exported reports
-              </Text>
-              
-              <TextInput
-                style={styles.input}
-                value={technicianName}
-                onChangeText={setTechnicianNameInput}
-                placeholder="Enter your full name"
-                placeholderTextColor={colors.textSecondary}
-                autoCapitalize="words"
-                autoCorrect={false}
-                maxLength={50}
-                returnKeyType="next"
-                onSubmitEditing={handleNameContinue}
-              />
-
-              <TouchableOpacity
-                style={[styles.button, !technicianName.trim() && styles.buttonDisabled]}
-                onPress={handleNameContinue}
-                disabled={!technicianName.trim()}
-              >
-                <Text style={styles.buttonText}>Continue to PIN Setup</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                💡 You can change your name anytime in Settings
-              </Text>
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.icon}>🔐</Text>
-              <Text style={styles.title}>Set Your Security PIN</Text>
-              <Text style={styles.subtitle}>
-                Create a PIN to secure your job records and data
-              </Text>
-              <View style={styles.stepIndicator}>
-                <View style={styles.stepDot} />
-                <View style={[styles.stepDot, styles.stepDotActive]} />
-              </View>
-              <Text style={styles.stepText}>Step 2 of 2</Text>
-            </View>
-
-            <View style={styles.form}>
-              <Text style={styles.label}>Create Your PIN</Text>
-              <Text style={styles.description}>
-                Choose a 4-6 digit PIN that you&apos;ll remember. You&apos;ll need this to access the app.
-              </Text>
-              
-              <TextInput
-                style={styles.input}
-                value={newPin}
-                onChangeText={setNewPin}
-                placeholder="Enter PIN (4-6 digits)"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                keyboardType="numeric"
-                maxLength={6}
-                returnKeyType="next"
-              />
-
-              <Text style={styles.label}>Confirm Your PIN</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPin}
-                onChangeText={setConfirmPin}
-                placeholder="Re-enter PIN"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                keyboardType="numeric"
-                maxLength={6}
-                returnKeyType="done"
-                onSubmitEditing={handlePinSetup}
-              />
-
-              <View style={styles.securityInfo}>
-                <Text style={styles.securityInfoTitle}>🔒 Security Information</Text>
-                <Text style={styles.securityInfoText}>
-                  • Your PIN protects all your job records and data
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {step === 'name' ? (
+            <>
+              <View style={styles.header}>
+                <Text style={styles.icon}>👤</Text>
+                <Text style={styles.title}>Welcome to Technician Records</Text>
+                <Text style={styles.subtitle}>
+                  Let&apos;s get started by setting up your profile
                 </Text>
-                <Text style={styles.securityInfoText}>
-                  • Write down your PIN in a secure location
-                </Text>
-                <Text style={styles.securityInfoText}>
-                  • You can change or disable your PIN later in Settings
-                </Text>
-                <Text style={styles.securityInfoText}>
-                  • If you forget your PIN, you&apos;ll need to reinstall the app
-                </Text>
+                <View style={styles.stepIndicator}>
+                  <View style={[styles.stepDot, styles.stepDotActive]} />
+                  <View style={styles.stepDot} />
+                </View>
+                <Text style={styles.stepText}>Step 1 of 2</Text>
               </View>
 
-              <View style={styles.buttonGroup}>
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonSecondary]}
-                  onPress={handleBack}
-                >
-                  <Text style={[styles.buttonText, styles.buttonTextSecondary]}>← Back</Text>
-                </TouchableOpacity>
+              <View style={styles.form}>
+                <Text style={styles.label}>What&apos;s your name?</Text>
+                <Text style={styles.description}>
+                  This will be displayed throughout the app and on exported reports
+                </Text>
+                
+                <TextInput
+                  style={styles.input}
+                  value={technicianName}
+                  onChangeText={setTechnicianNameInput}
+                  placeholder="Enter your full name"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  maxLength={50}
+                  returnKeyType="next"
+                  onSubmitEditing={handleNameContinue}
+                />
 
                 <TouchableOpacity
-                  style={[styles.button, styles.buttonPrimary, (!newPin || !confirmPin) && styles.buttonDisabled]}
-                  onPress={handlePinSetup}
-                  disabled={!newPin || !confirmPin}
+                  style={[styles.button, !technicianName.trim() && styles.buttonDisabled]}
+                  onPress={handleNameContinue}
+                  disabled={!technicianName.trim()}
                 >
-                  <Text style={styles.buttonText}>Complete Setup</Text>
+                  <Text style={styles.buttonText}>Continue to PIN Setup</Text>
                 </TouchableOpacity>
               </View>
-            </View>
 
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                💡 You can enable biometric authentication (Face ID/Fingerprint) later in Settings
-              </Text>
-            </View>
-          </>
-        )}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>
+                  💡 You can change your name anytime in Settings
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.header}>
+                <Text style={styles.icon}>🔐</Text>
+                <Text style={styles.title}>Set Your Security PIN</Text>
+                <Text style={styles.subtitle}>
+                  Create a PIN to secure your job records and data
+                </Text>
+                <View style={styles.stepIndicator}>
+                  <View style={styles.stepDot} />
+                  <View style={[styles.stepDot, styles.stepDotActive]} />
+                </View>
+                <Text style={styles.stepText}>Step 2 of 2</Text>
+              </View>
+
+              <View style={styles.form}>
+                <Text style={styles.label}>Create Your PIN</Text>
+                <Text style={styles.description}>
+                  Choose a 4-6 digit PIN that you&apos;ll remember. You&apos;ll need this to access the app.
+                </Text>
+                
+                <TextInput
+                  style={styles.input}
+                  value={newPin}
+                  onChangeText={setNewPin}
+                  placeholder="Enter PIN (4-6 digits)"
+                  placeholderTextColor={colors.textSecondary}
+                  secureTextEntry
+                  keyboardType="numeric"
+                  maxLength={6}
+                  returnKeyType="next"
+                />
+
+                <Text style={styles.label}>Confirm Your PIN</Text>
+                <TextInput
+                  style={styles.input}
+                  value={confirmPin}
+                  onChangeText={setConfirmPin}
+                  placeholder="Re-enter PIN"
+                  placeholderTextColor={colors.textSecondary}
+                  secureTextEntry
+                  keyboardType="numeric"
+                  maxLength={6}
+                  returnKeyType="done"
+                  onSubmitEditing={handlePinSetup}
+                />
+
+                <View style={styles.securityInfo}>
+                  <Text style={styles.securityInfoTitle}>🔒 Security Information</Text>
+                  <Text style={styles.securityInfoText}>
+                    • Your PIN protects all your job records and data
+                  </Text>
+                  <Text style={styles.securityInfoText}>
+                    • Write down your PIN in a secure location
+                  </Text>
+                  <Text style={styles.securityInfoText}>
+                    • You can change or disable your PIN later in Settings
+                  </Text>
+                  <Text style={styles.securityInfoText}>
+                    • If you forget your PIN, you&apos;ll need to reinstall the app
+                  </Text>
+                </View>
+
+                <View style={styles.buttonGroup}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.buttonSecondary]}
+                    onPress={handleBack}
+                  >
+                    <Text style={[styles.buttonText, styles.buttonTextSecondary]}>← Back</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.button, styles.buttonPrimary, (!newPin || !confirmPin) && styles.buttonDisabled]}
+                    onPress={handlePinSetup}
+                    disabled={!newPin || !confirmPin}
+                  >
+                    <Text style={styles.buttonText}>Complete Setup</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>
+                  💡 You can enable biometric authentication (Face ID/Fingerprint) later in Settings
+                </Text>
+              </View>
+            </>
+          )}
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -250,10 +258,16 @@ const createStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  keyboardView: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
-    justifyContent: 'space-between',
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -305,8 +319,8 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   form: {
     flex: 1,
-    justifyContent: 'center',
-    paddingBottom: 60,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   label: {
     fontSize: 20,
@@ -390,7 +404,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.primary,
   },
   footer: {
-    paddingBottom: 40,
+    paddingTop: 20,
+    paddingBottom: 20,
     alignItems: 'center',
   },
   footerText: {

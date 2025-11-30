@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
@@ -186,38 +186,49 @@ export default function AuthScreen() {
           onHide={hideNotification}
         />
         
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Technician Records</Text>
-            {technicianName ? (
-              <Text style={styles.subtitle}>{technicianName}</Text>
-            ) : (
-              <Text style={styles.subtitle}>Welcome</Text>
-            )}
-            <Text style={styles.label}>Enter PIN</Text>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <Text style={styles.title}>Technician Records</Text>
+              {technicianName ? (
+                <Text style={styles.subtitle}>{technicianName}</Text>
+              ) : (
+                <Text style={styles.subtitle}>Welcome</Text>
+              )}
+              <Text style={styles.label}>Enter PIN</Text>
+              
+              {biometricAvailable && biometricEnabled && (
+                <TouchableOpacity 
+                  style={styles.biometricButton}
+                  onPress={handleBiometricAuth}
+                >
+                  <Text style={styles.biometricIcon}>{getBiometricIcon()}</Text>
+                  <Text style={styles.biometricText}>{getBiometricLabel()}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
-            {biometricAvailable && biometricEnabled && (
-              <TouchableOpacity 
-                style={styles.biometricButton}
-                onPress={handleBiometricAuth}
-              >
-                <Text style={styles.biometricIcon}>{getBiometricIcon()}</Text>
-                <Text style={styles.biometricText}>{getBiometricLabel()}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
-            <Keypad
-              pin={pin}
-              onNumberPress={handleNumberPress}
-              onDeletePress={handleDeletePress}
-              onSubmitPress={() => handlePinSubmit()}
-              maxLength={4}
-              hideSubmitButton={true}
-            />
-          </View>
-        </View>
+            <View style={[styles.keypadContainer, isShaking && styles.shakeAnimation]}>
+              <Keypad
+                pin={pin}
+                onNumberPress={handleNumberPress}
+                onDeletePress={handleDeletePress}
+                onSubmitPress={() => handlePinSubmit()}
+                maxLength={4}
+                hideSubmitButton={true}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -234,9 +245,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  content: {
+  keyboardView: {
     flex: 1,
-    justifyContent: 'space-between',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
   },
   header: {
@@ -290,6 +306,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingBottom: 60,
+    minHeight: 400,
   },
   shakeAnimation: {
     transform: [{ translateX: 5 }],
