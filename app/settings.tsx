@@ -944,14 +944,17 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* Export Section */}
+        {/* Export & Import Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📄 Export Data</Text>
+          <Text style={styles.sectionTitle}>📄 Export & Import Data</Text>
           <Text style={styles.sectionDescription}>
-            Generate professional PDF reports of your job records.
+            Export job records to PDF or JSON, or import jobs from a JSON file.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.exportButton]} onPress={navigateToExport}>
+          <TouchableOpacity style={[styles.button, styles.exportButton]} onPress={() => router.push('/export-reports')}>
             <Text style={styles.buttonText}>📊 Export Reports</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.button, styles.importButton]} onPress={() => router.push('/import-jobs')}>
+            <Text style={styles.buttonText}>📥 Import Jobs</Text>
           </TouchableOpacity>
         </View>
 
@@ -1326,6 +1329,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   exportButton: {
     backgroundColor: colors.primary,
+  },
+  importButton: {
+    backgroundColor: '#10b981',
   },
   helpButton: {
     backgroundColor: '#9c27b0',
