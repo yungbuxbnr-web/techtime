@@ -1273,7 +1273,14 @@ export default function SettingsScreen() {
             style={[styles.button, styles.pdfImportButton]}
             onPress={() => router.push('/pdf-import')}
           >
-            <Text style={styles.buttonText}>📄 Import PDF → Jobs</Text>
+            <Text style={styles.buttonText}>📄 Import Tech Records PDF</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.jsonImportButton]}
+            onPress={() => router.push('/json-import')}
+          >
+            <Text style={styles.buttonText}>📋 Import from JSON backup (legacy app)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1314,6 +1321,12 @@ export default function SettingsScreen() {
             </Text>
             <Text style={styles.infoText}>
               - Import from File: Pick JSON/PDF backup files from anywhere
+            </Text>
+            <Text style={styles.infoText}>
+              - Import Tech Records PDF: Import jobs from PDF exports
+            </Text>
+            <Text style={styles.infoText}>
+              - Import from JSON backup: Import jobs from legacy app JSON exports
             </Text>
             <Text style={styles.infoText}>
               - Share Backup: Transfer to another device via any sharing method
@@ -1867,6 +1880,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   pdfImportButton: {
     backgroundColor: '#e91e63',
+  },
+  jsonImportButton: {
+    backgroundColor: '#00bcd4',
   },
   shareButton: {
     backgroundColor: '#28a745',
