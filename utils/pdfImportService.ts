@@ -1,11 +1,6 @@
 
 import * as DocumentPicker from 'expo-document-picker';
-import {
-  cacheDirectory,
-  documentDirectory,
-  readAsStringAsync,
-  writeAsStringAsync,
-} from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
 import { Job, ParsedJobRow, PDFImportResult, ParseLogEntry, PDFImportProgress } from '../types';
 
@@ -112,7 +107,7 @@ export const PDFImportService = {
    */
   async calculateFileHash(uri: string): Promise<string> {
     try {
-      const content = await readAsStringAsync(uri, { encoding: 'base64' });
+      const content = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       const hash = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
         content
@@ -235,30 +230,30 @@ export const PDFImportService = {
   },
 
   /**
-   * Detect if PDF is scanned (image-based) vs text-based
+   * Decode PDF string (handle escape sequences)
    */
-  detectPDFLayout(text: string): { isScanned: boolean; textDensity: number } {
-    const textLength = text.replace(/\s/g, '').length;
-    const totalLength = text.length;
-    const textDensity = totalLength > 0 ? textLength / totalLength : 0;
-    
-    // If text density is very low, likely scanned
-    const isScanned = textDensity < 0.3;
-    
-    console.log('[PDF Import] Text density:', textDensity.toFixed(2), 'Scanned:', isScanned);
-    
-    return { isScanned, textDensity };
+  decodePDFString(str: string): string {
+    return str
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\b/g, '\b')
+      .replace(/\\f/g, '\f')
+      .replace(/\\\(/g, '(')
+      .replace(/\\\)/g, ')')
+      .replace(/\\\\/g, '\\')
+      .replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
   },
 
   /**
-   * Extract text from PDF - Stage A (Text Layer)
+   * Extract text from PDF using multiple strategies
    */
   async extractTextFromPDF(uri: string, parseLog: ParseLogEntry[]): Promise<string> {
     try {
-      console.log('[PDF Import] Stage A: Extracting text layer from PDF...');
+      console.log('[PDF Import] Extracting text from PDF...');
       
-      const base64Content = await readAsStringAsync(uri, {
-        encoding: 'base64',
+      const base64Content = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
       });
       
       const binaryString = atob(base64Content);
@@ -325,7 +320,7 @@ export const PDFImportService = {
       parseLog.push({
         rowIndex: -1,
         level: 'info',
-        message: `Stage A: Extracted ${extractedText.length} characters from text layer`,
+        message: `Extracted ${extractedText.length} characters from text layer`,
       });
       
       return extractedText;
@@ -334,180 +329,35 @@ export const PDFImportService = {
       parseLog.push({
         rowIndex: -1,
         level: 'error',
-        message: `Stage A failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
       return '';
     }
   },
 
   /**
-   * Decode PDF string (handle escape sequences)
+   * Find table header position in text
    */
-  decodePDFString(str: string): string {
-    return str
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '\r')
-      .replace(/\\t/g, '\t')
-      .replace(/\\b/g, '\b')
-      .replace(/\\f/g, '\f')
-      .replace(/\\\(/g, '(')
-      .replace(/\\\)/g, ')')
-      .replace(/\\\\/g, '\\')
-      .replace(/\\(\d{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
-  },
-
-  /**
-   * Strip headers and footers from text
-   */
-  stripHeadersFooters(lines: string[]): string[] {
-    return lines.filter(line => {
-      const lower = line.toLowerCase().trim();
-      
-      // Skip empty lines
-      if (!lower) return false;
-      
-      // Skip header keywords
-      if (HEADER_KEYWORDS.some(kw => lower === kw || lower.includes(kw + ' |'))) {
-        return false;
-      }
-      
-      // Skip separator lines
-      if (/^[-=_|+\s]+$/.test(line)) {
-        return false;
-      }
-      
-      // Skip page numbers
-      if (/^page\s+\d+/i.test(lower)) {
-        return false;
-      }
-      
-      return true;
-    });
-  },
-
-  /**
-   * Merge multi-line cells (descriptions that wrap)
-   */
-  mergeMultiLineCells(lines: string[]): string[] {
-    const merged: string[] = [];
-    let currentLine = '';
-    
+  findTableHeader(lines: string[]): number {
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i].toLowerCase();
       
-      // Check if line starts with WIP number (new row)
-      if (/^\d{5}\b/.test(line)) {
-        if (currentLine) {
-          merged.push(currentLine);
-        }
-        currentLine = line;
-      } else if (currentLine) {
-        // Continuation of previous line
-        currentLine += ' ' + line;
-      } else {
-        // Orphan line, skip
-        continue;
+      // Look for lines containing multiple header keywords
+      const keywordCount = HEADER_KEYWORDS.filter(kw => line.includes(kw)).length;
+      
+      if (keywordCount >= 3) {
+        console.log('[PDF Import] Found table header at line', i);
+        return i;
       }
     }
     
-    if (currentLine) {
-      merged.push(currentLine);
-    }
-    
-    return merged;
+    return -1;
   },
 
   /**
-   * Parse table rows from extracted text
+   * Parse a single row from text
    */
-  parseTableRows(text: string, parseLog: ParseLogEntry[]): string[] {
-    console.log('[PDF Import] Parsing table rows...');
-    
-    const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
-    
-    // Strip headers and footers
-    const cleanedLines = this.stripHeadersFooters(lines);
-    
-    // Merge multi-line cells
-    const mergedLines = this.mergeMultiLineCells(cleanedLines);
-    
-    // Filter for lines with WIP numbers
-    const rows = mergedLines.filter(line => /\b\d{5}\b/.test(line));
-    
-    parseLog.push({
-      rowIndex: -1,
-      level: 'info',
-      message: `Found ${rows.length} potential data rows after cleaning`,
-    });
-    
-    console.log(`[PDF Import] Found ${rows.length} data rows`);
-    
-    return rows;
-  },
-
-  /**
-   * Extract field from row text using column position hints
-   */
-  extractField(rowText: string, fieldName: string): string {
-    // This is a simplified extraction - in production, you'd use column positions
-    const parts = rowText.split(/\s+/);
-    
-    switch (fieldName) {
-      case 'wipNumber':
-        const wipMatch = rowText.match(/\b(\d{5})\b/);
-        return wipMatch ? wipMatch[1] : '';
-      
-      case 'vehicleReg':
-        for (const part of parts) {
-          const validation = this.validateUKPlate(part);
-          if (validation.valid) {
-            return part.toUpperCase().replace(/\s/g, '');
-          }
-        }
-        return '';
-      
-      case 'vhcStatus':
-        const vhcKeywords = ['red', 'orange', 'amber', 'green'];
-        for (const part of parts) {
-          const lower = part.toLowerCase();
-          if (vhcKeywords.includes(lower)) {
-            return this.normalizeVHCStatus(lower);
-          }
-        }
-        return 'N/A';
-      
-      case 'aws':
-        for (const part of parts) {
-          if (/^\d{1,3}$/.test(part)) {
-            const val = parseInt(part);
-            if (val >= 1 && val <= 100) {
-              return part;
-            }
-          }
-        }
-        return '0';
-      
-      case 'workTime':
-        const timeMatch = rowText.match(/(\d+h\s*\d+m|\d+:\d+|\d+m|\d+h)/i);
-        return timeMatch ? timeMatch[0] : '';
-      
-      case 'jobDate':
-        const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-        return dateMatch ? dateMatch[0] : '';
-      
-      case 'jobTime':
-        const timeOnlyMatch = rowText.match(/\b(\d{2}):(\d{2})\b/);
-        return timeOnlyMatch ? timeOnlyMatch[0] : '';
-      
-      default:
-        return '';
-    }
-  },
-
-  /**
-   * Parse a single row into structured data
-   */
-  parseRow(
+  parseRowFromText(
     rowText: string,
     rowIndex: number,
     existingJobs: Job[],
@@ -517,8 +367,23 @@ export const PDFImportService = {
       let confidence = 1.0;
       const validationErrors: string[] = [];
       
-      // Extract WIP number
-      const wipNumber = this.extractField(rowText, 'wipNumber');
+      // Split by multiple spaces or tabs to get columns
+      const parts = rowText.split(/\s{2,}|\t+/).map(p => p.trim()).filter(p => p.length > 0);
+      
+      if (parts.length < 5) {
+        parseLog.push({
+          rowIndex,
+          level: 'warning',
+          message: `Row has too few columns (${parts.length})`,
+          rawData: rowText,
+        });
+        return null;
+      }
+      
+      // Extract WIP number (should be 5 digits at start)
+      const wipMatch = rowText.match(/\b(\d{5})\b/);
+      const wipNumber = wipMatch ? wipMatch[1] : '';
+      
       if (!wipNumber) {
         parseLog.push({
           rowIndex,
@@ -530,31 +395,49 @@ export const PDFImportService = {
         validationErrors.push('No WIP number found');
       }
       
-      // Extract vehicle registration
-      let vehicleReg = this.extractField(rowText, 'vehicleReg');
+      // Extract vehicle registration (UK plate format)
+      let vehicleReg = '';
       let regConfidence = 0;
       
-      if (vehicleReg) {
-        const validation = this.validateUKPlate(vehicleReg);
-        regConfidence = validation.confidence;
-        if (!validation.valid) {
-          validationErrors.push('Invalid UK registration format');
-          confidence *= 0.6;
-        } else if (regConfidence < 1.0) {
-          validationErrors.push('Registration format uncertain');
-          confidence *= 0.8;
+      for (const part of parts) {
+        const validation = this.validateUKPlate(part);
+        if (validation.valid && validation.confidence > regConfidence) {
+          vehicleReg = part.toUpperCase().replace(/\s/g, '');
+          regConfidence = validation.confidence;
         }
-      } else {
+      }
+      
+      if (!vehicleReg) {
         validationErrors.push('No vehicle registration found');
         confidence *= 0.5;
+      } else if (regConfidence < 1.0) {
+        validationErrors.push('Registration format uncertain');
+        confidence *= 0.8;
       }
       
       // Extract VHC status
-      const vhcStatus = this.extractField(rowText, 'vhcStatus') as 'Red' | 'Orange' | 'Green' | 'N/A';
+      let vhcStatus: 'Red' | 'Orange' | 'Green' | 'N/A' = 'N/A';
+      const vhcKeywords = ['red', 'orange', 'amber', 'green'];
       
-      // Extract AWS
-      const awsStr = this.extractField(rowText, 'aws');
-      const aws = parseInt(awsStr) || 0;
+      for (const part of parts) {
+        const lower = part.toLowerCase();
+        if (vhcKeywords.includes(lower)) {
+          vhcStatus = this.normalizeVHCStatus(lower);
+          break;
+        }
+      }
+      
+      // Extract AWS (should be a number between 1-100)
+      let aws = 0;
+      for (const part of parts) {
+        if (/^\d{1,3}$/.test(part)) {
+          const val = parseInt(part);
+          if (val >= 1 && val <= 100) {
+            aws = val;
+            break;
+          }
+        }
+      }
       
       if (aws === 0) {
         validationErrors.push('No valid AWS value found');
@@ -562,10 +445,12 @@ export const PDFImportService = {
       }
       
       // Extract work time
-      let workTime = this.extractField(rowText, 'workTime');
+      let workTime = '';
       let minutes = 0;
       
-      if (workTime) {
+      const timeMatch = rowText.match(/(\d+h\s*\d+m|\d+:\d+|\d+m|\d+h)/i);
+      if (timeMatch) {
+        workTime = timeMatch[0];
         minutes = this.parseWorkTime(workTime);
       } else {
         // Fallback: calculate from AWS
@@ -573,33 +458,46 @@ export const PDFImportService = {
         workTime = `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
       }
       
-      // Extract date
-      let jobDate = this.extractField(rowText, 'jobDate');
-      if (!jobDate) {
+      // Extract date (DD/MM/YYYY)
+      let jobDate = '';
+      const dateMatch = rowText.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (dateMatch) {
+        jobDate = dateMatch[0];
+      } else {
         jobDate = new Date().toLocaleDateString('en-GB');
         validationErrors.push('No date found, using current date');
         confidence *= 0.7;
       }
       
-      // Extract time
-      let jobTime = this.extractField(rowText, 'jobTime');
-      if (!jobTime) {
+      // Extract time (HH:mm)
+      let jobTime = '';
+      const timeOnlyMatch = rowText.match(/\b(\d{2}):(\d{2})\b/);
+      if (timeOnlyMatch) {
+        jobTime = timeOnlyMatch[0];
+      } else {
         jobTime = '09:00';
         validationErrors.push('No time found, using 09:00');
         confidence *= 0.8;
       }
       
-      // Extract job description
+      // Extract job description (text between vehicle reg and AWS)
       let jobDescription = '';
       
-      // Find text between vehicle reg and AWS
       const regIndex = rowText.indexOf(vehicleReg);
+      const awsStr = aws.toString();
       const awsIndex = rowText.indexOf(awsStr, regIndex);
       
       if (regIndex >= 0 && awsIndex > regIndex) {
         jobDescription = rowText.substring(regIndex + vehicleReg.length, awsIndex).trim();
         jobDescription = this.applyOCRCorrections(jobDescription);
         jobDescription = jobDescription.replace(/\s+/g, ' ').trim();
+        
+        // Remove VHC status from description if present
+        const vhcWords = ['red', 'orange', 'amber', 'green'];
+        for (const word of vhcWords) {
+          const regex = new RegExp(`\\b${word}\\b`, 'gi');
+          jobDescription = jobDescription.replace(regex, '').trim();
+        }
       }
       
       // Parse startedAt
@@ -611,10 +509,10 @@ export const PDFImportService = {
       
       // Check for duplicates by WIP number
       if (wipNumber) {
-        const wipMatch = existingJobs.find(j => j.wipNumber === wipNumber);
-        if (wipMatch) {
+        const wipMatch2 = existingJobs.find(j => j.wipNumber === wipNumber);
+        if (wipMatch2) {
           action = 'Update';
-          existingJobId = wipMatch.id;
+          existingJobId = wipMatch2.id;
         }
       }
       
@@ -664,7 +562,7 @@ export const PDFImportService = {
       parseLog.push({
         rowIndex,
         level: confidence < 0.7 ? 'warning' : 'info',
-        message: `Parsed row: WIP ${wipNumber}, Reg ${vehicleReg}, AWS ${aws}, Confidence ${(confidence * 100).toFixed(0)}%`,
+        message: `Parsed: WIP ${wipNumber}, Reg ${vehicleReg}, AWS ${aws}, Conf ${(confidence * 100).toFixed(0)}%`,
       });
       
       return parsedRow;
@@ -680,17 +578,7 @@ export const PDFImportService = {
   },
 
   /**
-   * Calculate overall confidence for the import
-   */
-  calculateOverallConfidence(rows: ParsedJobRow[]): number {
-    if (rows.length === 0) return 0;
-    
-    const avgConfidence = rows.reduce((sum, row) => sum + row.confidence, 0) / rows.length;
-    return avgConfidence;
-  },
-
-  /**
-   * Import and parse PDF file with multi-stage pipeline
+   * Import and parse PDF file
    */
   async importFromPDF(
     uri: string,
@@ -701,7 +589,7 @@ export const PDFImportService = {
     const parseLog: ParseLogEntry[] = [];
     
     try {
-      console.log('[PDF Import] Starting import pipeline for:', filename);
+      console.log('[PDF Import] Starting import for:', filename);
       
       // Calculate file hash
       onProgress?.({
@@ -719,12 +607,12 @@ export const PDFImportService = {
         message: `File hash: ${hash.substring(0, 16)}...`,
       });
       
-      // Stage A: Extract text from PDF
+      // Extract text from PDF
       onProgress?.({
         status: 'parsing',
         currentRow: 0,
         totalRows: 0,
-        message: 'Stage A: Extracting text layer...',
+        message: 'Extracting text from PDF...',
       });
       
       const text = await this.extractTextFromPDF(uri, parseLog);
@@ -732,12 +620,10 @@ export const PDFImportService = {
       if (!text || text.length < 50) {
         parseLog.push({
           rowIndex: -1,
-          level: 'warning',
-          message: 'Insufficient text extracted. PDF may be image-based or encrypted.',
+          level: 'error',
+          message: 'Insufficient text extracted. PDF may be image-based, encrypted, or corrupted.',
         });
         
-        // In production, you would fall back to Stage B (OCR) here
-        // For now, we'll return an error with the parse log
         return {
           success: false,
           rows: [],
@@ -753,29 +639,41 @@ export const PDFImportService = {
         };
       }
       
-      // Detect layout
-      const layout = this.detectPDFLayout(text);
+      // Split into lines
+      const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
+      
       parseLog.push({
         rowIndex: -1,
         level: 'info',
-        message: `Layout detected: ${layout.isScanned ? 'Scanned' : 'Text-based'}, density: ${(layout.textDensity * 100).toFixed(1)}%`,
+        message: `Found ${lines.length} lines in PDF`,
       });
       
-      // Parse table rows
-      onProgress?.({
-        status: 'parsing',
-        currentRow: 0,
-        totalRows: 0,
-        message: 'Identifying table rows...',
+      // Find table header
+      const headerIndex = this.findTableHeader(lines);
+      
+      if (headerIndex === -1) {
+        parseLog.push({
+          rowIndex: -1,
+          level: 'warning',
+          message: 'Could not find table header. Attempting to parse all lines with WIP numbers.',
+        });
+      }
+      
+      // Extract data rows (lines after header that contain WIP numbers)
+      const startIndex = headerIndex >= 0 ? headerIndex + 1 : 0;
+      const dataLines = lines.slice(startIndex).filter(line => /\b\d{5}\b/.test(line));
+      
+      parseLog.push({
+        rowIndex: -1,
+        level: 'info',
+        message: `Found ${dataLines.length} potential data rows`,
       });
       
-      const rawRows = this.parseTableRows(text, parseLog);
-      
-      if (rawRows.length === 0) {
+      if (dataLines.length === 0) {
         parseLog.push({
           rowIndex: -1,
           level: 'error',
-          message: 'No data rows found in PDF. Please check the file format.',
+          message: 'No data rows found. Please check the PDF format.',
         });
         
         return {
@@ -795,9 +693,9 @@ export const PDFImportService = {
       
       // Parse each row
       const parsedRows: ParsedJobRow[] = [];
-      const totalRows = rawRows.length;
+      const totalRows = dataLines.length;
       
-      for (let i = 0; i < rawRows.length; i++) {
+      for (let i = 0; i < dataLines.length; i++) {
         onProgress?.({
           status: 'parsing',
           currentRow: i + 1,
@@ -805,7 +703,7 @@ export const PDFImportService = {
           message: `Parsing row ${i + 1} of ${totalRows}...`,
         });
         
-        const parsed = this.parseRow(rawRows[i], i, existingJobs, parseLog);
+        const parsed = this.parseRowFromText(dataLines[i], i, existingJobs, parseLog);
         if (parsed) {
           parsedRows.push(parsed);
         }
@@ -816,28 +714,28 @@ export const PDFImportService = {
         }
       }
       
-      // Calculate overall confidence
-      const overallConfidence = this.calculateOverallConfidence(parsedRows);
-      
-      parseLog.push({
-        rowIndex: -1,
-        level: 'info',
-        message: `Overall confidence: ${(overallConfidence * 100).toFixed(1)}%`,
-      });
-      
       // Calculate summary
       const validRows = parsedRows.filter(r => r.validationErrors.length === 0).length;
       const invalidRows = parsedRows.length - validRows;
       const duplicates = parsedRows.filter(r => r.action === 'Update').length;
       
+      const overallConfidence = parsedRows.length > 0
+        ? parsedRows.reduce((sum, r) => sum + r.confidence, 0) / parsedRows.length
+        : 0;
+      
+      parseLog.push({
+        rowIndex: -1,
+        level: 'info',
+        message: `Parsing complete. Confidence: ${(overallConfidence * 100).toFixed(1)}%`,
+      });
+      
       onProgress?.({
         status: 'preview',
         currentRow: totalRows,
         totalRows,
-        message: `Parsing complete. Confidence: ${(overallConfidence * 100).toFixed(0)}%`,
+        message: `Parsing complete. Found ${parsedRows.length} jobs.`,
       });
       
-      // Always return success with parse log, even if confidence is low
       return {
         success: true,
         rows: parsedRows,
@@ -845,7 +743,7 @@ export const PDFImportService = {
         hash,
         parseLog,
         summary: {
-          totalRows: rawRows.length,
+          totalRows: dataLines.length,
           validRows,
           invalidRows,
           duplicates,
@@ -860,7 +758,6 @@ export const PDFImportService = {
         message: error instanceof Error ? error.message : 'Unknown error occurred',
       });
       
-      // Always return with parse log, never show "Failed to parse PDF"
       return {
         success: false,
         rows: [],
@@ -921,16 +818,15 @@ export const PDFImportService = {
       
       const json = JSON.stringify(logData, null, 2);
       
-      // Use documentDirectory with fallback to cacheDirectory
-      const baseDir = documentDirectory ?? cacheDirectory;
+      const baseDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
       if (!baseDir) {
         throw new Error('No writable directory available');
       }
       
       const fileUri = `${baseDir}parse-log-${Date.now()}.json`;
       
-      await writeAsStringAsync(fileUri, json, {
-        encoding: 'utf8',
+      await FileSystem.writeAsStringAsync(fileUri, json, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
       
       return fileUri;
@@ -978,16 +874,15 @@ export const PDFImportService = {
         ...csvRows.map(row => row.map(cell => `"${cell}"`).join(',')),
       ].join('\n');
       
-      // Use documentDirectory with fallback to cacheDirectory
-      const baseDir = documentDirectory ?? cacheDirectory;
+      const baseDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
       if (!baseDir) {
         throw new Error('No writable directory available');
       }
       
       const fileUri = `${baseDir}import-rows-${Date.now()}.csv`;
       
-      await writeAsStringAsync(fileUri, csv, {
-        encoding: 'utf8',
+      await FileSystem.writeAsStringAsync(fileUri, csv, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
       
       return fileUri;
