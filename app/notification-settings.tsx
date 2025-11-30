@@ -16,6 +16,10 @@ export default function NotificationSettingsScreen() {
     lunchStartEnabled: true,
     lunchEndEnabled: true,
     workEndEnabled: true,
+    recordSavedEnabled: true,
+    jobExportedEnabled: true,
+    monthlyReportEnabled: true,
+    saturdayReminderEnabled: true,
   });
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [hasPermission, setHasPermission] = useState(false);
@@ -184,7 +188,7 @@ export default function NotificationSettingsScreen() {
             <View style={styles.switchLeft}>
               <Text style={styles.switchLabel}>🔔 Enable All Notifications</Text>
               <Text style={styles.switchSubtext}>
-                Master switch for all work notifications
+                Master switch for all app notifications
               </Text>
             </View>
             <Switch
@@ -196,11 +200,11 @@ export default function NotificationSettingsScreen() {
           </View>
         </View>
 
-        {/* Individual Notification Toggles */}
+        {/* Work Schedule Notifications */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Notification Types</Text>
+          <Text style={styles.sectionTitle}>⏰ Work Schedule Notifications</Text>
           <Text style={styles.sectionDescription}>
-            Choose which notifications you want to receive
+            Notifications related to your daily work schedule
           </Text>
 
           <View style={styles.notificationToggles}>
@@ -275,6 +279,98 @@ export default function NotificationSettingsScreen() {
                 disabled={!settings.enabled}
               />
             </View>
+
+            {/* Saturday Reminder */}
+            <View style={styles.toggleItem}>
+              <View style={styles.toggleLeft}>
+                <Text style={styles.toggleIcon}>📅</Text>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>Saturday Reminder</Text>
+                  <Text style={styles.toggleSubtext}>Remind the day before working Saturday</Text>
+                </View>
+              </View>
+              <Switch
+                value={settings.saturdayReminderEnabled}
+                onValueChange={(value) => setSettings({ ...settings, saturdayReminderEnabled: value })}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={settings.saturdayReminderEnabled ? colors.background : colors.background}
+                disabled={!settings.enabled}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Job Activity Notifications */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 Job Activity Notifications</Text>
+          <Text style={styles.sectionDescription}>
+            Notifications for job-related actions
+          </Text>
+
+          <View style={styles.notificationToggles}>
+            {/* Record Saved */}
+            <View style={styles.toggleItem}>
+              <View style={styles.toggleLeft}>
+                <Text style={styles.toggleIcon}>💾</Text>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>Record Saved</Text>
+                  <Text style={styles.toggleSubtext}>Confirm when job is saved</Text>
+                </View>
+              </View>
+              <Switch
+                value={settings.recordSavedEnabled}
+                onValueChange={(value) => setSettings({ ...settings, recordSavedEnabled: value })}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={settings.recordSavedEnabled ? colors.background : colors.background}
+                disabled={!settings.enabled}
+              />
+            </View>
+
+            {/* Job Exported */}
+            <View style={styles.toggleItem}>
+              <View style={styles.toggleLeft}>
+                <Text style={styles.toggleIcon}>📤</Text>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>Job Exported</Text>
+                  <Text style={styles.toggleSubtext}>Confirm when export completes</Text>
+                </View>
+              </View>
+              <Switch
+                value={settings.jobExportedEnabled}
+                onValueChange={(value) => setSettings({ ...settings, jobExportedEnabled: value })}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={settings.jobExportedEnabled ? colors.background : colors.background}
+                disabled={!settings.enabled}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Report Notifications */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📊 Report Notifications</Text>
+          <Text style={styles.sectionDescription}>
+            Reminders for generating reports
+          </Text>
+
+          <View style={styles.notificationToggles}>
+            {/* Monthly Report */}
+            <View style={styles.toggleItem}>
+              <View style={styles.toggleLeft}>
+                <Text style={styles.toggleIcon}>📈</Text>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>Monthly Report Reminder</Text>
+                  <Text style={styles.toggleSubtext}>Remind to generate monthly reports</Text>
+                </View>
+              </View>
+              <Switch
+                value={settings.monthlyReportEnabled}
+                onValueChange={(value) => setSettings({ ...settings, monthlyReportEnabled: value })}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={settings.monthlyReportEnabled ? colors.background : colors.background}
+                disabled={!settings.enabled}
+              />
+            </View>
           </View>
         </View>
 
@@ -343,6 +439,9 @@ export default function NotificationSettingsScreen() {
           </Text>
           <Text style={styles.infoText}>
             • Notifications respect Do Not Disturb mode
+          </Text>
+          <Text style={styles.infoText}>
+            • Saturday reminders are sent the day before your working Saturday
           </Text>
         </View>
       </ScrollView>

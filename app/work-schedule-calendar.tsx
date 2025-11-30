@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import NotificationToast from '../components/NotificationToast';
+import { TimeTrackingService } from '../utils/timeTrackingService';
 
 const WORK_CALENDAR_KEY = 'work_calendar_data';
 
@@ -20,6 +21,10 @@ interface WorkCalendarData {
 
 export default function WorkScheduleCalendarScreen() {
   const { colors } = useTheme();
+  const params = useLocalSearchParams();
+  const mode = params.mode as string | undefined;
+  const isSaturdayMode = mode === 'saturday';
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarData, setCalendarData] = useState<WorkCalendarData>({});
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
@@ -69,7 +74,60 @@ export default function WorkScheduleCalendarScreen() {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   };
 
+  const handleSaturdaySelection = async (day: number) => {
+    const selectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    
+    // Check if it's a Saturday
+    if (selectedDate.getDay() !== 6) {
+      showNotification('Please select a Saturday', 'error');
+      return;
+    }
+
+    // Check if it's in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      showNotification('Please select a future Saturday', 'error');
+      return;
+    }
+
+    // Save the selected Saturday
+    try {
+      const settings = await TimeTrackingService.getSettings();
+      const updatedSettings = {
+        ...settings,
+        nextSaturday: selectedDate.toISOString(),
+      };
+      await TimeTrackingService.saveSettings(updatedSettings);
+      
+      showNotification(
+        `Next working Saturday set to ${selectedDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}`,
+        'success'
+      );
+      
+      // Navigate back after a short delay
+      setTimeout(() => {
+        router.back();
+      }, 1500);
+    } catch (error) {
+      console.log('Error saving Saturday selection:', error);
+      showNotification('Error saving selection', 'error');
+    }
+  };
+
   const toggleDayStatus = (day: number) => {
+    if (isSaturdayMode) {
+      handleSaturdaySelection(day);
+      return;
+    }
+
     const yearMonthKey = getYearMonthKey(currentDate);
     const currentData = { ...calendarData };
     
@@ -131,6 +189,8 @@ export default function WorkScheduleCalendarScreen() {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dayData = monthData[day];
+      const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      const isSaturday = cellDate.getDay() === 6;
       const isToday = 
         day === new Date().getDate() &&
         currentDate.getMonth() === new Date().getMonth() &&
@@ -141,19 +201,32 @@ export default function WorkScheduleCalendarScreen() {
       let textColor = colors.text;
       let icon = '';
 
-      if (dayData) {
-        if (dayData.isWorkDay && dayData.reason === 'work') {
-          backgroundColor = colors.success + '20';
-          borderColor = colors.success;
-          icon = '✓';
-        } else if (dayData.reason === 'annual_leave') {
-          backgroundColor = '#ff9800' + '20';
-          borderColor = '#ff9800';
-          icon = '🏖️';
-        } else if (dayData.reason === 'external_training') {
-          backgroundColor = '#9c27b0' + '20';
-          borderColor = '#9c27b0';
-          icon = '📚';
+      if (isSaturdayMode) {
+        // Saturday selection mode
+        if (isSaturday) {
+          backgroundColor = colors.primary + '20';
+          borderColor = colors.primary;
+          icon = '📅';
+        } else {
+          backgroundColor = colors.backgroundAlt;
+          textColor = colors.textSecondary;
+        }
+      } else {
+        // Regular calendar mode
+        if (dayData) {
+          if (dayData.isWorkDay && dayData.reason === 'work') {
+            backgroundColor = colors.success + '20';
+            borderColor = colors.success;
+            icon = '✓';
+          } else if (dayData.reason === 'annual_leave') {
+            backgroundColor = '#ff9800' + '20';
+            borderColor = '#ff9800';
+            icon = '🏖️';
+          } else if (dayData.reason === 'external_training') {
+            backgroundColor = '#9c27b0' + '20';
+            borderColor = '#9c27b0';
+            icon = '📚';
+          }
         }
       }
 
@@ -169,6 +242,7 @@ export default function WorkScheduleCalendarScreen() {
             { backgroundColor, borderColor, borderWidth: 2 }
           ]}
           onPress={() => toggleDayStatus(day)}
+          disabled={isSaturdayMode && !isSaturday}
         >
           <Text style={[styles.dayNumber, { color: textColor }]}>{day}</Text>
           {icon && <Text style={styles.dayIcon}>{icon}</Text>}
@@ -242,10 +316,22 @@ export default function WorkScheduleCalendarScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Work Calendar</Text>
+        <Text style={styles.title}>
+          {isSaturdayMode ? 'Pick Next Working Saturday' : 'Work Calendar'}
+        </Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {isSaturdayMode && (
+          <View style={styles.saturdayModeInfo}>
+            <Text style={styles.saturdayModeTitle}>📅 Saturday Selection Mode</Text>
+            <Text style={styles.saturdayModeText}>
+              Tap on any Saturday (highlighted in blue) to set it as your next working Saturday. 
+              Only future Saturdays can be selected.
+            </Text>
+          </View>
+        )}
+
         {/* Month Navigation */}
         <View style={styles.monthNav}>
           <TouchableOpacity onPress={previousMonth} style={styles.navButton}>
@@ -259,62 +345,70 @@ export default function WorkScheduleCalendarScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: colors.success + '20', borderColor: colors.success }]} />
-            <Text style={styles.legendText}>✓ Work Day</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: '#ff9800' + '20', borderColor: '#ff9800' }]} />
-            <Text style={styles.legendText}>🏖️ Annual Leave</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: '#9c27b0' + '20', borderColor: '#9c27b0' }]} />
-            <Text style={styles.legendText}>📚 External Training</Text>
-          </View>
-        </View>
+        {!isSaturdayMode && (
+          <>
+            {/* Legend */}
+            <View style={styles.legend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendBox, { backgroundColor: colors.success + '20', borderColor: colors.success }]} />
+                <Text style={styles.legendText}>✓ Work Day</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendBox, { backgroundColor: '#ff9800' + '20', borderColor: '#ff9800' }]} />
+                <Text style={styles.legendText}>🏖️ Annual Leave</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendBox, { backgroundColor: '#9c27b0' + '20', borderColor: '#9c27b0' }]} />
+                <Text style={styles.legendText}>📚 External Training</Text>
+              </View>
+            </View>
+          </>
+        )}
 
         {/* Calendar */}
         {renderCalendar()}
 
-        {/* Stats */}
-        <View style={styles.statsSection}>
-          <Text style={styles.statsTitle}>📊 Month Summary</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.workDays}</Text>
-              <Text style={styles.statLabel}>Work Days</Text>
+        {!isSaturdayMode && (
+          <>
+            {/* Stats */}
+            <View style={styles.statsSection}>
+              <Text style={styles.statsTitle}>📊 Month Summary</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{stats.workDays}</Text>
+                  <Text style={styles.statLabel}>Work Days</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: '#ff9800' }]}>{stats.annualLeave}</Text>
+                  <Text style={styles.statLabel}>Annual Leave</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: '#9c27b0' }]}>{stats.externalTraining}</Text>
+                  <Text style={styles.statLabel}>External Training</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: '#ff9800' }]}>{stats.annualLeave}</Text>
-              <Text style={styles.statLabel}>Annual Leave</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: '#9c27b0' }]}>{stats.externalTraining}</Text>
-              <Text style={styles.statLabel}>External Training</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* Instructions */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>ℹ️ How to Use</Text>
-          <Text style={styles.infoText}>• Tap a day to cycle through: Work → Annual Leave → External Training → Clear</Text>
-          <Text style={styles.infoText}>• Work days are marked with ✓</Text>
-          <Text style={styles.infoText}>• Annual leave days are marked with 🏖️</Text>
-          <Text style={styles.infoText}>• External training days are marked with 📚</Text>
-          <Text style={styles.infoText}>• Today is highlighted with a blue border</Text>
-          <Text style={styles.infoText}>• Use the arrows to navigate between months</Text>
-        </View>
+            {/* Instructions */}
+            <View style={styles.infoSection}>
+              <Text style={styles.infoTitle}>ℹ️ How to Use</Text>
+              <Text style={styles.infoText}>• Tap a day to cycle through: Work → Annual Leave → External Training → Clear</Text>
+              <Text style={styles.infoText}>• Work days are marked with ✓</Text>
+              <Text style={styles.infoText}>• Annual leave days are marked with 🏖️</Text>
+              <Text style={styles.infoText}>• External training days are marked with 📚</Text>
+              <Text style={styles.infoText}>• Today is highlighted with a blue border</Text>
+              <Text style={styles.infoText}>• Use the arrows to navigate between months</Text>
+            </View>
 
-        {/* Clear Button */}
-        <TouchableOpacity
-          style={[styles.clearButton, { backgroundColor: colors.error }]}
-          onPress={clearMonth}
-        >
-          <Text style={styles.clearButtonText}>🗑️ Clear This Month</Text>
-        </TouchableOpacity>
+            {/* Clear Button */}
+            <TouchableOpacity
+              style={[styles.clearButton, { backgroundColor: colors.error }]}
+              onPress={clearMonth}
+            >
+              <Text style={styles.clearButtonText}>🗑️ Clear This Month</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -347,6 +441,25 @@ const createStyles = (colors: any) => StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  saturdayModeInfo: {
+    marginTop: 24,
+    backgroundColor: colors.primary + '20',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  saturdayModeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  saturdayModeText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   monthNav: {
     flexDirection: 'row',

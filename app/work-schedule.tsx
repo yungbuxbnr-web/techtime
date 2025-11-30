@@ -192,6 +192,14 @@ export default function WorkScheduleScreen() {
     });
   };
 
+  const handleOpenCalendarPicker = () => {
+    if (!settings.saturdayFrequency || settings.saturdayFrequency === 0) {
+      showNotification('Please set a Saturday frequency first', 'info');
+      return;
+    }
+    router.push('/work-schedule-calendar?mode=saturday');
+  };
+
   const styles = createStyles(colors);
 
   return (
@@ -441,10 +449,19 @@ export default function WorkScheduleScreen() {
           )}
 
           {settings.saturdayFrequency && settings.saturdayFrequency > 0 && (
-            <View style={styles.nextSaturdayBox}>
-              <Text style={styles.nextSaturdayLabel}>📅 Next Working Saturday:</Text>
-              <Text style={styles.nextSaturdayValue}>{formatNextSaturday()}</Text>
-            </View>
+            <>
+              <View style={styles.nextSaturdayBox}>
+                <Text style={styles.nextSaturdayLabel}>📅 Next Working Saturday:</Text>
+                <Text style={styles.nextSaturdayValue}>{formatNextSaturday()}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.calendarPickerButton, { backgroundColor: colors.primary }]}
+                onPress={handleOpenCalendarPicker}
+              >
+                <Text style={styles.calendarPickerButtonText}>📅 Pick Next Working Saturday from Calendar</Text>
+              </TouchableOpacity>
+            </>
           )}
 
           <View style={styles.infoBox}>
@@ -456,6 +473,9 @@ export default function WorkScheduleScreen() {
             </Text>
             <Text style={styles.infoText}>
               🔄 The app will automatically track your Saturday schedule
+            </Text>
+            <Text style={styles.infoText}>
+              📅 Use the calendar picker to manually select your next working Saturday
             </Text>
           </View>
         </View>
@@ -839,6 +859,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.primary,
+  },
+  calendarPickerButton: {
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.15)',
+    elevation: 3,
+  },
+  calendarPickerButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   notificationList: {
     marginTop: 8,

@@ -12,6 +12,10 @@ export interface NotificationSettings {
   lunchStartEnabled: boolean;
   lunchEndEnabled: boolean;
   workEndEnabled: boolean;
+  recordSavedEnabled: boolean;
+  jobExportedEnabled: boolean;
+  monthlyReportEnabled: boolean;
+  saturdayReminderEnabled: boolean;
 }
 
 const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -20,6 +24,10 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   lunchStartEnabled: true,
   lunchEndEnabled: true,
   workEndEnabled: true,
+  recordSavedEnabled: true,
+  jobExportedEnabled: true,
+  monthlyReportEnabled: true,
+  saturdayReminderEnabled: true,
 };
 
 // Configure notification handler
@@ -68,7 +76,7 @@ export class NotificationService {
     try {
       const settingsJson = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
       if (settingsJson) {
-        return JSON.parse(settingsJson);
+        return { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(settingsJson) };
       }
       return DEFAULT_NOTIFICATION_SETTINGS;
     } catch (error) {
@@ -229,6 +237,96 @@ export class NotificationService {
     console.log('Work end notification scheduled for:', trigger);
   }
 
+  // Schedule Saturday reminder notification
+  private static async scheduleSaturdayReminderNotification(
+    workSchedule: WorkScheduleSettings,
+    notificationSettings: NotificationSettings
+  ): Promise<void> {
+    if (!notificationSettings.saturdayReminderEnabled) return;
+    if (!workSchedule.nextSaturday) return;
+
+    const nextSat = new Date(workSchedule.nextSaturday);
+    const reminderDate = new Date(nextSat);
+    reminderDate.setDate(reminderDate.getDate() - 1); // Day before
+    reminderDate.setHours(18, 0, 0, 0); // 6 PM the day before
+
+    // Only schedule if reminder is in the future
+    if (reminderDate > new Date()) {
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📅 Working Saturday Tomorrow',
+          body: `Reminder: You have a working Saturday tomorrow (${nextSat.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}). Don't forget!`,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: reminderDate,
+      });
+
+      this.notificationIds.push(id);
+      console.log('Saturday reminder notification scheduled for:', reminderDate);
+    }
+  }
+
+  // Send record saved notification
+  static async sendRecordSavedNotification(wipNumber: string): Promise<void> {
+    try {
+      const settings = await this.getSettings();
+      if (!settings.enabled || !settings.recordSavedEnabled) return;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '💾 Record Saved',
+          body: `Job ${wipNumber} has been saved successfully!`,
+          sound: true,
+        },
+        trigger: null, // Send immediately
+      });
+      console.log('Record saved notification sent');
+    } catch (error) {
+      console.log('Error sending record saved notification:', error);
+    }
+  }
+
+  // Send job exported notification
+  static async sendJobExportedNotification(count: number, format: string): Promise<void> {
+    try {
+      const settings = await this.getSettings();
+      if (!settings.enabled || !settings.jobExportedEnabled) return;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📤 Export Complete',
+          body: `Successfully exported ${count} job(s) to ${format.toUpperCase()}!`,
+          sound: true,
+        },
+        trigger: null, // Send immediately
+      });
+      console.log('Job exported notification sent');
+    } catch (error) {
+      console.log('Error sending job exported notification:', error);
+    }
+  }
+
+  // Send monthly report reminder
+  static async sendMonthlyReportReminder(): Promise<void> {
+    try {
+      const settings = await this.getSettings();
+      if (!settings.enabled || !settings.monthlyReportEnabled) return;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📈 Monthly Report Reminder',
+          body: 'Don\'t forget to generate your monthly report!',
+          sound: true,
+        },
+        trigger: null, // Send immediately
+      });
+      console.log('Monthly report reminder sent');
+    } catch (error) {
+      console.log('Error sending monthly report reminder:', error);
+    }
+  }
+
   // Cancel all scheduled notifications
   static async cancelAllNotifications(): Promise<void> {
     try {
@@ -292,6 +390,7 @@ export class NotificationService {
       await this.scheduleLunchStartNotification(workSchedule, settings);
       await this.scheduleLunchEndNotification(workSchedule, settings);
       await this.scheduleWorkEndNotification(workSchedule, settings);
+      await this.scheduleSaturdayReminderNotification(workSchedule, settings);
 
       console.log('All work notifications scheduled successfully');
     } catch (error) {
