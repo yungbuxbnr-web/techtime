@@ -34,6 +34,7 @@ export default function PDFImportScreen() {
     try {
       setImporting(true);
       setRecentJobs([]);
+      setProgress(null);
       
       console.log('[PDF Import] Opening document picker...');
       const result = await DocumentPicker.getDocumentAsync({
@@ -91,11 +92,21 @@ export default function PDFImportScreen() {
       
     } catch (error) {
       console.error('[PDF Import] Error importing PDF:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Could not read PDF text. Please make sure this is a Tech Records PDF export.';
+      
       setNotification({
-        message: error instanceof Error ? error.message : 'Failed to import PDF',
+        message: errorMessage,
         type: 'error',
         visible: true,
       });
+      
+      // Reset progress on error
+      setProgress(null);
+      setRecentJobs([]);
     } finally {
       setImporting(false);
     }
@@ -167,8 +178,11 @@ export default function PDFImportScreen() {
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: colors.primary }]}
                 onPress={handlePickAndImportPDF}
+                disabled={importing}
               >
-                <Text style={styles.buttonText}>📄 Select & Import PDF</Text>
+                <Text style={styles.buttonText}>
+                  {importing ? '⏳ Processing...' : '📄 Select & Import PDF'}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -286,6 +300,26 @@ export default function PDFImportScreen() {
                     </View>
                   </View>
                 ))}
+              </View>
+            )}
+
+            {/* Error state */}
+            {progress.status === 'error' && (
+              <View style={[styles.errorBox, { backgroundColor: colors.background, borderColor: colors.error }]}>
+                <Text style={[styles.errorIcon, { color: colors.error }]}>⚠️</Text>
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {progress.message}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    setProgress(null);
+                    setRecentJobs([]);
+                    setImporting(false);
+                  }}
+                >
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -508,5 +542,32 @@ const styles = StyleSheet.create({
   },
   jobItemTime: {
     fontSize: 12,
+  },
+  errorBox: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 8,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  retryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

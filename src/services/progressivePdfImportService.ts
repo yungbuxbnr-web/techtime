@@ -1,6 +1,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import { StorageService } from '../../utils/storage';
+import { getPdfText } from '../utils/pdfTextExtractor';
 
 export interface PdfJobInput {
   wipNumber: string;
@@ -68,44 +69,6 @@ function makeIsoFromDateTime(date: string, time: string): string {
   }
 }
 
-async function extractPdfText(pdfUri: string): Promise<string> {
-  try {
-    console.log('[Progressive Import] Reading PDF file...');
-    
-    const base64Content = await FileSystem.readAsStringAsync(pdfUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    
-    const binaryString = atob(base64Content);
-    
-    const textPattern = /\(([^)]+)\)/g;
-    const texts: string[] = [];
-    let match;
-    
-    while ((match = textPattern.exec(binaryString)) !== null) {
-      const text = match[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '\r')
-        .replace(/\\t/g, '\t')
-        .replace(/\\\(/g, '(')
-        .replace(/\\\)/g, ')')
-        .replace(/\\\\/g, '\\');
-      
-      if (text.trim() && text.length > 1) {
-        texts.push(text);
-      }
-    }
-    
-    const extractedText = texts.join(' ');
-    console.log(`[Progressive Import] Extracted ${extractedText.length} characters from PDF`);
-    
-    return extractedText;
-  } catch (error) {
-    console.error('[Progressive Import] Error extracting text from PDF:', error);
-    throw new Error('Failed to extract text from PDF');
-  }
-}
-
 function convertJobInputToJob(jobInput: PdfJobInput) {
   const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
@@ -146,12 +109,19 @@ function isDuplicateJob(jobInput: PdfJobInput, existingJobs: any[]): boolean {
   );
 }
 
+/**
+ * Import PDF progressively with job-by-job progress updates
+ * 
+ * @param pdfUri - URI of the PDF file
+ * @param onProgress - Callback function to report progress
+ * @returns Promise with import results
+ */
 export async function importPdfProgressively(
   pdfUri: string,
   onProgress: ProgressCallback
 ): Promise<{ imported: number; skipped: number; errors: number }> {
   try {
-    // Step 1: Extract text from PDF
+    // Step 1: Extract text from PDF using the new getPdfText helper
     onProgress({
       currentJob: 0,
       totalJobs: 0,
@@ -161,13 +131,21 @@ export async function importPdfProgressively(
       message: 'Extracting text from PDF...',
     });
 
-    const text = await extractPdfText(pdfUri);
+    let text: string;
+    try {
+      text = await getPdfText(pdfUri);
+    } catch (error) {
+      console.error('[Progressive Import] PDF text extraction failed:', error);
+      throw new Error('Could not read PDF text. Please make sure this is a Tech Records PDF export.');
+    }
     
     if (!text || text.length < 50) {
-      throw new Error('Insufficient text extracted from PDF');
+      throw new Error('Could not read PDF text. Please make sure this is a Tech Records PDF export.');
     }
     
     const normalizedText = text.replace(/\s+/g, ' ').trim();
+    
+    console.log('[Progressive Import] Text extracted successfully, length:', normalizedText.length);
     
     // Step 2: Parse all job records first to get total count
     onProgress({
@@ -219,12 +197,12 @@ export async function importPdfProgressively(
     }
     
     if (jobs.length === 0) {
-      throw new Error('No jobs found in PDF');
+      throw new Error('No jobs found in PDF. Please check the PDF format.');
     }
 
     console.log(`[Progressive Import] Found ${jobs.length} jobs to import`);
 
-    // Step 3: Import jobs one by one
+    // Step 3: Import jobs one by one with progress updates
     const existingJobs = await StorageService.getJobs();
     let importedCount = 0;
     let skippedCount = 0;
@@ -262,7 +240,7 @@ export async function importPdfProgressively(
 
         console.log(`[Progressive Import] Imported job ${i + 1}/${jobs.length}: WIP ${jobInput.wipNumber}`);
 
-        // Update progress
+        // Update progress with current job data
         onProgress({
           currentJob: i + 1,
           totalJobs: jobs.length,
@@ -309,13 +287,18 @@ export async function importPdfProgressively(
   } catch (error) {
     console.error('[Progressive Import] Fatal error:', error);
     
+    // Provide user-friendly error message
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Could not read PDF text. Please make sure this is a Tech Records PDF export.';
+    
     onProgress({
       currentJob: 0,
       totalJobs: 0,
       percentage: 0,
       currentJobData: null,
       status: 'error',
-      message: error instanceof Error ? error.message : 'Import failed',
+      message: errorMessage,
     });
     
     throw error;

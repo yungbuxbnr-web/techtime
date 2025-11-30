@@ -1,5 +1,6 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { getPdfText } from '../utils/pdfTextExtractor';
 
 // VHC status enum
 export enum VhcStatus {
@@ -93,49 +94,6 @@ function makeIsoFromDateTime(date: string, time: string): string {
 }
 
 /**
- * Extract text from PDF file
- * Uses simple text extraction from PDF structure
- */
-async function extractPdfText(pdfUri: string): Promise<string> {
-  try {
-    console.log('[PDF Import] Reading PDF file...');
-    
-    const base64Content = await FileSystem.readAsStringAsync(pdfUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    
-    const binaryString = atob(base64Content);
-    
-    const textPattern = /\(([^)]+)\)/g;
-    const texts: string[] = [];
-    let match;
-    
-    while ((match = textPattern.exec(binaryString)) !== null) {
-      const text = match[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '\r')
-        .replace(/\\t/g, '\t')
-        .replace(/\\\(/g, '(')
-        .replace(/\\\)/g, ')')
-        .replace(/\\\\/g, '\\');
-      
-      if (text.trim() && text.length > 1) {
-        texts.push(text);
-      }
-    }
-    
-    const extractedText = texts.join(' ');
-    console.log(`[PDF Import] Extracted ${extractedText.length} characters from PDF`);
-    console.log('[PDF Import] First 500 chars:', extractedText.substring(0, 500));
-    
-    return extractedText;
-  } catch (error) {
-    console.error('[PDF Import] Error extracting text from PDF:', error);
-    throw new Error('Failed to extract text from PDF');
-  }
-}
-
-/**
  * Parse Tech Records PDF and extract job data
  * 
  * @param pdfUri - URI of the PDF file
@@ -145,11 +103,12 @@ export async function parseTechRecordsPdf(pdfUri: string): Promise<PdfJobInput[]
   try {
     console.log('[PDF Import] Starting PDF parsing...');
     
-    const text = await extractPdfText(pdfUri);
+    // Use the new getPdfText helper for reliable text extraction
+    const text = await getPdfText(pdfUri);
     
     if (!text || text.length < 50) {
       console.warn('[PDF Import] Insufficient text extracted from PDF');
-      return [];
+      throw new Error('Could not read PDF text. Please make sure this is a Tech Records PDF export.');
     }
     
     const normalizedText = text
@@ -231,6 +190,12 @@ export async function parseTechRecordsPdf(pdfUri: string): Promise<PdfJobInput[]
     return jobs;
   } catch (error) {
     console.error('[PDF Import] Error parsing PDF:', error);
+    
+    // Provide user-friendly error message
+    if (error instanceof Error && error.message.includes('Failed to extract text from PDF')) {
+      throw new Error('Could not read PDF text. Please make sure this is a Tech Records PDF export.');
+    }
+    
     throw error;
   }
 }
