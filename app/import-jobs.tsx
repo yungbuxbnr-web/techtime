@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ImportService, ImportProgress, ImportResult } from '../utils/importService';
@@ -51,6 +51,15 @@ export default function ImportJobsScreen() {
     } catch (error: any) {
       console.error('[Import] Import error:', error);
       setImporting(false);
+      setResult({
+        success: false,
+        message: error?.message || 'Import failed',
+        imported: 0,
+        skipped: 0,
+        errors: 1,
+        details: [error?.message || 'Unknown error', error?.stack || ''],
+      });
+      setShowResultModal(true);
       showNotification(error?.message || 'Import failed', 'error');
     }
   };
@@ -81,7 +90,7 @@ export default function ImportJobsScreen() {
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={[styles.backButtonText, { color: colors.primary }]}>← Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Import Jobs</Text>
       </View>
@@ -89,15 +98,15 @@ export default function ImportJobsScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Instructions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📥 Import from JSON</Text>
-          <Text style={styles.sectionDescription}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>📥 Import from JSON</Text>
+          <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
             Import job records from a JSON file. The file must be in the correct format with a &quot;jobs&quot; array.
           </Text>
 
-          <View style={styles.instructionsCard}>
-            <Text style={styles.instructionTitle}>✅ Required JSON Format:</Text>
-            <View style={styles.codeBlock}>
-              <Text style={styles.codeText}>{`{
+          <View style={[styles.instructionsCard, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}>
+            <Text style={[styles.instructionTitle, { color: colors.text }]}>✅ Required JSON Format:</Text>
+            <View style={[styles.codeBlock, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.codeText, { color: colors.text }]}>{`{
   "jobs": [
     {
       "wipNumber": "26933",
@@ -111,31 +120,44 @@ export default function ImportJobsScreen() {
 }`}</Text>
             </View>
 
-            <Text style={styles.instructionTitle}>📋 Field Descriptions:</Text>
-            <Text style={styles.instructionText}>• <Text style={styles.bold}>wipNumber</Text>: Work in progress number (required)</Text>
-            <Text style={styles.instructionText}>• <Text style={styles.bold}>vehicleReg</Text>: Vehicle registration (required)</Text>
-            <Text style={styles.instructionText}>• <Text style={styles.bold}>aws</Text>: AW value as number (required)</Text>
-            <Text style={styles.instructionText}>• <Text style={styles.bold}>vhcStatus</Text>: RED, ORANGE, GREEN, or NONE</Text>
-            <Text style={styles.instructionText}>• <Text style={styles.bold}>description</Text>: Job description (optional)</Text>
-            <Text style={styles.instructionText}>• <Text style={styles.bold}>jobDateTime</Text>: ISO date string (optional)</Text>
+            <Text style={[styles.instructionTitle, { color: colors.text }]}>📋 Field Descriptions:</Text>
+            <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+              • <Text style={[styles.bold, { color: colors.text }]}>wipNumber</Text>: Work in progress number (required)
+            </Text>
+            <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+              • <Text style={[styles.bold, { color: colors.text }]}>vehicleReg</Text>: Vehicle registration (required)
+            </Text>
+            <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+              • <Text style={[styles.bold, { color: colors.text }]}>aws</Text>: AW value as number (required)
+            </Text>
+            <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+              • <Text style={[styles.bold, { color: colors.text }]}>vhcStatus</Text>: RED, ORANGE, GREEN, or NONE
+            </Text>
+            <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+              • <Text style={[styles.bold, { color: colors.text }]}>description</Text>: Job description (optional)
+            </Text>
+            <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+              • <Text style={[styles.bold, { color: colors.text }]}>jobDateTime</Text>: ISO date string (optional)
+            </Text>
           </View>
         </View>
 
         {/* Import Limits */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚠️ Import Limits</Text>
-          <View style={styles.limitsCard}>
-            <Text style={styles.limitText}>• Maximum 1000 jobs per import</Text>
-            <Text style={styles.limitText}>• Duplicate WIP numbers will be skipped</Text>
-            <Text style={styles.limitText}>• Invalid jobs will be reported in the summary</Text>
-            <Text style={styles.limitText}>• Import process shows real-time progress</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>⚠️ Import Information</Text>
+          <View style={[styles.limitsCard, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}>
+            <Text style={[styles.limitText, { color: colors.textSecondary }]}>• Maximum 1000 jobs per import</Text>
+            <Text style={[styles.limitText, { color: colors.textSecondary }]}>• Duplicate WIP numbers are allowed</Text>
+            <Text style={[styles.limitText, { color: colors.textSecondary }]}>• Same job can be imported multiple times</Text>
+            <Text style={[styles.limitText, { color: colors.textSecondary }]}>• Invalid jobs will be reported in the summary</Text>
+            <Text style={[styles.limitText, { color: colors.textSecondary }]}>• Import process shows real-time progress</Text>
           </View>
         </View>
 
         {/* Import Button */}
         {!importing && !progress && (
           <TouchableOpacity
-            style={styles.importButton}
+            style={[styles.importButton, { backgroundColor: colors.primary }]}
             onPress={handleImport}
           >
             <Text style={styles.importButtonText}>📂 Select JSON File to Import</Text>
@@ -145,15 +167,15 @@ export default function ImportJobsScreen() {
         {/* Progress Display */}
         {importing && progress && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⏳ Import Progress</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>⏳ Import Progress</Text>
             
-            <View style={styles.progressCard}>
+            <View style={[styles.progressCard, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}>
               <View style={styles.progressHeader}>
-                <Text style={styles.progressStatus}>{progress.status.toUpperCase()}</Text>
-                <Text style={styles.progressPercentage}>{getProgressPercentage()}%</Text>
+                <Text style={[styles.progressStatus, { color: colors.primary }]}>{progress.status.toUpperCase()}</Text>
+                <Text style={[styles.progressPercentage, { color: colors.primary }]}>{getProgressPercentage()}%</Text>
               </View>
 
-              <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarContainer, { backgroundColor: colors.border }]}>
                 <View 
                   style={[
                     styles.progressBar, 
@@ -162,29 +184,29 @@ export default function ImportJobsScreen() {
                 />
               </View>
 
-              <Text style={styles.progressMessage}>{progress.message}</Text>
+              <Text style={[styles.progressMessage, { color: colors.text }]}>{progress.message}</Text>
 
               {progress.currentJobData && (
-                <View style={styles.currentJobCard}>
-                  <Text style={styles.currentJobTitle}>Current Job:</Text>
-                  <Text style={styles.currentJobText}>WIP: {progress.currentJobData.wipNumber}</Text>
-                  <Text style={styles.currentJobText}>Reg: {progress.currentJobData.vehicleReg}</Text>
-                  <Text style={styles.currentJobText}>AWs: {progress.currentJobData.aws}</Text>
+                <View style={[styles.currentJobCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.currentJobTitle, { color: colors.text }]}>Current Job:</Text>
+                  <Text style={[styles.currentJobText, { color: colors.textSecondary }]}>WIP: {progress.currentJobData.wipNumber}</Text>
+                  <Text style={[styles.currentJobText, { color: colors.textSecondary }]}>Reg: {progress.currentJobData.vehicleReg}</Text>
+                  <Text style={[styles.currentJobText, { color: colors.textSecondary }]}>AWs: {progress.currentJobData.aws}</Text>
                 </View>
               )}
 
               <View style={styles.progressStats}>
                 <View style={styles.progressStat}>
-                  <Text style={styles.progressStatLabel}>Current</Text>
-                  <Text style={styles.progressStatValue}>{progress.currentJob}</Text>
+                  <Text style={[styles.progressStatLabel, { color: colors.textSecondary }]}>Current</Text>
+                  <Text style={[styles.progressStatValue, { color: colors.primary }]}>{progress.currentJob}</Text>
                 </View>
                 <View style={styles.progressStat}>
-                  <Text style={styles.progressStatLabel}>Total</Text>
-                  <Text style={styles.progressStatValue}>{progress.totalJobs}</Text>
+                  <Text style={[styles.progressStatLabel, { color: colors.textSecondary }]}>Total</Text>
+                  <Text style={[styles.progressStatValue, { color: colors.primary }]}>{progress.totalJobs}</Text>
                 </View>
                 <View style={styles.progressStat}>
-                  <Text style={styles.progressStatLabel}>Remaining</Text>
-                  <Text style={styles.progressStatValue}>{progress.totalJobs - progress.currentJob}</Text>
+                  <Text style={[styles.progressStatLabel, { color: colors.textSecondary }]}>Remaining</Text>
+                  <Text style={[styles.progressStatValue, { color: colors.primary }]}>{progress.totalJobs - progress.currentJob}</Text>
                 </View>
               </View>
 
@@ -204,9 +226,9 @@ export default function ImportJobsScreen() {
         onRequestClose={handleCloseResult}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
                 {result?.success ? '✅ Import Complete' : '❌ Import Failed'}
               </Text>
             </View>
@@ -214,37 +236,37 @@ export default function ImportJobsScreen() {
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               {result && (
                 <>
-                  <View style={styles.resultSummary}>
+                  <View style={[styles.resultSummary, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}>
                     <View style={styles.resultRow}>
-                      <Text style={styles.resultLabel}>Imported:</Text>
-                      <Text style={[styles.resultValue, { color: colors.success }]}>
+                      <Text style={[styles.resultLabel, { color: colors.text }]}>Imported:</Text>
+                      <Text style={[styles.resultValue, { color: '#10b981' }]}>
                         {result.imported}
                       </Text>
                     </View>
                     <View style={styles.resultRow}>
-                      <Text style={styles.resultLabel}>Skipped:</Text>
-                      <Text style={[styles.resultValue, { color: colors.warning }]}>
+                      <Text style={[styles.resultLabel, { color: colors.text }]}>Skipped:</Text>
+                      <Text style={[styles.resultValue, { color: '#f59e0b' }]}>
                         {result.skipped}
                       </Text>
                     </View>
                     <View style={styles.resultRow}>
-                      <Text style={styles.resultLabel}>Errors:</Text>
-                      <Text style={[styles.resultValue, { color: colors.error }]}>
+                      <Text style={[styles.resultLabel, { color: colors.text }]}>Errors:</Text>
+                      <Text style={[styles.resultValue, { color: '#ef4444' }]}>
                         {result.errors}
                       </Text>
                     </View>
                   </View>
 
                   {result.details.length > 0 && (
-                    <View style={styles.detailsSection}>
-                      <Text style={styles.detailsTitle}>Details:</Text>
+                    <View style={[styles.detailsSection, { backgroundColor: colors.backgroundAlt, borderColor: colors.border }]}>
+                      <Text style={[styles.detailsTitle, { color: colors.text }]}>Details:</Text>
                       {result.details.slice(0, 20).map((detail, index) => (
-                        <Text key={index} style={styles.detailText}>
+                        <Text key={index} style={[styles.detailText, { color: colors.textSecondary }]}>
                           {detail}
                         </Text>
                       ))}
                       {result.details.length > 20 && (
-                        <Text style={styles.detailText}>
+                        <Text style={[styles.detailText, { color: colors.textSecondary }]}>
                           ... and {result.details.length - 20} more
                         </Text>
                       )}
@@ -255,7 +277,7 @@ export default function ImportJobsScreen() {
             </ScrollView>
 
             <TouchableOpacity
-              style={styles.modalButton}
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
               onPress={handleCloseResult}
             >
               <Text style={styles.modalButtonText}>
@@ -285,7 +307,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: colors.primary,
     fontWeight: '600',
   },
   title: {
@@ -310,68 +331,54 @@ const createStyles = (colors: any) => StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 14,
-    color: colors.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
   },
   instructionsCard: {
-    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   instructionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 8,
     marginTop: 12,
   },
   instructionText: {
     fontSize: 13,
-    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 4,
   },
   bold: {
     fontWeight: '600',
-    color: colors.text,
   },
   codeBlock: {
-    backgroundColor: colors.background,
     borderRadius: 6,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   codeText: {
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 11,
-    color: colors.text,
     lineHeight: 16,
   },
   limitsCard: {
-    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   limitText: {
     fontSize: 13,
-    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },
   importButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -387,11 +394,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
   },
   progressCard: {
-    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 20,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -402,17 +407,14 @@ const createStyles = (colors: any) => StyleSheet.create({
   progressStatus: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
     letterSpacing: 1,
   },
   progressPercentage: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.primary,
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: colors.border,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 16,
@@ -423,27 +425,22 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   progressMessage: {
     fontSize: 14,
-    color: colors.text,
     marginBottom: 16,
     fontWeight: '500',
   },
   currentJobCard: {
-    backgroundColor: colors.background,
     borderRadius: 6,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   currentJobTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 8,
   },
   currentJobText: {
     fontSize: 12,
-    color: colors.textSecondary,
     marginBottom: 4,
   },
   progressStats: {
@@ -456,13 +453,11 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   progressStatLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
     marginBottom: 4,
   },
   progressStatValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.primary,
   },
   modalOverlay: {
     flex: 1,
@@ -472,7 +467,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.card,
     borderRadius: 16,
     width: '100%',
     maxWidth: 500,
@@ -483,12 +477,10 @@ const createStyles = (colors: any) => StyleSheet.create({
   modalHeader: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
     textAlign: 'center',
   },
   modalBody: {
@@ -496,12 +488,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     maxHeight: 400,
   },
   resultSummary: {
-    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   resultRow: {
     flexDirection: 'row',
@@ -511,7 +501,6 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   resultLabel: {
     fontSize: 16,
-    color: colors.text,
     fontWeight: '500',
   },
   resultValue: {
@@ -519,26 +508,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
   },
   detailsSection: {
-    backgroundColor: colors.backgroundAlt,
     borderRadius: 8,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   detailsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 12,
   },
   detailText: {
     fontSize: 12,
-    color: colors.textSecondary,
     marginBottom: 6,
     lineHeight: 18,
   },
   modalButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,

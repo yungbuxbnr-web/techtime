@@ -57,6 +57,9 @@ export const ImportService = {
         multiple: false,
       });
 
+      console.log('[ImportService] Document picker result:', result);
+
+      // Check if user canceled
       if (result.canceled) {
         console.log('[ImportService] File picker canceled');
         return {
@@ -69,15 +72,17 @@ export const ImportService = {
         };
       }
 
+      // Get the file URI
       const uri = result.assets?.[0]?.uri;
       if (!uri) {
+        console.log('[ImportService] No file URI found');
         return {
           success: false,
           message: 'No file selected',
           imported: 0,
           skipped: 0,
           errors: 0,
-          details: [],
+          details: ['No file URI found in picker result'],
         };
       }
 
@@ -97,6 +102,7 @@ export const ImportService = {
       // Validate JSON structure
       const validation = this.validateJSONStructure(jsonData);
       if (!validation.valid) {
+        console.log('[ImportService] Invalid JSON structure:', validation.error);
         return {
           success: false,
           message: validation.error || 'Invalid JSON format',
@@ -143,7 +149,7 @@ export const ImportService = {
         imported: 0,
         skipped: 0,
         errors: 0,
-        details: [error?.message || 'Unknown error'],
+        details: [error?.message || 'Unknown error', error?.stack || ''],
       };
     }
   },
@@ -153,9 +159,13 @@ export const ImportService = {
    */
   async readJSONFile(uri: string): Promise<any> {
     try {
+      console.log('[ImportService] Reading file from URI:', uri);
+
       // iOS: Verify file exists before reading
       if (Platform.OS === 'ios') {
         const fileInfo = await FileSystem.getInfoAsync(uri);
+        console.log('[ImportService] File info:', fileInfo);
+        
         if (!fileInfo.exists) {
           throw new Error('File does not exist or is not accessible');
         }
@@ -166,17 +176,21 @@ export const ImportService = {
         encoding: FileSystem.EncodingType.UTF8,
       });
 
+      console.log('[ImportService] File content length:', content?.length || 0);
+
       if (!content || content.trim().length === 0) {
         throw new Error('File is empty');
       }
 
       // Parse JSON
       const data = JSON.parse(content);
+      console.log('[ImportService] JSON parsed successfully');
+      
       return data;
     } catch (error: any) {
       console.error('[ImportService] Error reading JSON file:', error);
       if (error instanceof SyntaxError) {
-        throw new Error('Invalid JSON format in file');
+        throw new Error('Invalid JSON format in file. Please check the file structure.');
       }
       throw error;
     }
@@ -216,6 +230,7 @@ export const ImportService = {
 
   /**
    * Import jobs one by one
+   * Note: Duplicate WIP numbers are now allowed as per user request
    */
   async importJobs(
     jobs: any[],
@@ -227,10 +242,6 @@ export const ImportService = {
     let errors = 0;
     const details: string[] = [];
 
-    // Get existing jobs to check for duplicates
-    const existingJobs = await StorageService.getJobs();
-    const existingWipNumbers = new Set(existingJobs.map(j => j.wipNumber));
-
     for (let i = 0; i < jobs.length; i++) {
       const jobData = jobs[i];
 
@@ -241,45 +252,43 @@ export const ImportService = {
           currentJob: i + 1,
           totalJobs,
           currentJobData: {
-            wipNumber: jobData.wipNumber,
-            vehicleReg: jobData.vehicleReg,
-            aws: jobData.aws,
+            wipNumber: jobData.wipNumber || 'Unknown',
+            vehicleReg: jobData.vehicleReg || 'Unknown',
+            aws: jobData.aws || 0,
           },
-          message: `Importing job ${i + 1} of ${totalJobs}: ${jobData.wipNumber}`,
+          message: `Importing job ${i + 1} of ${totalJobs}: ${jobData.wipNumber || 'Unknown'}`,
         });
 
-        // Check if job already exists
-        if (existingWipNumbers.has(jobData.wipNumber)) {
-          console.log(`[ImportService] Skipping duplicate job: ${jobData.wipNumber}`);
+        // Validate job data
+        const validation = this.validateJobData(jobData);
+        if (!validation.valid) {
+          console.log(`[ImportService] Invalid job data at index ${i}:`, validation.error);
           skipped++;
-          details.push(`Skipped: ${jobData.wipNumber} (duplicate)`);
+          details.push(`Skipped job ${i + 1}: ${jobData.wipNumber || 'Unknown'} - ${validation.error}`);
           
           // Small delay for visual feedback
           await this.delay(50);
           continue;
         }
 
-        // Create job object
+        // Create job object with unique ID
         const job: Job = {
           id: this.generateId(),
-          wipNumber: jobData.wipNumber,
-          vehicleRegistration: jobData.vehicleReg,
-          awValue: jobData.aws,
-          notes: jobData.description || '',
-          jobDescription: jobData.description || '',
+          wipNumber: String(jobData.wipNumber).trim(),
+          vehicleRegistration: String(jobData.vehicleReg).trim(),
+          awValue: Number(jobData.aws),
+          notes: jobData.description ? String(jobData.description).trim() : '',
+          jobDescription: jobData.description ? String(jobData.description).trim() : '',
           dateCreated: jobData.jobDateTime || new Date().toISOString(),
-          timeInMinutes: jobData.aws * 5,
+          timeInMinutes: Number(jobData.aws) * 5,
           vhcStatus: this.normalizeVHCStatus(jobData.vhcStatus),
         };
 
-        // Save job
+        // Save job (duplicates are now allowed)
         await StorageService.saveJob(job);
         
-        // Add to existing set to prevent duplicates within the same import
-        existingWipNumbers.add(job.wipNumber);
-        
         imported++;
-        details.push(`Imported: ${job.wipNumber} - ${job.vehicleRegistration}`);
+        details.push(`✓ Imported job ${i + 1}: ${job.wipNumber} - ${job.vehicleRegistration} (${job.awValue} AWs)`);
         
         console.log(`[ImportService] Imported job ${i + 1}/${totalJobs}: ${job.wipNumber}`);
 
@@ -288,7 +297,10 @@ export const ImportService = {
       } catch (error: any) {
         console.error(`[ImportService] Error importing job ${i + 1}:`, error);
         errors++;
-        details.push(`Error: ${jobData.wipNumber} - ${error?.message || 'Unknown error'}`);
+        details.push(`✗ Error importing job ${i + 1}: ${jobData.wipNumber || 'Unknown'} - ${error?.message || 'Unknown error'}`);
+        
+        // Continue with next job even if this one fails
+        await this.delay(50);
       }
     }
 
@@ -302,9 +314,14 @@ export const ImportService = {
 
     console.log('[ImportService] Import complete:', { imported, skipped, errors });
 
+    const success = imported > 0;
+    const message = success
+      ? `Successfully imported ${imported} job${imported === 1 ? '' : 's'}${skipped > 0 ? `, skipped ${skipped}` : ''}${errors > 0 ? `, ${errors} error${errors === 1 ? '' : 's'}` : ''}`
+      : `Import failed: ${skipped} skipped, ${errors} error${errors === 1 ? '' : 's'}`;
+
     return {
-      success: imported > 0,
-      message: `Import complete: ${imported} imported, ${skipped} skipped, ${errors} errors`,
+      success,
+      message,
       imported,
       skipped,
       errors,
@@ -318,11 +335,12 @@ export const ImportService = {
   normalizeVHCStatus(status: string | undefined): 'Red' | 'Orange' | 'Green' | 'N/A' {
     if (!status) return 'N/A';
     
-    const normalized = status.toUpperCase();
+    const normalized = String(status).toUpperCase().trim();
     
     if (normalized === 'RED') return 'Red';
     if (normalized === 'ORANGE' || normalized === 'AMBER') return 'Orange';
     if (normalized === 'GREEN') return 'Green';
+    if (normalized === 'NONE' || normalized === 'N/A') return 'N/A';
     
     return 'N/A';
   },
@@ -345,16 +363,54 @@ export const ImportService = {
    * Validate individual job data
    */
   validateJobData(jobData: any): { valid: boolean; error?: string } {
-    if (!jobData.wipNumber || typeof jobData.wipNumber !== 'string') {
-      return { valid: false, error: 'Invalid or missing wipNumber' };
+    // Check wipNumber
+    if (!jobData.wipNumber) {
+      return { valid: false, error: 'Missing wipNumber' };
+    }
+    
+    const wipNumber = String(jobData.wipNumber).trim();
+    if (wipNumber.length === 0) {
+      return { valid: false, error: 'Empty wipNumber' };
     }
 
-    if (!jobData.vehicleReg || typeof jobData.vehicleReg !== 'string') {
-      return { valid: false, error: 'Invalid or missing vehicleReg' };
+    // Check vehicleReg
+    if (!jobData.vehicleReg) {
+      return { valid: false, error: 'Missing vehicleReg' };
+    }
+    
+    const vehicleReg = String(jobData.vehicleReg).trim();
+    if (vehicleReg.length === 0) {
+      return { valid: false, error: 'Empty vehicleReg' };
     }
 
-    if (typeof jobData.aws !== 'number' || jobData.aws < 0) {
-      return { valid: false, error: 'Invalid or missing aws value' };
+    // Check aws
+    if (jobData.aws === undefined || jobData.aws === null) {
+      return { valid: false, error: 'Missing aws value' };
+    }
+    
+    const aws = Number(jobData.aws);
+    if (isNaN(aws)) {
+      return { valid: false, error: 'Invalid aws value (not a number)' };
+    }
+    
+    if (aws < 0) {
+      return { valid: false, error: 'Invalid aws value (negative)' };
+    }
+    
+    if (aws > 100) {
+      return { valid: false, error: 'Invalid aws value (exceeds 100)' };
+    }
+
+    // Validate jobDateTime if provided
+    if (jobData.jobDateTime) {
+      try {
+        const date = new Date(jobData.jobDateTime);
+        if (isNaN(date.getTime())) {
+          return { valid: false, error: 'Invalid jobDateTime format' };
+        }
+      } catch (error) {
+        return { valid: false, error: 'Invalid jobDateTime format' };
+      }
     }
 
     return { valid: true };
