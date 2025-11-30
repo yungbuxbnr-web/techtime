@@ -923,6 +923,17 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* App Permissions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔐 App Permissions</Text>
+          <Text style={styles.sectionDescription}>
+            Manage app permissions for notifications, background execution, and storage access. View permission status and request missing permissions.
+          </Text>
+          <TouchableOpacity style={[styles.button, styles.permissionsButton]} onPress={() => router.push('/permissions')}>
+            <Text style={styles.buttonText}>🔓 Manage Permissions</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Notification Preferences */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔔 Notification Preferences</Text>
@@ -1470,6 +1481,9 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   metricsButton: {
     backgroundColor: '#6f42c1',
+  },
+  permissionsButton: {
+    backgroundColor: '#3b82f6',
   },
   exportButton: {
     backgroundColor: colors.primary,

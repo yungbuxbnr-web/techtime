@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StorageService } from '../utils/storage';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { initializeBackgroundTasks } from '../utils/backgroundTasks';
+import { PermissionsService } from '../utils/permissionsService';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 const STORAGE_KEY = 'emulated_device';
@@ -23,6 +24,15 @@ function RootLayoutContent() {
 
     // Reset authentication on app launch to require PIN entry
     resetAuthentication();
+
+    // Request permissions on first launch
+    if (Platform.OS !== 'web') {
+      PermissionsService.requestPermissionsOnFirstLaunch().then(() => {
+        console.log('[App] Permissions check completed');
+      }).catch(error => {
+        console.log('[App] Error requesting permissions:', error);
+      });
+    }
 
     // Initialize background tasks for time tracking and notifications
     if (Platform.OS !== 'web') {
@@ -90,6 +100,7 @@ function RootLayoutContent() {
       <Stack.Screen name="work-schedule" />
       <Stack.Screen name="work-schedule-calendar" />
       <Stack.Screen name="notification-settings" />
+      <Stack.Screen name="permissions" />
       <Stack.Screen name="time-stats" />
     </Stack>
   );
