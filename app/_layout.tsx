@@ -1,17 +1,18 @@
 
 import { Stack, useGlobalSearchParams } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
+import { Platform, View, Text } from 'react-native';
 import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StorageService } from '../utils/storage';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { initializeBackgroundTasks } from '../utils/backgroundTasks';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const STORAGE_KEY = 'emulated_device';
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const actualInsets = useSafeAreaInsets();
   const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
@@ -51,9 +52,9 @@ export default function RootLayout() {
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-      console.log('Authentication reset - PIN required on app launch');
+      console.log('[App] Authentication reset - PIN required on app launch');
     } catch (error) {
-      console.log('Error resetting authentication:', error);
+      console.log('[App] Error resetting authentication:', error);
     }
   };
 
@@ -71,31 +72,39 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="dashboard" />
-            <Stack.Screen name="jobs" />
-            <Stack.Screen name="add-job" />
-            <Stack.Screen name="statistics" />
-            <Stack.Screen name="settings" />
-            <Stack.Screen name="export" />
-            <Stack.Screen name="stats" />
-            <Stack.Screen name="work-schedule" />
-            <Stack.Screen name="work-schedule-calendar" />
-            <Stack.Screen name="notification-settings" />
-            <Stack.Screen name="time-stats" />
-          </Stack>
-        </GestureHandlerRootView>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="auth" />
+      <Stack.Screen name="dashboard" />
+      <Stack.Screen name="jobs" />
+      <Stack.Screen name="add-job" />
+      <Stack.Screen name="statistics" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="export" />
+      <Stack.Screen name="stats" />
+      <Stack.Screen name="work-schedule" />
+      <Stack.Screen name="work-schedule-calendar" />
+      <Stack.Screen name="notification-settings" />
+      <Stack.Screen name="time-stats" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <RootLayoutContent />
+          </GestureHandlerRootView>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

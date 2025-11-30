@@ -12,7 +12,7 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -48,6 +48,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={styles.message}>
             {this.state.error?.message || 'An unexpected error occurred'}
           </Text>
+          <Text style={styles.errorDetails}>
+            {this.state.error?.stack?.substring(0, 200)}
+          </Text>
           <TouchableOpacity style={styles.button} onPress={this.handleReset}>
             <Text style={styles.buttonText}>Try Again</Text>
           </TouchableOpacity>
@@ -77,9 +80,16 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 16,
     color: lightColors.textSecondary,
-    marginBottom: 32,
+    marginBottom: 16,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  errorDetails: {
+    fontSize: 12,
+    color: lightColors.textSecondary,
+    marginBottom: 32,
+    textAlign: 'center',
+    fontFamily: 'monospace',
   },
   button: {
     backgroundColor: lightColors.primary,
@@ -93,3 +103,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default ErrorBoundary;
