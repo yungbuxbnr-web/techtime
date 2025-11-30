@@ -61,6 +61,17 @@ export default function PDFImportScreen() {
       const file = result.assets[0];
       console.log('[PDF Import] PDF file selected:', file.name, file.uri);
       
+      // Validate file type
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setNotification({
+          message: 'Please select a PDF file',
+          type: 'error',
+          visible: true,
+        });
+        setImporting(false);
+        return;
+      }
+      
       // Start progressive import
       const importResult = await importPdfProgressively(
         file.uri,
@@ -94,9 +105,11 @@ export default function PDFImportScreen() {
       console.error('[PDF Import] Error importing PDF:', error);
       
       // Show user-friendly error message
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Could not read PDF text. Please make sure this is a Tech Records PDF export.';
+      let errorMessage = 'Unable to read PDF text. Please make sure this is a Tech Records PDF export.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       
       setNotification({
         message: errorMessage,
@@ -208,6 +221,18 @@ export default function PDFImportScreen() {
                   ✓ Automatic AWS to time conversion
                 </Text>
               </View>
+            </View>
+
+            <View style={[styles.troubleshootCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.troubleshootTitle, { color: colors.text }]}>Troubleshooting:</Text>
+              <Text style={[styles.troubleshootText, { color: colors.textSecondary }]}>
+                If you get an error, please check:{'\n\n'}
+                • The file is a valid PDF (not corrupted){'\n'}
+                • The PDF contains searchable text (not scanned images){'\n'}
+                • The PDF follows the expected format{'\n'}
+                • The PDF is not password-protected{'\n'}
+                • The file size is reasonable (under 50MB)
+              </Text>
             </View>
           </>
         )}
@@ -445,6 +470,27 @@ const styles = StyleSheet.create({
   featureItem: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  troubleshootCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  troubleshootTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  troubleshootText: {
+    fontSize: 14,
+    lineHeight: 22,
   },
   progressCard: {
     margin: 16,

@@ -2,9 +2,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
 /**
- * Extract text from a PDF file using a simpler approach
- * Note: This is a basic implementation that reads PDF as text
- * For production use, consider using a native PDF library
+ * Extract text from a PDF file
+ * This implementation reads the PDF as base64 and attempts to extract text
+ * from the PDF structure.
  * 
  * @param uri - The URI of the PDF file
  * @returns Promise<string> - The extracted text content
@@ -13,54 +13,152 @@ export async function getPdfText(uri: string): Promise<string> {
   try {
     console.log('[PDF Text Extractor] Starting text extraction from:', uri);
     
-    // Read file as string (this is a simplified approach)
-    // For better PDF parsing, you would need a native module
-    const content = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.UTF8,
+    // Read file as base64 first (PDFs are binary files)
+    const base64Content = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
     });
     
-    console.log('[PDF Text Extractor] File read, length:', content.length);
-    
-    if (!content || content.length < 50) {
+    if (!base64Content || base64Content.length < 100) {
       throw new Error('Empty or invalid PDF file');
     }
     
-    // Basic PDF text extraction
-    // PDFs store text between BT (Begin Text) and ET (End Text) operators
-    // This is a very basic parser and may not work for all PDFs
-    let extractedText = '';
+    console.log('[PDF Text Extractor] File read as base64, length:', base64Content.length);
     
-    // Try to extract text content from PDF structure
-    const textMatches = content.match(/\(([^)]+)\)/g);
-    if (textMatches) {
-      extractedText = textMatches
-        .map(match => match.slice(1, -1))
-        .join(' ')
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '')
-        .replace(/\\/g, '');
+    // Decode base64 to get the raw PDF content
+    let pdfContent: string;
+    try {
+      pdfContent = atob(base64Content);
+    } catch (error) {
+      console.error('[PDF Text Extractor] Failed to decode base64:', error);
+      throw new Error('Failed to decode PDF file. The file may be corrupted.');
     }
     
-    // If no text found with basic extraction, try alternative method
-    if (!extractedText || extractedText.length < 50) {
-      // Look for text between Tj operators
-      const tjMatches = content.match(/\[([^\]]+)\]\s*TJ/g);
-      if (tjMatches) {
-        extractedText = tjMatches
+    console.log('[PDF Text Extractor] PDF decoded, content length:', pdfContent.length);
+    
+    // Check if this is actually a PDF file
+    if (!pdfContent.startsWith('%PDF-')) {
+      throw new Error('This does not appear to be a valid PDF file. Please select a Tech Records PDF export.');
+    }
+    
+    // Extract text from PDF structure
+    // PDFs store text in various ways, we'll try multiple methods
+    let extractedText = '';
+    
+    // Method 1: Extract text between parentheses (most common text encoding in PDFs)
+    // Text in PDFs is often encoded as: (Text content) Tj
+    const textMatches = pdfContent.match(/\(([^)\\]*(\\.[^)\\]*)*)\)\s*Tj/g);
+    if (textMatches && textMatches.length > 0) {
+      console.log('[PDF Text Extractor] Found', textMatches.length, 'text matches using Method 1');
+      extractedText = textMatches
+        .map(match => {
+          // Extract text between parentheses
+          const textMatch = match.match(/\(([^)\\]*(\\.[^)\\]*)*)\)/);
+          if (textMatch && textMatch[1]) {
+            return textMatch[1]
+              .replace(/\\n/g, '\n')
+              .replace(/\\r/g, '')
+              .replace(/\\t/g, '\t')
+              .replace(/\\\(/g, '(')
+              .replace(/\\\)/g, ')')
+              .replace(/\\\\/g, '\\');
+          }
+          return '';
+        })
+        .filter(text => text.length > 0)
+        .join(' ');
+    }
+    
+    // Method 2: Extract text arrays (alternative PDF text encoding)
+    // Text can also be encoded as: [(Text) (More text)] TJ
+    if (!extractedText || extractedText.length < 100) {
+      console.log('[PDF Text Extractor] Trying Method 2 (text arrays)...');
+      const arrayMatches = pdfContent.match(/\[([^\]]*)\]\s*TJ/g);
+      if (arrayMatches && arrayMatches.length > 0) {
+        console.log('[PDF Text Extractor] Found', arrayMatches.length, 'array matches using Method 2');
+        const arrayText = arrayMatches
           .map(match => {
-            const inner = match.match(/\(([^)]+)\)/g);
-            return inner ? inner.map(m => m.slice(1, -1)).join(' ') : '';
+            const innerMatches = match.match(/\(([^)\\]*(\\.[^)\\]*)*)\)/g);
+            if (innerMatches) {
+              return innerMatches
+                .map(m => {
+                  const textMatch = m.match(/\(([^)\\]*(\\.[^)\\]*)*)\)/);
+                  if (textMatch && textMatch[1]) {
+                    return textMatch[1]
+                      .replace(/\\n/g, '\n')
+                      .replace(/\\r/g, '')
+                      .replace(/\\t/g, '\t')
+                      .replace(/\\\(/g, '(')
+                      .replace(/\\\)/g, ')')
+                      .replace(/\\\\/g, '\\');
+                  }
+                  return '';
+                })
+                .join('');
+            }
+            return '';
           })
-          .join(' ')
-          .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '')
-          .replace(/\\/g, '');
+          .filter(text => text.length > 0)
+          .join(' ');
+        
+        if (arrayText.length > extractedText.length) {
+          extractedText = arrayText;
+        }
       }
     }
     
-    if (!extractedText || extractedText.trim().length < 50) {
+    // Method 3: Look for stream objects with text content
+    if (!extractedText || extractedText.length < 100) {
+      console.log('[PDF Text Extractor] Trying Method 3 (stream objects)...');
+      const streamMatches = pdfContent.match(/stream\s+([\s\S]*?)\s+endstream/g);
+      if (streamMatches && streamMatches.length > 0) {
+        console.log('[PDF Text Extractor] Found', streamMatches.length, 'stream objects');
+        const streamText = streamMatches
+          .map(stream => {
+            const content = stream.replace(/^stream\s+/, '').replace(/\s+endstream$/, '');
+            const textMatches = content.match(/\(([^)\\]*(\\.[^)\\]*)*)\)\s*Tj/g);
+            if (textMatches) {
+              return textMatches
+                .map(match => {
+                  const textMatch = match.match(/\(([^)\\]*(\\.[^)\\]*)*)\)/);
+                  if (textMatch && textMatch[1]) {
+                    return textMatch[1]
+                      .replace(/\\n/g, '\n')
+                      .replace(/\\r/g, '')
+                      .replace(/\\t/g, '\t')
+                      .replace(/\\\(/g, '(')
+                      .replace(/\\\)/g, ')')
+                      .replace(/\\\\/g, '\\');
+                  }
+                  return '';
+                })
+                .join(' ');
+            }
+            return '';
+          })
+          .filter(text => text.length > 0)
+          .join(' ');
+        
+        if (streamText.length > extractedText.length) {
+          extractedText = streamText;
+        }
+      }
+    }
+    
+    // Clean up the extracted text
+    extractedText = extractedText
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (!extractedText || extractedText.length < 50) {
       console.error('[PDF Text Extractor] Could not extract sufficient text from PDF');
-      throw new Error('Could not extract text from PDF. The PDF may be image-based or encrypted.');
+      console.log('[PDF Text Extractor] PDF starts with:', pdfContent.substring(0, 200));
+      throw new Error(
+        'Could not extract text from PDF. This may be because:\n\n' +
+        '• The PDF contains scanned images instead of searchable text\n' +
+        '• The PDF is encrypted or password-protected\n' +
+        '• The PDF uses an unsupported text encoding\n\n' +
+        'Please ensure you are using a Tech Records PDF export with searchable text.'
+      );
     }
     
     console.log('[PDF Text Extractor] Text extracted successfully, length:', extractedText.length);
@@ -76,10 +174,25 @@ export async function getPdfText(uri: string): Promise<string> {
     });
     
     // Provide helpful error message
-    if (err.message.includes('Could not extract text')) {
+    if (err.message.includes('Could not extract text from PDF')) {
       throw err;
     }
     
-    throw new Error('Failed to extract text from PDF. Please ensure the PDF contains searchable text (not scanned images).');
+    if (err.message.includes('not appear to be a valid PDF')) {
+      throw err;
+    }
+    
+    if (err.message.includes('Failed to decode PDF')) {
+      throw err;
+    }
+    
+    throw new Error(
+      'Unable to read PDF text. Please make sure this is a Tech Records PDF export.\n\n' +
+      'Common issues:\n' +
+      '• File is not a valid PDF\n' +
+      '• PDF is corrupted or incomplete\n' +
+      '• PDF contains only images (not searchable text)\n' +
+      '• File permissions issue'
+    );
   }
 }

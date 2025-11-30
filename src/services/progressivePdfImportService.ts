@@ -121,31 +121,56 @@ export async function importPdfProgressively(
   onProgress: ProgressCallback
 ): Promise<{ imported: number; skipped: number; errors: number }> {
   try {
-    // Step 1: Extract text from PDF using the new getPdfText helper
+    console.log('[Progressive Import] Starting import from:', pdfUri);
+    
+    // Step 1: Extract text from PDF using the getPdfText helper
     onProgress({
       currentJob: 0,
       totalJobs: 0,
       percentage: 0,
       currentJobData: null,
       status: 'parsing',
-      message: 'Extracting text from PDF...',
+      message: 'Reading PDF file...',
     });
 
     let text: string;
     try {
       text = await getPdfText(pdfUri);
+      console.log('[Progressive Import] PDF text extracted, length:', text.length);
     } catch (error) {
       console.error('[Progressive Import] PDF text extraction failed:', error);
-      throw new Error('Could not read PDF text. Please make sure this is a Tech Records PDF export.');
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Unable to read PDF text. Please make sure this is a Tech Records PDF export.';
+      
+      onProgress({
+        currentJob: 0,
+        totalJobs: 0,
+        percentage: 0,
+        currentJobData: null,
+        status: 'error',
+        message: errorMessage,
+      });
+      
+      throw error;
     }
     
     if (!text || text.length < 50) {
-      throw new Error('Could not read PDF text. Please make sure this is a Tech Records PDF export.');
+      const errorMsg = 'Unable to read PDF text. Please make sure this is a Tech Records PDF export.';
+      onProgress({
+        currentJob: 0,
+        totalJobs: 0,
+        percentage: 0,
+        currentJobData: null,
+        status: 'error',
+        message: errorMsg,
+      });
+      throw new Error(errorMsg);
     }
     
     const normalizedText = text.replace(/\s+/g, ' ').trim();
     
-    console.log('[Progressive Import] Text extracted successfully, length:', normalizedText.length);
+    console.log('[Progressive Import] Text normalized, length:', normalizedText.length);
     
     // Step 2: Parse all job records first to get total count
     onProgress({
@@ -154,15 +179,18 @@ export async function importPdfProgressively(
       percentage: 5,
       currentJobData: null,
       status: 'parsing',
-      message: 'Parsing job records...',
+      message: 'Parsing job records from PDF...',
     });
 
+    // Updated regex pattern to be more flexible with spacing and formatting
     const jobPattern = /(\d{5})\s+([A-Z0-9]{4,8})\s+(Green|Orange|Red|N\/?A?)\s*(.*?)\s*(\d+)\s*h\s+(\d+)\s*m\s*(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})/gi;
     
     const jobs: PdfJobInput[] = [];
     let match;
+    let matchCount = 0;
     
     while ((match = jobPattern.exec(normalizedText)) !== null) {
+      matchCount++;
       try {
         const [
           ,
@@ -175,6 +203,15 @@ export async function importPdfProgressively(
           date,
           time,
         ] = match;
+        
+        console.log(`[Progressive Import] Parsing match ${matchCount}:`, {
+          wipNumber,
+          vehicleReg,
+          vhcStatusRaw,
+          awsString,
+          date,
+          time,
+        });
         
         const aws = parseInt(awsString, 10);
         const description = descriptionRaw.trim().replace(/\s+/g, ' ');
@@ -192,17 +229,39 @@ export async function importPdfProgressively(
         
         jobs.push(jobInput);
       } catch (error) {
-        console.error('[Progressive Import] Error parsing job:', error);
+        console.error(`[Progressive Import] Error parsing job match ${matchCount}:`, error);
       }
     }
     
+    console.log(`[Progressive Import] Parsing complete. Found ${jobs.length} jobs`);
+    
     if (jobs.length === 0) {
-      throw new Error('No jobs found in PDF. Please check the PDF format.');
+      const errorMsg = 'No jobs found in PDF. Please check the PDF format matches the expected Tech Records format.';
+      console.warn('[Progressive Import]', errorMsg);
+      console.log('[Progressive Import] Sample of text (first 1000 chars):', normalizedText.substring(0, 1000));
+      
+      onProgress({
+        currentJob: 0,
+        totalJobs: 0,
+        percentage: 0,
+        currentJobData: null,
+        status: 'error',
+        message: errorMsg,
+      });
+      
+      throw new Error(errorMsg);
     }
 
-    console.log(`[Progressive Import] Found ${jobs.length} jobs to import`);
-
     // Step 3: Import jobs one by one with progress updates
+    onProgress({
+      currentJob: 0,
+      totalJobs: jobs.length,
+      percentage: 10,
+      currentJobData: null,
+      status: 'importing',
+      message: `Found ${jobs.length} jobs. Starting import...`,
+    });
+    
     const existingJobs = await StorageService.getJobs();
     let importedCount = 0;
     let skippedCount = 0;
@@ -270,13 +329,16 @@ export async function importPdfProgressively(
     }
 
     // Step 4: Complete
+    const completeMessage = `Import complete! Added ${importedCount}, skipped ${skippedCount}, errors ${errorCount}`;
+    console.log('[Progressive Import]', completeMessage);
+    
     onProgress({
       currentJob: jobs.length,
       totalJobs: jobs.length,
       percentage: 100,
       currentJobData: null,
       status: 'complete',
-      message: `Import complete! Added ${importedCount}, skipped ${skippedCount}, errors ${errorCount}`,
+      message: completeMessage,
     });
 
     return {
@@ -290,7 +352,7 @@ export async function importPdfProgressively(
     // Provide user-friendly error message
     const errorMessage = error instanceof Error 
       ? error.message 
-      : 'Could not read PDF text. Please make sure this is a Tech Records PDF export.';
+      : 'Unable to read PDF text. Please make sure this is a Tech Records PDF export.';
     
     onProgress({
       currentJob: 0,
