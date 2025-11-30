@@ -1,6 +1,6 @@
 
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Job } from '../types';
 import { StorageService } from './storage';
 import { Platform } from 'react-native';

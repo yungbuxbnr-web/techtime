@@ -41,11 +41,7 @@ export default function ExportReportsScreen() {
     setNotification(prev => ({ ...prev, visible: false }));
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [jobsData, settingsData, name] = await Promise.all([
         StorageService.getJobs(),
@@ -61,7 +57,11 @@ export default function ExportReportsScreen() {
       console.error('Error loading data:', error);
       showNotification('Error loading data', 'error');
     }
-  };
+  }, [showNotification]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleExport = async () => {
     if (!settings) {

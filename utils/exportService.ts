@@ -1,7 +1,7 @@
 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Job, AppSettings } from '../types';
 import { CalculationService } from './calculations';
 import { Platform } from 'react-native';
@@ -120,7 +120,7 @@ export const ExportService = {
       const filename = this.generateFilename(options, 'pdf');
       
       // Copy to a permanent location
-      const permanentUri = FileSystem.documentDirectory + filename;
+      const permanentUri = (FileSystem.documentDirectory || FileSystem.cacheDirectory) + filename;
       await FileSystem.copyAsync({
         from: uri,
         to: permanentUri,
@@ -168,7 +168,7 @@ export const ExportService = {
 
       // Generate filename
       const filename = this.generateFilename(options, 'json');
-      const fileUri = FileSystem.documentDirectory + filename;
+      const fileUri = (FileSystem.documentDirectory || FileSystem.cacheDirectory) + filename;
 
       // Write JSON file
       await FileSystem.writeAsStringAsync(fileUri, jsonString, {
