@@ -4,19 +4,13 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
-import { StorageService, pickBackupDir, writeJson, shareFile, pickJsonFile, readJson } from '../utils/storage';
-import { BackupService, BackupData } from '../utils/backupService';
+import { StorageService } from '../utils/storage';
 import { BiometricService } from '../utils/biometricService';
-import { PDFImportService } from '../utils/pdfImportService';
 import { CalculationService } from '../utils/calculations';
 import { MonthlyResetService } from '../utils/monthlyReset';
 import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
-import GoogleDriveBackup from '../components/GoogleDriveBackup';
-import GoogleDriveImportTally from '../components/GoogleDriveImportTally';
-import SimpleBottomSheet from '../components/BottomSheet';
 import { useTheme } from '../contexts/ThemeContext';
-import { LocalBackupService } from '../services/backup/local';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
@@ -28,14 +22,6 @@ export default function SettingsScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [targetHours, setTargetHours] = useState('180');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
-  const [isBackupInProgress, setIsBackupInProgress] = useState(false);
-  const [isImportInProgress, setIsImportInProgress] = useState(false);
-  const [isShareInProgress, setIsShareInProgress] = useState(false);
-  const [isJsonShareInProgress, setIsJsonShareInProgress] = useState(false);
-  const [isTestingBackup, setIsTestingBackup] = useState(false);
-  const [backupLocation, setBackupLocation] = useState<string>('Loading...');
-  const [showGoogleDriveBackup, setShowGoogleDriveBackup] = useState(false);
-  const [showImportTally, setShowImportTally] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
 
@@ -110,24 +96,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkAuthAndLoadData();
     checkBiometricAvailability();
-    loadBackupLocation();
   }, [checkAuthAndLoadData]);
-
-  const loadBackupLocation = async () => {
-    try {
-      const location = await LocalBackupService.getBackupLocation();
-      if (location.success) {
-        if (location.type === 'saf') {
-          setBackupLocation(`External: ${location.location.substring(0, 50)}...`);
-        } else {
-          setBackupLocation('Sandbox: Documents/backups/');
-        }
-      }
-    } catch (error) {
-      console.log('Error loading backup location:', error);
-      setBackupLocation('Unknown');
-    }
-  };
 
   const checkBiometricAvailability = async () => {
     try {
@@ -360,307 +329,6 @@ export default function SettingsScreen() {
       ]
     );
   }, [showNotification]);
-
-  const handleEnsureBackupFolder = useCallback(async () => {
-    showNotification('Setting up backup folder...', 'info');
-
-    try {
-      const result = await LocalBackupService.setupBackupFolder();
-      
-      if (result.success) {
-        showNotification(result.message, 'success');
-        await loadBackupLocation();
-      } else {
-        showNotification(result.message, 'error');
-      }
-    } catch (error) {
-      console.log('Error setting up backup folder:', error);
-      showNotification('Error setting up backup folder', 'error');
-    }
-  }, [showNotification]);
-
-  const handleClearBackupFolder = useCallback(async () => {
-    if (Platform.OS !== 'android') {
-      showNotification('This feature is Android-only', 'info');
-      return;
-    }
-
-    Alert.alert(
-      'Clear Backup Folder',
-      'This will remove the external backup folder configuration. You can set up a new folder afterwards.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await LocalBackupService.clearBackupFolder();
-              if (result.success) {
-                showNotification(result.message, 'success');
-                await loadBackupLocation();
-              } else {
-                showNotification(result.message, 'error');
-              }
-            } catch (error) {
-              console.log('Error clearing backup folder:', error);
-              showNotification('Error clearing backup folder', 'error');
-            }
-          }
-        }
-      ]
-    );
-  }, [showNotification]);
-
-  const handleTestBackup = useCallback(async () => {
-    if (isTestingBackup) return;
-
-    setIsTestingBackup(true);
-    showNotification('Running backup test...', 'info');
-
-    try {
-      const result = await LocalBackupService.testBackup();
-      
-      if (result.success) {
-        showNotification(result.message, 'success');
-      } else {
-        showNotification(result.message, 'error');
-      }
-    } catch (error) {
-      console.log('Error testing backup:', error);
-      showNotification('Unexpected error during backup test', 'error');
-    } finally {
-      setIsTestingBackup(false);
-    }
-  }, [isTestingBackup, showNotification]);
-
-  const handleCreateBackup = useCallback(async () => {
-    if (isBackupInProgress) return;
-    
-    setIsBackupInProgress(true);
-    showNotification('Creating backup...', 'info');
-
-    try {
-      // Get saved directory URI
-      const dir = await StorageService.getBackupDirectoryUri();
-      
-      // Get all app data
-      const appData = await StorageService.getAllData();
-      
-      // Create filename with timestamp
-      const timestamp = Date.now();
-      const fileName = `techtracer-${timestamp}.json`;
-      
-      // Write JSON file
-      const uri = await writeJson(dir, fileName, appData);
-      
-      // Share the file
-      await shareFile(uri);
-      
-      showNotification(
-        `✅ Backup created successfully!\n\n📄 File: ${fileName}\n📊 Jobs: ${appData.jobs.length}\n⏱️ Total AWs: ${appData.metadata.totalAWs}\n\nThe share sheet has opened. You can save to Drive, Files, or any other app.`,
-        'success'
-      );
-      console.log('Backup created and shared successfully');
-    } catch (error) {
-      console.log('Error creating backup:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      if (errorMessage.includes('No directory permission')) {
-        showNotification(
-          '❌ No backup folder selected.\n\nPlease use "Setup Backup Folder" first to select where to save backups.',
-          'error'
-        );
-      } else {
-        showNotification(`Error creating backup: ${errorMessage}`, 'error');
-      }
-    } finally {
-      setIsBackupInProgress(false);
-    }
-  }, [isBackupInProgress, showNotification]);
-
-  const handleImportBackup = useCallback(async () => {
-    if (isImportInProgress) return;
-
-    Alert.alert(
-      'Import Backup',
-      'This will replace all current data with the backup data. Make sure you have a backup file (backup.json) in the Documents/techtrace/ folder.\n\nContinue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Import',
-          style: 'default',
-          onPress: async () => {
-            setIsImportInProgress(true);
-            showNotification('Importing backup...', 'info');
-
-            try {
-              const importResult = await BackupService.importBackup();
-              
-              if (!importResult.success || !importResult.data) {
-                showNotification(importResult.message, 'error');
-                console.log('Import failed:', importResult.message);
-                setIsImportInProgress(false);
-                return;
-              }
-
-              Alert.alert(
-                'Confirm Import',
-                `${importResult.message}\n\nThis will replace all current data. Continue?`,
-                [
-                  { text: 'Cancel', style: 'cancel', onPress: () => setIsImportInProgress(false) },
-                  {
-                    text: 'Import',
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        const restoreResult = await BackupService.restoreFromBackup(importResult.data as BackupData);
-                        
-                        if (restoreResult.success) {
-                          showNotification(restoreResult.message, 'success');
-                          console.log('Data restored successfully');
-                          
-                          setTimeout(() => {
-                            router.replace('/auth');
-                          }, 2000);
-                        } else {
-                          showNotification(restoreResult.message, 'error');
-                          console.log('Restore failed:', restoreResult.message);
-                        }
-                      } catch (error) {
-                        console.log('Error restoring backup:', error);
-                        showNotification('Unexpected error restoring backup', 'error');
-                      } finally {
-                        setIsImportInProgress(false);
-                      }
-                    }
-                  }
-                ]
-              );
-            } catch (error) {
-              console.log('Error importing backup:', error);
-              showNotification('Unexpected error importing backup', 'error');
-              setIsImportInProgress(false);
-            }
-          }
-        }
-      ]
-    );
-  }, [isImportInProgress, showNotification]);
-
-  const handleImportFromFile = useCallback(async () => {
-    if (isImportInProgress) return;
-
-    setIsImportInProgress(true);
-    showNotification('Opening file picker...', 'info');
-
-    try {
-      // Pick JSON file
-      const uri = await pickJsonFile();
-      
-      if (!uri) {
-        showNotification('No file selected', 'info');
-        setIsImportInProgress(false);
-        return;
-      }
-
-      // Read JSON data
-      const data = await readJson(uri);
-      
-      // Validate data structure
-      if (!data.jobs || !Array.isArray(data.jobs)) {
-        showNotification('Invalid backup file format. Missing jobs data.', 'error');
-        setIsImportInProgress(false);
-        return;
-      }
-
-      Alert.alert(
-        'Confirm Import',
-        `Found backup with ${data.jobs.length} jobs.\n\nThis will replace all current data. Continue?`,
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setIsImportInProgress(false) },
-          {
-            text: 'Import',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                // Import the data
-                await StorageService.importJobs(data);
-                
-                showNotification(
-                  `✅ Data imported successfully!\n\n📊 Jobs imported: ${data.jobs.length}\n\n🔐 Please sign in again to access the app.`,
-                  'success'
-                );
-                console.log('Data imported successfully');
-                
-                setTimeout(() => {
-                  router.replace('/auth');
-                }, 2000);
-              } catch (error) {
-                console.log('Error importing data:', error);
-                showNotification('Error importing data', 'error');
-              } finally {
-                setIsImportInProgress(false);
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.log('Error importing file:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      showNotification(`Error importing file: ${errorMessage}`, 'error');
-      setIsImportInProgress(false);
-    }
-  }, [isImportInProgress, showNotification]);
-
-  const handleShareBackup = useCallback(async () => {
-    if (isShareInProgress) return;
-    
-    setIsShareInProgress(true);
-    showNotification('Preparing backup for sharing...', 'info');
-
-    try {
-      const result = await BackupService.shareBackup();
-      
-      if (result.success) {
-        showNotification(result.message, 'success');
-        console.log('Backup shared successfully');
-      } else {
-        showNotification(result.message, 'error');
-        console.log('Share failed:', result.message);
-      }
-    } catch (error) {
-      console.log('Error sharing backup:', error);
-      showNotification('Unexpected error sharing backup', 'error');
-    } finally {
-      setIsShareInProgress(false);
-    }
-  }, [isShareInProgress, showNotification]);
-
-  const handleCreateJsonBackup = useCallback(async () => {
-    if (isJsonShareInProgress) return;
-    
-    setIsJsonShareInProgress(true);
-    showNotification('Creating JSON backup for sharing...', 'info');
-
-    try {
-      const result = await LocalBackupService.createAndShareJsonBackup();
-      
-      if (result.success) {
-        showNotification(result.message, 'success');
-        console.log('JSON backup created and shared successfully');
-      } else {
-        showNotification(result.message, 'error');
-        console.log('JSON backup failed:', result.message);
-      }
-    } catch (error) {
-      console.log('Error creating JSON backup:', error);
-      showNotification('Unexpected error creating JSON backup', 'error');
-    } finally {
-      setIsJsonShareInProgress(false);
-    }
-  }, [isJsonShareInProgress, showNotification]);
 
   const handleToggleBiometric = useCallback(async () => {
     try {
@@ -1186,169 +854,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Backup & Import Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💾 Backup & Import</Text>
-          <Text style={styles.sectionDescription}>
-            Create backups for device migration and restore data from previous backups.
-          </Text>
-
-          {/* Current Backup Location */}
-          <View style={styles.backupLocationBox}>
-            <Text style={styles.backupLocationLabel}>📍 Current Backup Location:</Text>
-            <Text style={styles.backupLocationText}>{backupLocation}</Text>
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.button, styles.googleDriveButton]}
-            onPress={() => setShowGoogleDriveBackup(true)}
-          >
-            <Text style={styles.buttonText}>☁️ Google Drive Backup</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.tallyButton]}
-            onPress={() => setShowImportTally(true)}
-          >
-            <Text style={styles.buttonText}>📊 Import & Tally from Google Drive</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.button, styles.setupButton]}
-            onPress={handleEnsureBackupFolder}
-          >
-            <Text style={styles.buttonText}>📁 Setup Backup Folder</Text>
-          </TouchableOpacity>
-
-          {Platform.OS === 'android' && (
-            <TouchableOpacity
-              style={[styles.button, styles.clearButton]}
-              onPress={handleClearBackupFolder}
-            >
-              <Text style={styles.buttonText}>🗑️ Clear Backup Folder</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={[styles.button, styles.testButton, isTestingBackup && styles.buttonDisabled]}
-            onPress={handleTestBackup}
-            disabled={isTestingBackup}
-          >
-            <Text style={styles.buttonText}>
-              {isTestingBackup ? '⏳ Testing...' : '🧪 Test Backup'}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.button, styles.backupButton, isBackupInProgress && styles.buttonDisabled]}
-            onPress={handleCreateBackup}
-            disabled={isBackupInProgress}
-          >
-            <Text style={styles.buttonText}>
-              {isBackupInProgress ? '⏳ Creating Backup...' : '📤 Create Local Backup'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.importButton, isImportInProgress && styles.buttonDisabled]}
-            onPress={handleImportBackup}
-            disabled={isImportInProgress}
-          >
-            <Text style={styles.buttonText}>
-              {isImportInProgress ? '⏳ Importing...' : '📥 Import Local Backup'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.filePickerButton, isImportInProgress && styles.buttonDisabled]}
-            onPress={handleImportFromFile}
-            disabled={isImportInProgress}
-          >
-            <Text style={styles.buttonText}>
-              {isImportInProgress ? '⏳ Importing...' : '📂 Import from File (JSON)'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.pdfImportButton]}
-            onPress={() => router.push('/pdf-import')}
-          >
-            <Text style={styles.buttonText}>📄 Import Tech Records PDF</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.jsonImportButton]}
-            onPress={() => router.push('/json-import')}
-          >
-            <Text style={styles.buttonText}>📋 Import from JSON backup (legacy app)</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.shareButton, isShareInProgress && styles.buttonDisabled]}
-            onPress={handleShareBackup}
-            disabled={isShareInProgress}
-          >
-            <Text style={styles.buttonText}>
-              {isShareInProgress ? '⏳ Preparing...' : '📤 Share Backup (App-to-App)'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.jsonBackupButton, isJsonShareInProgress && styles.buttonDisabled]}
-            onPress={handleCreateJsonBackup}
-            disabled={isJsonShareInProgress}
-          >
-            <Text style={styles.buttonText}>
-              {isJsonShareInProgress ? '⏳ Creating...' : '📋 Create JSON Backup for Sharing'}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.backupInfo}>
-            <Text style={styles.infoTitle}>📁 Backup & Import Information</Text>
-            <Text style={styles.infoText}>
-              - Local backups: Sandbox (Documents/backups/)
-            </Text>
-            {Platform.OS === 'android' && (
-              <Text style={styles.infoText}>
-                - Android SAF: Optional external folder export
-              </Text>
-            )}
-            <Text style={styles.infoText}>
-              - Google Drive: Cloud backup & restore with OAuth
-            </Text>
-            <Text style={styles.infoText}>
-              - Import & Tally: Analyze backup data with detailed statistics
-            </Text>
-            <Text style={styles.infoText}>
-              - Import from File: Pick JSON/PDF backup files from anywhere
-            </Text>
-            <Text style={styles.infoText}>
-              - Import Tech Records PDF: Import jobs from PDF exports
-            </Text>
-            <Text style={styles.infoText}>
-              - Import from JSON backup: Import jobs from legacy app JSON exports
-            </Text>
-            <Text style={styles.infoText}>
-              - Share Backup: Transfer to another device via any sharing method
-            </Text>
-            <Text style={styles.infoText}>
-              - Create JSON Backup: Quick JSON export for sharing to any app
-            </Text>
-            <Text style={styles.infoText}>
-              - Test Backup: Verify backup system is working correctly
-            </Text>
-            <Text style={styles.infoText}>
-              - Schema Validation: All backups are validated before import
-            </Text>
-            <Text style={styles.infoText}>
-              - Conflict Resolution: Newer data wins during merge
-            </Text>
-            <Text style={styles.infoText}>
-              - UTF-8 Encoding: All backups use UTF-8 for compatibility
-            </Text>
-          </View>
-        </View>
-
         {/* Work Schedule & Time Tracking */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⏰ Work Schedule & Time Tracking</Text>
@@ -1504,22 +1009,6 @@ export default function SettingsScreen() {
           <Text style={[styles.navButtonText, styles.activeNavButtonText]}>⚙️ Settings</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Google Drive Backup Bottom Sheet */}
-      <SimpleBottomSheet
-        isVisible={showGoogleDriveBackup}
-        onClose={() => setShowGoogleDriveBackup(false)}
-      >
-        <GoogleDriveBackup onClose={() => setShowGoogleDriveBackup(false)} />
-      </SimpleBottomSheet>
-
-      {/* Import & Tally Bottom Sheet */}
-      <SimpleBottomSheet
-        isVisible={showImportTally}
-        onClose={() => setShowImportTally(false)}
-      >
-        <GoogleDriveImportTally onClose={() => setShowImportTally(false)} />
-      </SimpleBottomSheet>
     </SafeAreaView>
   );
 }
@@ -1829,66 +1318,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
   primaryButton: {
     backgroundColor: colors.primary,
-  },
-  googleDriveButton: {
-    backgroundColor: '#4285f4',
-  },
-  tallyButton: {
-    backgroundColor: '#9c27b0',
-  },
-  setupButton: {
-    backgroundColor: '#ff9800',
-  },
-  clearButton: {
-    backgroundColor: '#f44336',
-  },
-  testButton: {
-    backgroundColor: '#9c27b0',
-  },
-  backupButton: {
-    backgroundColor: '#34a853',
-  },
-  backupLocationBox: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  backupLocationLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  backupLocationText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  importButton: {
-    backgroundColor: '#6c757d',
-  },
-  filePickerButton: {
-    backgroundColor: '#17a2b8',
-  },
-  pdfImportButton: {
-    backgroundColor: '#e91e63',
-  },
-  jsonImportButton: {
-    backgroundColor: '#00bcd4',
-  },
-  shareButton: {
-    backgroundColor: '#28a745',
-  },
-  jsonBackupButton: {
-    backgroundColor: '#20c997',
   },
   metricsButton: {
     backgroundColor: '#6f42c1',
@@ -1939,14 +1370,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  backupInfo: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   infoTitle: {
     fontSize: 14,
