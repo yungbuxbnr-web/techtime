@@ -34,7 +34,7 @@ function normaliseVhc(vhcStatusRaw: string): 'GREEN' | 'ORANGE' | 'RED' | 'NONE'
     return 'ORANGE';
   } else if (normalised === 'RED') {
     return 'RED';
-  } else if (normalised === 'N' || normalised === 'NA') {
+  } else if (normalised === 'N' || normalised === 'NA' || normalised === 'NONE') {
     return 'NONE';
   } else {
     return 'NONE';
@@ -119,58 +119,46 @@ export async function parseTechRecordsJson(jsonUri: string): Promise<JsonJobInpu
     console.log('[JSON Import] Text length:', text.length);
     
     // Parse JSON
-    let jsonData: any;
+    let data: any;
     try {
-      jsonData = JSON.parse(text);
+      data = JSON.parse(text);
     } catch (parseError) {
       console.error('[JSON Import] JSON parse error:', parseError);
       throw new Error('Invalid JSON format. Please ensure the file contains valid JSON data.');
     }
     
     console.log('[JSON Import] JSON parsed successfully');
+    console.log('[JSON Import] JSON structure keys:', Object.keys(data));
     
-    // Extract jobs array from various possible structures
-    let jobsArray: any[] = [];
-    
-    if (Array.isArray(jsonData)) {
-      // Direct array of jobs
-      jobsArray = jsonData;
-    } else if (jsonData.jobs && Array.isArray(jsonData.jobs)) {
-      // Object with jobs property
-      jobsArray = jsonData.jobs;
-    } else if (jsonData.data && Array.isArray(jsonData.data)) {
-      // Object with data property
-      jobsArray = jsonData.data;
-    } else if (jsonData.records && Array.isArray(jsonData.records)) {
-      // Object with records property
-      jobsArray = jsonData.records;
-    } else {
-      console.warn('[JSON Import] Could not find jobs array in JSON structure');
-      console.log('[JSON Import] JSON keys:', Object.keys(jsonData));
-      throw new Error('Could not find jobs array in JSON. Expected format: { "jobs": [...] } or direct array.');
+    // EXACT VALIDATION: Must have data.jobs array
+    if (!data || !Array.isArray(data.jobs)) {
+      console.error('[JSON Import] Invalid structure - expected { jobs: [...] }');
+      console.error('[JSON Import] Received keys:', Object.keys(data || {}));
+      throw new Error('Invalid Tech Records JSON format. Expected structure: { "jobs": [...] }');
     }
     
-    console.log('[JSON Import] Found jobs array with', jobsArray.length, 'items');
+    const jobs = data.jobs;
+    console.log('[JSON Import] Found jobs array with', jobs.length, 'items');
     
-    if (jobsArray.length === 0) {
+    if (jobs.length === 0) {
       throw new Error('No jobs found in JSON file.');
     }
     
     // Parse each job
-    const jobs: JsonJobInput[] = [];
+    const parsedJobs: JsonJobInput[] = [];
     let parseErrors = 0;
     
-    for (let i = 0; i < jobsArray.length; i++) {
+    for (let i = 0; i < jobs.length; i++) {
       try {
-        const jobData = jobsArray[i];
+        const jobData = jobs[i];
         
-        // Extract fields with various possible property names
-        const wipNumber = jobData.wipNumber || jobData.wip || jobData.WIP || jobData.wipNo || jobData.jobNumber || '';
-        const vehicleReg = jobData.vehicleReg || jobData.vehicleRegistration || jobData.reg || jobData.registration || jobData.vehicle || '';
-        const vhcStatusRaw = jobData.vhcStatus || jobData.vhc || jobData.VHC || jobData.status || 'N/A';
-        const description = jobData.description || jobData.jobDescription || jobData.desc || jobData.notes || '';
-        const aws = parseInt(jobData.aws || jobData.awValue || jobData.AWs || jobData.aw || '0', 10);
-        const jobDateTime = jobData.jobDateTime || jobData.startedAt || jobData.dateCreated || jobData.date || jobData.timestamp || new Date().toISOString();
+        // Extract fields - use exact property names from your structure
+        const wipNumber = jobData.wipNumber || '';
+        const vehicleReg = jobData.vehicleReg || '';
+        const vhcStatusRaw = jobData.vhcStatus || 'NONE';
+        const description = jobData.description || '';
+        const aws = parseInt(String(jobData.aws || '0'), 10);
+        const jobDateTime = jobData.jobDateTime || new Date().toISOString();
         
         // Validate required fields
         if (!wipNumber || !vehicleReg) {
@@ -200,35 +188,35 @@ export async function parseTechRecordsJson(jsonUri: string): Promise<JsonJobInpu
           jobDateTime: normalizedDateTime,
         };
         
-        jobs.push(jobInput);
+        parsedJobs.push(jobInput);
         
-        console.log(`[JSON Import] Parsed job ${i + 1}/${jobsArray.length}: WIP ${jobInput.wipNumber}, Reg ${jobInput.vehicleReg}, AWS ${jobInput.aws}`);
+        console.log(`[JSON Import] Parsed job ${i + 1}/${jobs.length}: WIP ${jobInput.wipNumber}, Reg ${jobInput.vehicleReg}, AWS ${jobInput.aws}`);
       } catch (error) {
         console.error(`[JSON Import] Error parsing job ${i + 1}:`, error);
         parseErrors++;
       }
     }
     
-    console.log(`[JSON Import] Total jobs parsed: ${jobs.length}, errors: ${parseErrors}`);
+    console.log(`[JSON Import] Total jobs parsed: ${parsedJobs.length}, errors: ${parseErrors}`);
     
-    if (jobs.length === 0) {
+    if (parsedJobs.length === 0) {
       throw new Error('No valid jobs found in JSON file. Please check the file format.');
     }
     
-    if (jobs.length > 0) {
-      console.log('[JSON Import] First job example:', jobs[0]);
+    if (parsedJobs.length > 0) {
+      console.log('[JSON Import] First job example:', parsedJobs[0]);
     }
     
-    return jobs;
+    return parsedJobs;
   } catch (error) {
     console.error('[JSON Import] Error parsing JSON:', error);
     
     // Provide user-friendly error message
-    if (error instanceof Error && error.message.includes('Could not read JSON text')) {
-      throw new Error('Could not read JSON text. Please make sure this is a Tech Records JSON export.');
+    if (error instanceof Error) {
+      throw error;
     }
     
-    throw error;
+    throw new Error('Unable to read JSON file. Please make sure this is a Tech Records JSON export.');
   }
 }
 
