@@ -22,6 +22,8 @@ export interface ImportProgress {
 
 export type ProgressCallback = (progress: ImportProgress) => void;
 
+const MAX_JOBS_LIMIT = 1000;
+
 /**
  * Normalize VHC status from raw string to enum
  */
@@ -144,13 +146,19 @@ export async function parseTechRecordsJson(jsonUri: string): Promise<JsonJobInpu
       throw new Error('No jobs found in JSON file.');
     }
     
+    // Limit to MAX_JOBS_LIMIT
+    const jobsToProcess = jobs.slice(0, MAX_JOBS_LIMIT);
+    if (jobs.length > MAX_JOBS_LIMIT) {
+      console.warn(`[JSON Import] File contains ${jobs.length} jobs. Limiting to ${MAX_JOBS_LIMIT} jobs.`);
+    }
+    
     // Parse each job
     const parsedJobs: JsonJobInput[] = [];
     let parseErrors = 0;
     
-    for (let i = 0; i < jobs.length; i++) {
+    for (let i = 0; i < jobsToProcess.length; i++) {
       try {
-        const jobData = jobs[i];
+        const jobData = jobsToProcess[i];
         
         // Extract fields - use exact property names from your structure
         const wipNumber = jobData.wipNumber || '';
@@ -190,7 +198,7 @@ export async function parseTechRecordsJson(jsonUri: string): Promise<JsonJobInpu
         
         parsedJobs.push(jobInput);
         
-        console.log(`[JSON Import] Parsed job ${i + 1}/${jobs.length}: WIP ${jobInput.wipNumber}, Reg ${jobInput.vehicleReg}, AWS ${jobInput.aws}`);
+        console.log(`[JSON Import] Parsed job ${i + 1}/${jobsToProcess.length}: WIP ${jobInput.wipNumber}, Reg ${jobInput.vehicleReg}, AWS ${jobInput.aws}`);
       } catch (error) {
         console.error(`[JSON Import] Error parsing job ${i + 1}:`, error);
         parseErrors++;
@@ -268,6 +276,7 @@ function convertJobInputToJob(jobInput: JsonJobInput) {
 
 /**
  * Import JSON progressively with job-by-job progress updates
+ * Supports up to 1000 jobs and takes as long as needed
  * 
  * @param jsonUri - URI of the JSON file
  * @param onProgress - Callback function to report progress
@@ -325,28 +334,46 @@ export async function importJsonProgressively(
       throw new Error(errorMsg);
     }
     
-    console.log('[JSON Import] Parsing complete. Found', jobs.length, 'jobs');
+    const totalJobsToImport = jobs.length;
+    console.log('[JSON Import] Parsing complete. Found', totalJobsToImport, 'jobs to import');
     
     // Step 2: Import jobs one by one with progress updates
     onProgress({
       currentJob: 0,
-      totalJobs: jobs.length,
-      percentage: 10,
+      totalJobs: totalJobsToImport,
+      percentage: 5,
       currentJobData: null,
       status: 'importing',
-      message: `Found ${jobs.length} jobs. Starting import...`,
+      message: `Found ${totalJobsToImport} jobs. Starting import...`,
     });
+    
+    // Small delay to show the initial message
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const existingJobs = await StorageService.getJobs();
     let importedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
 
-    for (let i = 0; i < jobs.length; i++) {
+    // Import each job with detailed progress
+    for (let i = 0; i < totalJobsToImport; i++) {
       const jobInput = jobs[i];
-      const percentage = 10 + Math.floor((i / jobs.length) * 90);
+      const percentage = 5 + Math.floor((i / totalJobsToImport) * 90);
 
       try {
+        // Show current job being processed
+        onProgress({
+          currentJob: i + 1,
+          totalJobs: totalJobsToImport,
+          percentage,
+          currentJobData: jobInput,
+          status: 'importing',
+          message: `Processing: ${jobInput.wipNumber} - ${jobInput.vehicleReg}`,
+        });
+
+        // Small delay to show each job being processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Check for duplicates
         if (isDuplicateJob(jobInput, existingJobs)) {
           console.log(`[JSON Import] Skipping duplicate: WIP ${jobInput.wipNumber}`);
@@ -354,15 +381,15 @@ export async function importJsonProgressively(
           
           onProgress({
             currentJob: i + 1,
-            totalJobs: jobs.length,
+            totalJobs: totalJobsToImport,
             percentage,
             currentJobData: jobInput,
             status: 'importing',
             message: `Skipped duplicate: ${jobInput.wipNumber} - ${jobInput.vehicleReg}`,
           });
           
-          // Small delay to show the progress
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Delay to show the skip message
+          await new Promise(resolve => setTimeout(resolve, 150));
           continue;
         }
 
@@ -372,34 +399,35 @@ export async function importJsonProgressively(
         existingJobs.push(job);
         importedCount++;
 
-        console.log(`[JSON Import] Imported job ${i + 1}/${jobs.length}: WIP ${jobInput.wipNumber}`);
+        console.log(`[JSON Import] Imported job ${i + 1}/${totalJobsToImport}: WIP ${jobInput.wipNumber}`);
 
-        // Update progress with current job data
+        // Update progress with success message
         onProgress({
           currentJob: i + 1,
-          totalJobs: jobs.length,
+          totalJobs: totalJobsToImport,
           percentage,
           currentJobData: jobInput,
           status: 'importing',
-          message: `Added: ${jobInput.wipNumber} - ${jobInput.vehicleReg} (${jobInput.aws} AWs)`,
+          message: `✓ Added: ${jobInput.wipNumber} - ${jobInput.vehicleReg} (${jobInput.aws} AWs)`,
         });
 
-        // Small delay to show the progress and prevent UI blocking
-        await new Promise(resolve => setTimeout(resolve, 150));
+        // Delay to show the success message and prevent UI blocking
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
         console.error(`[JSON Import] Error importing job ${i + 1}:`, error);
         errorCount++;
         
         onProgress({
           currentJob: i + 1,
-          totalJobs: jobs.length,
+          totalJobs: totalJobsToImport,
           percentage,
           currentJobData: jobInput,
           status: 'importing',
-          message: `Error: ${jobInput.wipNumber} - ${error instanceof Error ? error.message : 'Unknown error'}`,
+          message: `✗ Error: ${jobInput.wipNumber} - ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
         
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Delay to show the error message
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
 
@@ -408,8 +436,8 @@ export async function importJsonProgressively(
     console.log('[JSON Import]', completeMessage);
     
     onProgress({
-      currentJob: jobs.length,
-      totalJobs: jobs.length,
+      currentJob: totalJobsToImport,
+      totalJobs: totalJobsToImport,
       percentage: 100,
       currentJobData: null,
       status: 'complete',

@@ -28,12 +28,12 @@ export default function JSONImportScreen() {
     type: 'info',
     visible: false,
   });
-  const [recentJobs, setRecentJobs] = useState<JsonJobInput[]>([]);
+  const [currentJobDisplay, setCurrentJobDisplay] = useState<JsonJobInput | null>(null);
 
   const handlePickAndImportJSON = useCallback(async () => {
     try {
       setImporting(true);
-      setRecentJobs([]);
+      setCurrentJobDisplay(null);
       setProgress(null);
       
       console.log('[JSON Import] Opening document picker...');
@@ -78,12 +78,9 @@ export default function JSONImportScreen() {
         (progressUpdate: ImportProgress) => {
           setProgress(progressUpdate);
           
-          // Keep track of last 5 jobs for display
+          // Update current job display
           if (progressUpdate.currentJobData && progressUpdate.status === 'importing') {
-            setRecentJobs(prev => {
-              const updated = [progressUpdate.currentJobData!, ...prev];
-              return updated.slice(0, 5);
-            });
+            setCurrentJobDisplay(progressUpdate.currentJobData);
           }
         }
       );
@@ -99,7 +96,7 @@ export default function JSONImportScreen() {
       // Navigate to jobs screen after a short delay
       setTimeout(() => {
         router.replace('/jobs');
-      }, 2500);
+      }, 3000);
       
     } catch (error) {
       console.error('[JSON Import] Error importing JSON:', error);
@@ -119,7 +116,7 @@ export default function JSONImportScreen() {
       
       // Reset progress on error
       setProgress(null);
-      setRecentJobs([]);
+      setCurrentJobDisplay(null);
     } finally {
       setImporting(false);
     }
@@ -165,28 +162,27 @@ export default function JSONImportScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {!importing && !progress && (
-          <>
+          <React.Fragment>
             <View style={[styles.card, { backgroundColor: colors.card }]}>
               <Text style={[styles.cardIcon, { color: colors.primary }]}>📋</Text>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Import JSON</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Import JSON Backup</Text>
               
               <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
-                Upload a technician JSON file to automatically create job records with the exact original date & time, WIP, reg, VHC, description and AWs.
+                Upload a Tech Records JSON file to automatically import job records with original date & time, WIP, reg, VHC, description and AWs.
               </Text>
 
               <View style={[styles.infoBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={[styles.infoTitle, { color: colors.text }]}>Expected JSON Format:</Text>
                 <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                  The JSON should contain an array of job objects:{'\n\n'}
                   {`{`}{'\n'}
                   {'  '}&quot;jobs&quot;: [{'\n'}
                   {'    '}{`{`}{'\n'}
-                  {'      '}&quot;wipNumber&quot;: &quot;12345&quot;,{'\n'}
-                  {'      '}&quot;vehicleReg&quot;: &quot;AB12CDE&quot;,{'\n'}
-                  {'      '}&quot;vhcStatus&quot;: &quot;Green&quot;,{'\n'}
-                  {'      '}&quot;description&quot;: &quot;Job desc&quot;,{'\n'}
-                  {'      '}&quot;aws&quot;: 10,{'\n'}
-                  {'      '}&quot;jobDateTime&quot;: &quot;2024-01-01T10:00:00Z&quot;{'\n'}
+                  {'      '}&quot;wipNumber&quot;: &quot;26933&quot;,{'\n'}
+                  {'      '}&quot;vehicleReg&quot;: &quot;WA70XYH&quot;,{'\n'}
+                  {'      '}&quot;vhcStatus&quot;: &quot;NONE&quot;,{'\n'}
+                  {'      '}&quot;description&quot;: &quot;All discs and pads&quot;,{'\n'}
+                  {'      '}&quot;aws&quot;: 24,{'\n'}
+                  {'      '}&quot;jobDateTime&quot;: &quot;2025-11-28T16:18:00.000Z&quot;{'\n'}
                   {'    '}{`}`}{'\n'}
                   {'  '}]{'\n'}
                   {`}`}
@@ -208,10 +204,13 @@ export default function JSONImportScreen() {
               <Text style={[styles.featuresTitle, { color: colors.text }]}>Features:</Text>
               <View style={styles.featuresList}>
                 <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-                  ✓ Real-time progress tracking
+                  ✓ Job-by-job import with live progress
                 </Text>
                 <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-                  ✓ Job-by-job import with live display
+                  ✓ Supports up to 1,000 jobs per import
+                </Text>
+                <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
+                  ✓ Real-time progress bar and status
                 </Text>
                 <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
                   ✓ Automatic duplicate detection
@@ -220,13 +219,13 @@ export default function JSONImportScreen() {
                   ✓ Preserves original date & time
                 </Text>
                 <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-                  ✓ VHC status mapping
+                  ✓ VHC status mapping (GREEN/ORANGE/RED/NONE)
                 </Text>
                 <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-                  ✓ Automatic AWS to time conversion
+                  ✓ Automatic AWS to time conversion (1 AW = 5 min)
                 </Text>
                 <Text style={[styles.featureItem, { color: colors.textSecondary }]}>
-                  ✓ Flexible JSON structure support
+                  ✓ Takes as long as needed to complete
                 </Text>
               </View>
             </View>
@@ -236,13 +235,13 @@ export default function JSONImportScreen() {
               <Text style={[styles.troubleshootText, { color: colors.textSecondary }]}>
                 If you get an error, please check:{'\n\n'}
                 • The file is a valid JSON file (not corrupted){'\n'}
-                • The JSON contains a &quot;jobs&quot; array or is a direct array{'\n'}
+                • The JSON contains a &quot;jobs&quot; array{'\n'}
                 • Each job has required fields (wipNumber, vehicleReg){'\n'}
                 • The file size is reasonable (under 50MB){'\n'}
                 • The JSON syntax is correct (no trailing commas, proper quotes)
               </Text>
             </View>
-          </>
+          </React.Fragment>
         )}
 
         {importing && progress && (
@@ -273,7 +272,7 @@ export default function JSONImportScreen() {
 
             {progress.totalJobs > 0 && (
               <Text style={[styles.progressCount, { color: colors.textSecondary }]}>
-                {progress.currentJob} / {progress.totalJobs} jobs processed
+                Job {progress.currentJob} of {progress.totalJobs}
               </Text>
             )}
 
@@ -281,58 +280,62 @@ export default function JSONImportScreen() {
               {progress.message}
             </Text>
 
-            {/* Recent Jobs Display */}
-            {recentJobs.length > 0 && (
-              <View style={styles.recentJobsContainer}>
-                <Text style={[styles.recentJobsTitle, { color: colors.text }]}>
-                  Recently Added:
+            {/* Current Job Display */}
+            {currentJobDisplay && progress.status === 'importing' && (
+              <View style={[styles.currentJobCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                <Text style={[styles.currentJobTitle, { color: colors.text }]}>
+                  Current Job:
                 </Text>
-                {recentJobs.map((job, index) => (
+                <View style={styles.jobDetailsRow}>
+                  <Text style={[styles.jobDetailLabel, { color: colors.textSecondary }]}>WIP:</Text>
+                  <Text style={[styles.jobDetailValue, { color: colors.text }]}>
+                    {currentJobDisplay.wipNumber}
+                  </Text>
+                </View>
+                <View style={styles.jobDetailsRow}>
+                  <Text style={[styles.jobDetailLabel, { color: colors.textSecondary }]}>Reg:</Text>
+                  <Text style={[styles.jobDetailValue, { color: colors.text }]}>
+                    {currentJobDisplay.vehicleReg}
+                  </Text>
+                </View>
+                <View style={styles.jobDetailsRow}>
+                  <Text style={[styles.jobDetailLabel, { color: colors.textSecondary }]}>VHC:</Text>
                   <View
-                    key={`${job.wipNumber}-${index}`}
                     style={[
-                      styles.jobItem,
-                      { backgroundColor: colors.background, borderColor: colors.border },
+                      styles.vhcBadge,
+                      { backgroundColor: getVhcColor(currentJobDisplay.vhcStatus) },
                     ]}
                   >
-                    <View style={styles.jobItemHeader}>
-                      <Text style={[styles.jobItemWip, { color: colors.text }]}>
-                        WIP: {job.wipNumber}
-                      </Text>
-                      <View
-                        style={[
-                          styles.vhcBadge,
-                          { backgroundColor: getVhcColor(job.vhcStatus) },
-                        ]}
-                      >
-                        <Text style={styles.vhcBadgeText}>{job.vhcStatus}</Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.jobItemReg, { color: colors.textSecondary }]}>
-                      {job.vehicleReg}
-                    </Text>
-                    <Text
-                      style={[styles.jobItemDesc, { color: colors.textSecondary }]}
-                      numberOfLines={1}
-                    >
-                      {job.description}
-                    </Text>
-                    <View style={styles.jobItemFooter}>
-                      <Text style={[styles.jobItemAws, { color: colors.primary }]}>
-                        {job.aws} AWs
-                      </Text>
-                      <Text style={[styles.jobItemTime, { color: colors.textSecondary }]}>
-                        {new Date(job.jobDateTime).toLocaleString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </Text>
-                    </View>
+                    <Text style={styles.vhcBadgeText}>{currentJobDisplay.vhcStatus}</Text>
                   </View>
-                ))}
+                </View>
+                <View style={styles.jobDetailsRow}>
+                  <Text style={[styles.jobDetailLabel, { color: colors.textSecondary }]}>AWs:</Text>
+                  <Text style={[styles.jobDetailValue, { color: colors.primary }]}>
+                    {currentJobDisplay.aws} ({currentJobDisplay.aws * 5} min)
+                  </Text>
+                </View>
+                <View style={styles.jobDetailsRow}>
+                  <Text style={[styles.jobDetailLabel, { color: colors.textSecondary }]}>Description:</Text>
+                  <Text
+                    style={[styles.jobDetailValue, { color: colors.text }]}
+                    numberOfLines={2}
+                  >
+                    {currentJobDisplay.description || 'No description'}
+                  </Text>
+                </View>
+                <View style={styles.jobDetailsRow}>
+                  <Text style={[styles.jobDetailLabel, { color: colors.textSecondary }]}>Date:</Text>
+                  <Text style={[styles.jobDetailValue, { color: colors.textSecondary }]}>
+                    {new Date(currentJobDisplay.jobDateTime).toLocaleString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -347,12 +350,25 @@ export default function JSONImportScreen() {
                   style={[styles.retryButton, { backgroundColor: colors.primary }]}
                   onPress={() => {
                     setProgress(null);
-                    setRecentJobs([]);
+                    setCurrentJobDisplay(null);
                     setImporting(false);
                   }}
                 >
                   <Text style={styles.retryButtonText}>Try Again</Text>
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Complete state */}
+            {progress.status === 'complete' && (
+              <View style={[styles.completeBox, { backgroundColor: colors.background, borderColor: colors.success }]}>
+                <Text style={[styles.completeIcon, { color: colors.success }]}>✅</Text>
+                <Text style={[styles.completeText, { color: colors.success }]}>
+                  Import completed successfully!
+                </Text>
+                <Text style={[styles.completeDetails, { color: colors.textSecondary }]}>
+                  Redirecting to Jobs screen...
+                </Text>
               </View>
             )}
           </View>
@@ -518,25 +534,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   progressBarContainer: {
-    height: 12,
-    borderRadius: 6,
+    height: 16,
+    borderRadius: 8,
     overflow: 'hidden',
     marginBottom: 16,
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 6,
+    borderRadius: 8,
   },
   progressPercentage: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
   },
   progressCount: {
-    fontSize: 16,
+    fontSize: 18,
     textAlign: 'center',
     marginBottom: 8,
+    fontWeight: '600',
   },
   progressMessage: {
     fontSize: 14,
@@ -544,29 +561,30 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     fontStyle: 'italic',
   },
-  recentJobsContainer: {
+  currentJobCard: {
     marginTop: 24,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 2,
   },
-  recentJobsTitle: {
+  currentJobTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 12,
   },
-  jobItem: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  jobItemHeader: {
+  jobDetailsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  jobItemWip: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  jobDetailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    width: 100,
+  },
+  jobDetailValue: {
+    fontSize: 14,
+    flex: 1,
   },
   vhcBadge: {
     paddingHorizontal: 8,
@@ -577,26 +595,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
-  },
-  jobItemReg: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  jobItemDesc: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  jobItemFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  jobItemAws: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  jobItemTime: {
-    fontSize: 12,
   },
   errorBox: {
     marginTop: 24,
@@ -624,5 +622,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  completeBox: {
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 8,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  completeIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  completeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  completeDetails: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
