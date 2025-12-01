@@ -1,70 +1,50 @@
+
 {
   "cli": {
-    "version": ">= 12.8.0",
+    "version": ">= 14.0.0",
     "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "credentialsSource": "remote",
-      "node": "18.20.5",
       "ios": {
-        "resourceClass": "m-medium"
+        "simulator": true,
+        "buildConfiguration": "Debug"
       },
       "android": {
-        "gradleCommand": ":app:assembleDevelopment --no-daemon --no-parallel --no-configure-on-demand"
-      },
-      "env": {
-        "NODE_ENV": "development",
-        "NODE_OPTIONS": "--max-old-space-size=4096",
-        "CI": "true",
-        "EAS_BUILD": "true",
-        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false"
+        "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
-      "credentialsSource": "remote",
-      "node": "18.20.5",
       "ios": {
-        "resourceClass": "m-medium"
+        "simulator": false,
+        "buildConfiguration": "Release"
       },
       "android": {
-        "gradleCommand": ":app:assembleRelease --no-daemon --no-parallel --no-configure-on-demand"
-      },
-      "env": {
-        "NODE_ENV": "production",
-        "NODE_OPTIONS": "--max-old-space-size=4096",
-        "CI": "true",
-        "EAS_BUILD": "true",
-        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false"
+        "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "credentialsSource": "remote",
-      "node": "18.20.5",
       "ios": {
-        "resourceClass": "m-medium",
-        "image": "latest"
+        "simulator": false,
+        "buildConfiguration": "Release"
       },
       "android": {
-        "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease --no-daemon --no-parallel --no-configure-on-demand"
-      },
-      "env": {
-        "NODE_ENV": "production",
-        "NODE_OPTIONS": "--max-old-space-size=4096",
-        "CI": "true",
-        "EAS_BUILD": "true",
-        "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false"
+        "buildType": "apk"
       }
     }
   },
   "submit": {
     "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "your-apple-team-id"
+      },
       "android": {
+        "serviceAccountKeyPath": "./path-to-your-service-account-key.json",
         "track": "internal"
       }
     }

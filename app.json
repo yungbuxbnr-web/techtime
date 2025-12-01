@@ -1,7 +1,8 @@
+
 {
   "expo": {
-    "name": "techtime",
-    "slug": "techtime",
+    "name": "TechTime",
+    "slug": "TechTime",
     "owner": "bnr",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -28,7 +29,8 @@
         "NSCameraUsageDescription": "We need access to your camera to scan vehicle registration plates and job cards for quick data entry.",
         "UIBackgroundModes": [
           "fetch",
-          "remote-notification"
+          "remote-notification",
+          "processing"
         ]
       },
       "jsEngine": "hermes"
@@ -46,7 +48,14 @@
         "USE_FINGERPRINT",
         "CAMERA",
         "POST_NOTIFICATIONS",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "READ_MEDIA_AUDIO"
       ],
       "intentFilters": [
         {
