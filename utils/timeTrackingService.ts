@@ -9,6 +9,8 @@ export interface WorkScheduleSettings {
   workEndTime: string; // HH:mm format (e.g., "17:00")
   lunchStartTime: string; // HH:mm format (e.g., "12:00")
   lunchEndTime: string; // HH:mm format (e.g., "13:00")
+  saturdayStartTime?: string; // HH:mm format for Saturday (e.g., "08:00")
+  saturdayEndTime?: string; // HH:mm format for Saturday (e.g., "13:00")
   workDays: number[]; // 0-6 (Sunday-Saturday)
   enabled: boolean;
   saturdayFrequency?: number; // 0 = never, 1 = every week, 2 = every 2 weeks, 3 = every 3 weeks, etc.
@@ -48,6 +50,8 @@ const DEFAULT_SETTINGS: WorkScheduleSettings = {
   workEndTime: '17:00',
   lunchStartTime: '12:00',
   lunchEndTime: '13:00',
+  saturdayStartTime: '08:00',
+  saturdayEndTime: '13:00',
   workDays: [1, 2, 3, 4, 5], // Monday-Friday
   enabled: true,
   saturdayFrequency: 0,
@@ -123,16 +127,43 @@ export class TimeTrackingService {
     return false;
   }
 
+  // Get work start time (Saturday-specific or regular)
+  private static getWorkStartTime(settings: WorkScheduleSettings): string {
+    const today = new Date().getDay();
+    if (today === 6 && this.isSaturdayWorkDay(settings) && settings.saturdayStartTime) {
+      return settings.saturdayStartTime;
+    }
+    return settings.workStartTime;
+  }
+
+  // Get work end time (Saturday-specific or regular)
+  private static getWorkEndTime(settings: WorkScheduleSettings): string {
+    const today = new Date().getDay();
+    if (today === 6 && this.isSaturdayWorkDay(settings) && settings.saturdayEndTime) {
+      return settings.saturdayEndTime;
+    }
+    return settings.workEndTime;
+  }
+
   // Check if current time is within work hours
   static isWorkTime(settings: WorkScheduleSettings): boolean {
     const now = new Date();
-    const workStart = this.createTimeToday(settings.workStartTime);
-    const workEnd = this.createTimeToday(settings.workEndTime);
+    const workStartTime = this.getWorkStartTime(settings);
+    const workEndTime = this.getWorkEndTime(settings);
+    const workStart = this.createTimeToday(workStartTime);
+    const workEnd = this.createTimeToday(workEndTime);
     return now >= workStart && now <= workEnd;
   }
 
-  // Check if current time is lunch time
+  // Check if current time is lunch time (no lunch on Saturday)
   static isLunchTime(settings: WorkScheduleSettings): boolean {
+    const today = new Date().getDay();
+    
+    // No lunch break on Saturday
+    if (today === 6 && this.isSaturdayWorkDay(settings)) {
+      return false;
+    }
+    
     const now = new Date();
     const lunchStart = this.createTimeToday(settings.lunchStartTime);
     const lunchEnd = this.createTimeToday(settings.lunchEndTime);
@@ -159,7 +190,8 @@ export class TimeTrackingService {
     workEnd: Date,
     lunchStart: Date,
     lunchEnd: Date,
-    isWorkDay: boolean
+    isWorkDay: boolean,
+    isSaturday: boolean
   ): { elapsedWorkSeconds: number; elapsedLunchSeconds: number } {
     let elapsedWorkSeconds = 0;
     let elapsedLunchSeconds = 0;
@@ -175,28 +207,40 @@ export class TimeTrackingService {
 
     // If after work end, count full day
     if (now > workEnd) {
-      const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
-      const workAfterLunchMs = workEnd.getTime() - lunchEnd.getTime();
-      elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
-      elapsedLunchSeconds = (lunchEnd.getTime() - lunchStart.getTime()) / 1000;
+      if (isSaturday) {
+        // Saturday: no lunch break, just work hours
+        elapsedWorkSeconds = (workEnd.getTime() - workStart.getTime()) / 1000;
+      } else {
+        // Regular day: work hours minus lunch
+        const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
+        const workAfterLunchMs = workEnd.getTime() - lunchEnd.getTime();
+        elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
+        elapsedLunchSeconds = (lunchEnd.getTime() - lunchStart.getTime()) / 1000;
+      }
       return { elapsedWorkSeconds, elapsedLunchSeconds };
     }
 
     // Currently within work hours
-    if (now <= lunchStart) {
-      // Before lunch
+    if (isSaturday) {
+      // Saturday: no lunch break, just work hours
       elapsedWorkSeconds = (now.getTime() - workStart.getTime()) / 1000;
-    } else if (now <= lunchEnd) {
-      // During lunch
-      const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
-      elapsedWorkSeconds = workBeforeLunchMs / 1000;
-      elapsedLunchSeconds = (now.getTime() - lunchStart.getTime()) / 1000;
     } else {
-      // After lunch
-      const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
-      const workAfterLunchMs = now.getTime() - lunchEnd.getTime();
-      elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
-      elapsedLunchSeconds = (lunchEnd.getTime() - lunchStart.getTime()) / 1000;
+      // Regular day: handle lunch break
+      if (now <= lunchStart) {
+        // Before lunch
+        elapsedWorkSeconds = (now.getTime() - workStart.getTime()) / 1000;
+      } else if (now <= lunchEnd) {
+        // During lunch
+        const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
+        elapsedWorkSeconds = workBeforeLunchMs / 1000;
+        elapsedLunchSeconds = (now.getTime() - lunchStart.getTime()) / 1000;
+      } else {
+        // After lunch
+        const workBeforeLunchMs = lunchStart.getTime() - workStart.getTime();
+        const workAfterLunchMs = now.getTime() - lunchEnd.getTime();
+        elapsedWorkSeconds = (workBeforeLunchMs + workAfterLunchMs) / 1000;
+        elapsedLunchSeconds = (lunchEnd.getTime() - lunchStart.getTime()) / 1000;
+      }
     }
 
     return { elapsedWorkSeconds, elapsedLunchSeconds };
@@ -205,8 +249,15 @@ export class TimeTrackingService {
   // Calculate time stats
   static calculateTimeStats(settings: WorkScheduleSettings): TimeStats {
     const now = new Date();
-    const workStart = this.createTimeToday(settings.workStartTime);
-    const workEnd = this.createTimeToday(settings.workEndTime);
+    const today = now.getDay();
+    const isSaturday = today === 6 && this.isSaturdayWorkDay(settings);
+    
+    // Get appropriate work times (Saturday-specific or regular)
+    const workStartTime = this.getWorkStartTime(settings);
+    const workEndTime = this.getWorkEndTime(settings);
+    
+    const workStart = this.createTimeToday(workStartTime);
+    const workEnd = this.createTimeToday(workEndTime);
     const lunchStart = this.createTimeToday(settings.lunchStartTime);
     const lunchEnd = this.createTimeToday(settings.lunchEndTime);
 
@@ -214,11 +265,22 @@ export class TimeTrackingService {
     const isWorkTime = this.isWorkTime(settings);
     const isLunchTime = this.isLunchTime(settings);
 
-    // Calculate total work seconds (excluding lunch)
-    const totalWorkMs = workEnd.getTime() - workStart.getTime();
-    const lunchDurationMs = lunchEnd.getTime() - lunchStart.getTime();
-    const totalWorkSeconds = (totalWorkMs - lunchDurationMs) / 1000;
-    const totalLunchSeconds = lunchDurationMs / 1000;
+    // Calculate total work seconds
+    let totalWorkSeconds: number;
+    let totalLunchSeconds: number;
+    
+    if (isSaturday) {
+      // Saturday: no lunch break, just work hours
+      const totalWorkMs = workEnd.getTime() - workStart.getTime();
+      totalWorkSeconds = totalWorkMs / 1000;
+      totalLunchSeconds = 0;
+    } else {
+      // Regular day: work hours minus lunch
+      const totalWorkMs = workEnd.getTime() - workStart.getTime();
+      const lunchDurationMs = lunchEnd.getTime() - lunchStart.getTime();
+      totalWorkSeconds = (totalWorkMs - lunchDurationMs) / 1000;
+      totalLunchSeconds = lunchDurationMs / 1000;
+    }
 
     // Calculate elapsed seconds (stops at work end, resumes at work start)
     const { elapsedWorkSeconds, elapsedLunchSeconds } = this.calculateElapsedSeconds(
@@ -227,7 +289,8 @@ export class TimeTrackingService {
       workEnd,
       lunchStart,
       lunchEnd,
-      isWorkDay
+      isWorkDay,
+      isSaturday
     );
 
     // Calculate remaining seconds

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Switch, Platform, Modal, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
@@ -16,6 +16,8 @@ export default function WorkScheduleScreen() {
     workEndTime: '17:00',
     lunchStartTime: '12:00',
     lunchEndTime: '13:00',
+    saturdayStartTime: '08:00',
+    saturdayEndTime: '13:00',
     workDays: [1, 2, 3, 4, 5],
     enabled: true,
     saturdayFrequency: 0,
@@ -91,6 +93,20 @@ export default function WorkScheduleScreen() {
       if (lunchEndMinutes <= lunchStartMinutes) {
         showNotification('Lunch end time must be after lunch start time', 'error');
         return;
+      }
+
+      // Validate Saturday times if Saturday frequency is set
+      if (settings.saturdayFrequency && settings.saturdayFrequency > 0) {
+        const satStart = TimeTrackingService['parseTime'](settings.saturdayStartTime || '08:00');
+        const satEnd = TimeTrackingService['parseTime'](settings.saturdayEndTime || '13:00');
+        
+        const satStartMinutes = satStart.hours * 60 + satStart.minutes;
+        const satEndMinutes = satEnd.hours * 60 + satEnd.minutes;
+        
+        if (satEndMinutes <= satStartMinutes) {
+          showNotification('Saturday end time must be after Saturday start time', 'error');
+          return;
+        }
       }
 
       // Check if at least one work day is selected (excluding Saturday if it's frequency-based)
@@ -218,407 +234,478 @@ export default function WorkScheduleScreen() {
         <Text style={styles.title}>Work Schedule</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Enable/Disable Time Tracking */}
-        <View style={styles.section}>
-          <View style={styles.switchRow}>
-            <View style={styles.switchLeft}>
-              <Text style={styles.switchLabel}>⏰ Enable Time Tracking</Text>
-              <Text style={styles.switchSubtext}>
-                Track your work hours automatically
-              </Text>
-            </View>
-            <Switch
-              value={settings.enabled}
-              onValueChange={(value) => setSettings(prev => ({ ...prev, enabled: value }))}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={settings.enabled ? colors.background : colors.background}
-            />
-          </View>
-        </View>
-
-        {/* Work Hours */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🕐 Work Hours</Text>
-          <Text style={styles.sectionDescription}>
-            Set your daily work start and end times
-          </Text>
-
-          <View style={styles.timeRow}>
-            <View style={styles.timeInput}>
-              <Text style={styles.label}>Start Time</Text>
-              <TextInput
-                style={styles.input}
-                value={settings.workStartTime}
-                onChangeText={(value) => handleTimeChange('workStartTime', value)}
-                placeholder="08:00"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                maxLength={5}
-              />
-            </View>
-
-            <View style={styles.timeInput}>
-              <Text style={styles.label}>End Time</Text>
-              <TextInput
-                style={styles.input}
-                value={settings.workEndTime}
-                onChangeText={(value) => handleTimeChange('workEndTime', value)}
-                placeholder="17:00"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                maxLength={5}
-              />
-            </View>
-          </View>
-
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              💡 Use 24-hour format (HH:mm). Example: 08:00 for 8 AM, 17:00 for 5 PM
-            </Text>
-          </View>
-        </View>
-
-        {/* Lunch Break */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🍽️ Lunch Break</Text>
-          <Text style={styles.sectionDescription}>
-            Set your lunch break start and end times
-          </Text>
-
-          <View style={styles.timeRow}>
-            <View style={styles.timeInput}>
-              <Text style={styles.label}>Lunch Start</Text>
-              <TextInput
-                style={styles.input}
-                value={settings.lunchStartTime}
-                onChangeText={(value) => handleTimeChange('lunchStartTime', value)}
-                placeholder="12:00"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                maxLength={5}
-              />
-            </View>
-
-            <View style={styles.timeInput}>
-              <Text style={styles.label}>Lunch End</Text>
-              <TextInput
-                style={styles.input}
-                value={settings.lunchEndTime}
-                onChangeText={(value) => handleTimeChange('lunchEndTime', value)}
-                placeholder="13:00"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
-                maxLength={5}
-              />
-            </View>
-          </View>
-
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              🍴 Lunch time will be shown in a different color on the progress bar
-            </Text>
-          </View>
-        </View>
-
-        {/* Work Days */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📅 Work Days</Text>
-          <Text style={styles.sectionDescription}>
-            Select the days you work each week
-          </Text>
-
-          <View style={styles.daysGrid}>
-            {[0, 1, 2, 3, 4, 5, 6].map(day => {
-              const isSelected = settings.workDays.includes(day);
-              const isSaturday = day === 6;
-              const isSaturdayManaged = isSaturday && settings.saturdayFrequency && settings.saturdayFrequency > 0;
-              
-              return (
-                <TouchableOpacity
-                  key={day}
-                  style={[
-                    styles.dayButton,
-                    isSelected && styles.dayButtonSelected,
-                    isSaturdayManaged && styles.dayButtonManaged,
-                    { borderColor: colors.border }
-                  ]}
-                  onPress={() => toggleWorkDay(day)}
-                >
-                  <Text style={[
-                    styles.dayButtonText,
-                    isSelected && styles.dayButtonTextSelected,
-                    { color: isSelected ? '#ffffff' : colors.text }
-                  ]}>
-                    {TimeTrackingService.getShortDayName(day)}
-                  </Text>
-                  {isSaturdayManaged && (
-                    <Text style={styles.dayButtonBadge}>📅</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              📌 Selected days: {settings.workDays.map(d => TimeTrackingService.getDayName(d)).join(', ') || 'None'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Saturday Frequency */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📆 Saturday Work Frequency</Text>
-          <Text style={styles.sectionDescription}>
-            Configure how often you work on Saturdays (e.g., 1 in 3 weeks)
-          </Text>
-
-          {Platform.OS === 'ios' ? (
-            <>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowSaturdayPicker(true)}
-              >
-                <Text style={styles.pickerButtonText}>
-                  {getSaturdayFrequencyLabel(settings.saturdayFrequency || 0)}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Enable/Disable Time Tracking */}
+          <View style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchLeft}>
+                <Text style={styles.switchLabel}>⏰ Enable Time Tracking</Text>
+                <Text style={styles.switchSubtext}>
+                  Track your work hours automatically
                 </Text>
-                <Text style={styles.pickerButtonIcon}>▼</Text>
-              </TouchableOpacity>
-              
-              <Modal
-                visible={showSaturdayPicker}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setShowSaturdayPicker(false)}
-              >
-                <TouchableOpacity 
-                  style={styles.modalOverlay}
-                  activeOpacity={1}
-                  onPress={() => setShowSaturdayPicker(false)}
-                >
-                  <TouchableOpacity 
-                    style={styles.modalContent}
-                    activeOpacity={1}
-                    onPress={(e) => e.stopPropagation()}
-                  >
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Saturday Frequency</Text>
-                      <TouchableOpacity
-                        style={styles.modalDoneButton}
-                        onPress={() => setShowSaturdayPicker(false)}
-                      >
-                        <Text style={styles.modalDoneText}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <Picker
-                      selectedValue={settings.saturdayFrequency || 0}
-                      onValueChange={(itemValue) => handleSaturdayFrequencyChange(itemValue)}
-                      style={styles.iosPicker}
-                      itemStyle={styles.iosPickerItem}
-                    >
-                      <Picker.Item label="Never work Saturdays" value={0} />
-                      <Picker.Item label="Every Saturday" value={1} />
-                      <Picker.Item label="Every 2 weeks (1 in 2)" value={2} />
-                      <Picker.Item label="Every 3 weeks (1 in 3)" value={3} />
-                      <Picker.Item label="Every 4 weeks (1 in 4)" value={4} />
-                      <Picker.Item label="Every 5 weeks (1 in 5)" value={5} />
-                      <Picker.Item label="Every 6 weeks (1 in 6)" value={6} />
-                    </Picker>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </Modal>
-            </>
-          ) : (
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={settings.saturdayFrequency || 0}
-                onValueChange={(itemValue) => handleSaturdayFrequencyChange(itemValue)}
-                style={styles.picker}
-                dropdownIconColor={colors.text}
-              >
-                <Picker.Item label="Never work Saturdays" value={0} color={colors.text} />
-                <Picker.Item label="Every Saturday" value={1} color={colors.text} />
-                <Picker.Item label="Every 2 weeks (1 in 2)" value={2} color={colors.text} />
-                <Picker.Item label="Every 3 weeks (1 in 3)" value={3} color={colors.text} />
-                <Picker.Item label="Every 4 weeks (1 in 4)" value={4} color={colors.text} />
-                <Picker.Item label="Every 5 weeks (1 in 5)" value={5} color={colors.text} />
-                <Picker.Item label="Every 6 weeks (1 in 6)" value={6} color={colors.text} />
-              </Picker>
+              </View>
+              <Switch
+                value={settings.enabled}
+                onValueChange={(value) => setSettings(prev => ({ ...prev, enabled: value }))}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={settings.enabled ? colors.background : colors.background}
+              />
             </View>
-          )}
+          </View>
 
-          {settings.saturdayFrequency && settings.saturdayFrequency > 0 && (
-            <>
-              <View style={styles.nextSaturdayBox}>
-                <Text style={styles.nextSaturdayLabel}>📅 Next Working Saturday:</Text>
-                <Text style={styles.nextSaturdayValue}>{formatNextSaturday()}</Text>
+          {/* Work Hours */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🕐 Work Hours (Mon-Fri)</Text>
+            <Text style={styles.sectionDescription}>
+              Set your daily work start and end times for weekdays
+            </Text>
+
+            <View style={styles.timeRow}>
+              <View style={styles.timeInput}>
+                <Text style={styles.label}>Start Time</Text>
+                <TextInput
+                  style={styles.input}
+                  value={settings.workStartTime}
+                  onChangeText={(value) => handleTimeChange('workStartTime', value)}
+                  placeholder="08:00"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                  maxLength={5}
+                />
               </View>
 
-              <TouchableOpacity
-                style={[styles.calendarPickerButton, { backgroundColor: colors.primary }]}
-                onPress={handleOpenCalendarPicker}
-              >
-                <Text style={styles.calendarPickerButtonText}>📅 Pick Next Working Saturday from Calendar</Text>
-              </TouchableOpacity>
-            </>
+              <View style={styles.timeInput}>
+                <Text style={styles.label}>End Time</Text>
+                <TextInput
+                  style={styles.input}
+                  value={settings.workEndTime}
+                  onChangeText={(value) => handleTimeChange('workEndTime', value)}
+                  placeholder="17:00"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                  maxLength={5}
+                />
+              </View>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                💡 Use 24-hour format (HH:mm). Example: 08:00 for 8 AM, 17:00 for 5 PM
+              </Text>
+            </View>
+          </View>
+
+          {/* Saturday Hours */}
+          {settings.saturdayFrequency && settings.saturdayFrequency > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🕐 Saturday Work Hours</Text>
+              <Text style={styles.sectionDescription}>
+                Set your work start and end times for Saturdays
+              </Text>
+
+              <View style={styles.timeRow}>
+                <View style={styles.timeInput}>
+                  <Text style={styles.label}>Saturday Start</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={settings.saturdayStartTime || '08:00'}
+                    onChangeText={(value) => handleTimeChange('saturdayStartTime', value)}
+                    placeholder="08:00"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                    maxLength={5}
+                  />
+                </View>
+
+                <View style={styles.timeInput}>
+                  <Text style={styles.label}>Saturday End</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={settings.saturdayEndTime || '13:00'}
+                    onChangeText={(value) => handleTimeChange('saturdayEndTime', value)}
+                    placeholder="13:00"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                    maxLength={5}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  📅 Saturday hours are separate from weekday hours
+                </Text>
+                <Text style={styles.infoText}>
+                  🍽️ No lunch break is applied on Saturdays
+                </Text>
+              </View>
+            </View>
           )}
 
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              💡 Set to &quot;Never&quot; if you don&apos;t work Saturdays
+          {/* Lunch Break */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🍽️ Lunch Break (Mon-Fri)</Text>
+            <Text style={styles.sectionDescription}>
+              Set your lunch break start and end times for weekdays
             </Text>
-            <Text style={styles.infoText}>
-              📆 Set to &quot;Every 3 weeks&quot; for 1 in 3 Saturday rotation
-            </Text>
-            <Text style={styles.infoText}>
-              🔄 The app will automatically track your Saturday schedule
-            </Text>
-            <Text style={styles.infoText}>
-              📅 Use the calendar picker to manually select your next working Saturday
-            </Text>
-          </View>
-        </View>
 
-        {/* Work Calendar */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📅 Work Calendar</Text>
-          <Text style={styles.sectionDescription}>
-            Mark specific days for annual leave, external training, or custom work schedules
-          </Text>
-          
+            <View style={styles.timeRow}>
+              <View style={styles.timeInput}>
+                <Text style={styles.label}>Lunch Start</Text>
+                <TextInput
+                  style={styles.input}
+                  value={settings.lunchStartTime}
+                  onChangeText={(value) => handleTimeChange('lunchStartTime', value)}
+                  placeholder="12:00"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                  maxLength={5}
+                />
+              </View>
+
+              <View style={styles.timeInput}>
+                <Text style={styles.label}>Lunch End</Text>
+                <TextInput
+                  style={styles.input}
+                  value={settings.lunchEndTime}
+                  onChangeText={(value) => handleTimeChange('lunchEndTime', value)}
+                  placeholder="13:00"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                  maxLength={5}
+                />
+              </View>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                🍴 Lunch time will be shown in a different color on the progress bar
+              </Text>
+              <Text style={styles.infoText}>
+                📅 Lunch break does not apply to Saturdays
+              </Text>
+            </View>
+          </View>
+
+          {/* Work Days */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📅 Work Days</Text>
+            <Text style={styles.sectionDescription}>
+              Select the days you work each week
+            </Text>
+
+            <View style={styles.daysGrid}>
+              {[0, 1, 2, 3, 4, 5, 6].map(day => {
+                const isSelected = settings.workDays.includes(day);
+                const isSaturday = day === 6;
+                const isSaturdayManaged = isSaturday && settings.saturdayFrequency && settings.saturdayFrequency > 0;
+                
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      styles.dayButton,
+                      isSelected && styles.dayButtonSelected,
+                      isSaturdayManaged && styles.dayButtonManaged,
+                      { borderColor: colors.border }
+                    ]}
+                    onPress={() => toggleWorkDay(day)}
+                  >
+                    <Text style={[
+                      styles.dayButtonText,
+                      isSelected && styles.dayButtonTextSelected,
+                      { color: isSelected ? '#ffffff' : colors.text }
+                    ]}>
+                      {TimeTrackingService.getShortDayName(day)}
+                    </Text>
+                    {isSaturdayManaged && (
+                      <Text style={styles.dayButtonBadge}>📅</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                📌 Selected days: {settings.workDays.map(d => TimeTrackingService.getDayName(d)).join(', ') || 'None'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Saturday Frequency */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📆 Saturday Work Frequency</Text>
+            <Text style={styles.sectionDescription}>
+              Configure how often you work on Saturdays (e.g., 1 in 3 weeks)
+            </Text>
+
+            {Platform.OS === 'ios' ? (
+              <React.Fragment>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowSaturdayPicker(true)}
+                >
+                  <Text style={styles.pickerButtonText}>
+                    {getSaturdayFrequencyLabel(settings.saturdayFrequency || 0)}
+                  </Text>
+                  <Text style={styles.pickerButtonIcon}>▼</Text>
+                </TouchableOpacity>
+                
+                <Modal
+                  visible={showSaturdayPicker}
+                  transparent={true}
+                  animationType="slide"
+                  onRequestClose={() => setShowSaturdayPicker(false)}
+                >
+                  <TouchableOpacity 
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowSaturdayPicker(false)}
+                  >
+                    <TouchableOpacity 
+                      style={styles.modalContent}
+                      activeOpacity={1}
+                      onPress={(e) => e.stopPropagation()}
+                    >
+                      <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Saturday Frequency</Text>
+                        <TouchableOpacity
+                          style={styles.modalDoneButton}
+                          onPress={() => setShowSaturdayPicker(false)}
+                        >
+                          <Text style={styles.modalDoneText}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Picker
+                        selectedValue={settings.saturdayFrequency || 0}
+                        onValueChange={(itemValue) => handleSaturdayFrequencyChange(itemValue)}
+                        style={styles.iosPicker}
+                        itemStyle={styles.iosPickerItem}
+                      >
+                        <Picker.Item label="Never work Saturdays" value={0} />
+                        <Picker.Item label="Every Saturday" value={1} />
+                        <Picker.Item label="Every 2 weeks (1 in 2)" value={2} />
+                        <Picker.Item label="Every 3 weeks (1 in 3)" value={3} />
+                        <Picker.Item label="Every 4 weeks (1 in 4)" value={4} />
+                        <Picker.Item label="Every 5 weeks (1 in 5)" value={5} />
+                        <Picker.Item label="Every 6 weeks (1 in 6)" value={6} />
+                      </Picker>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </Modal>
+              </React.Fragment>
+            ) : (
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={settings.saturdayFrequency || 0}
+                  onValueChange={(itemValue) => handleSaturdayFrequencyChange(itemValue)}
+                  style={styles.picker}
+                  dropdownIconColor={colors.text}
+                >
+                  <Picker.Item label="Never work Saturdays" value={0} color={colors.text} />
+                  <Picker.Item label="Every Saturday" value={1} color={colors.text} />
+                  <Picker.Item label="Every 2 weeks (1 in 2)" value={2} color={colors.text} />
+                  <Picker.Item label="Every 3 weeks (1 in 3)" value={3} color={colors.text} />
+                  <Picker.Item label="Every 4 weeks (1 in 4)" value={4} color={colors.text} />
+                  <Picker.Item label="Every 5 weeks (1 in 5)" value={5} color={colors.text} />
+                  <Picker.Item label="Every 6 weeks (1 in 6)" value={6} color={colors.text} />
+                </Picker>
+              </View>
+            )}
+
+            {settings.saturdayFrequency && settings.saturdayFrequency > 0 && (
+              <React.Fragment>
+                <View style={styles.nextSaturdayBox}>
+                  <Text style={styles.nextSaturdayLabel}>📅 Next Working Saturday:</Text>
+                  <Text style={styles.nextSaturdayValue}>{formatNextSaturday()}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.calendarPickerButton, { backgroundColor: colors.primary }]}
+                  onPress={handleOpenCalendarPicker}
+                >
+                  <Text style={styles.calendarPickerButtonText}>📅 Pick Next Working Saturday from Calendar</Text>
+                </TouchableOpacity>
+              </React.Fragment>
+            )}
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                💡 Set to &quot;Never&quot; if you don&apos;t work Saturdays
+              </Text>
+              <Text style={styles.infoText}>
+                📆 Set to &quot;Every 3 weeks&quot; for 1 in 3 Saturday rotation
+              </Text>
+              <Text style={styles.infoText}>
+                🔄 The app will automatically track your Saturday schedule
+              </Text>
+              <Text style={styles.infoText}>
+                📅 Use the calendar picker to manually select your next working Saturday
+              </Text>
+              <Text style={styles.infoText}>
+                ⏰ Saturday work hours can be customized separately above
+              </Text>
+            </View>
+          </View>
+
+          {/* Work Calendar */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📅 Work Calendar</Text>
+            <Text style={styles.sectionDescription}>
+              Mark specific days for annual leave, external training, or custom work schedules
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.calendarButton, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/work-schedule-calendar')}
+            >
+              <Text style={styles.calendarButtonText}>📆 Open Work Calendar</Text>
+            </TouchableOpacity>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                💡 Use the calendar to mark days you&apos;re on annual leave or external training
+              </Text>
+              <Text style={styles.infoText}>
+                📊 The calendar helps you track non-working days throughout the year
+              </Text>
+            </View>
+          </View>
+
+          {/* Notifications Info */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🔔 Background Notifications</Text>
+            <Text style={styles.sectionDescription}>
+              Automatic notifications will be sent for:
+            </Text>
+            
+            <View style={styles.notificationList}>
+              <View style={styles.notificationItem}>
+                <Text style={styles.notificationIcon}>🏢</Text>
+                <Text style={styles.notificationText}>Work Start - When your work day begins</Text>
+              </View>
+              <View style={styles.notificationItem}>
+                <Text style={styles.notificationIcon}>🍽️</Text>
+                <Text style={styles.notificationText}>Lunch Start - When your lunch break begins (Mon-Fri only)</Text>
+              </View>
+              <View style={styles.notificationItem}>
+                <Text style={styles.notificationIcon}>⏰</Text>
+                <Text style={styles.notificationText}>Lunch End - When your lunch break ends (Mon-Fri only)</Text>
+              </View>
+              <View style={styles.notificationItem}>
+                <Text style={styles.notificationIcon}>🎉</Text>
+                <Text style={styles.notificationText}>Work End - When your work day is complete</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                📱 Notifications are scheduled automatically when you save your work schedule
+              </Text>
+              <Text style={styles.infoText}>
+                ⚙️ Customize notification settings in Settings → Notification Preferences
+              </Text>
+            </View>
+          </View>
+
+          {/* Summary */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📊 Schedule Summary</Text>
+            
+            <View style={styles.summaryBox}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Work Hours (Mon-Fri):</Text>
+                <Text style={styles.summaryValue}>
+                  {settings.workStartTime} - {settings.workEndTime}
+                </Text>
+              </View>
+
+              {settings.saturdayFrequency && settings.saturdayFrequency > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Saturday Hours:</Text>
+                  <Text style={styles.summaryValue}>
+                    {settings.saturdayStartTime || '08:00'} - {settings.saturdayEndTime || '13:00'}
+                  </Text>
+                </View>
+              )}
+              
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Lunch Break:</Text>
+                <Text style={styles.summaryValue}>
+                  {settings.lunchStartTime} - {settings.lunchEndTime}
+                </Text>
+              </View>
+              
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Work Days:</Text>
+                <Text style={styles.summaryValue}>
+                  {settings.workDays.length} days/week
+                </Text>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Saturday Frequency:</Text>
+                <Text style={styles.summaryValue}>
+                  {getSaturdayFrequencyLabel(settings.saturdayFrequency || 0)}
+                </Text>
+              </View>
+              
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Status:</Text>
+                <Text style={[
+                  styles.summaryValue,
+                  { color: settings.enabled ? colors.success : colors.error }
+                ]}>
+                  {settings.enabled ? '✅ Enabled' : '❌ Disabled'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Save Button */}
           <TouchableOpacity
-            style={[styles.calendarButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/work-schedule-calendar')}
+            style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            onPress={handleSaveSettings}
           >
-            <Text style={styles.calendarButtonText}>📆 Open Work Calendar</Text>
+            <Text style={styles.saveButtonText}>💾 Save Work Schedule</Text>
           </TouchableOpacity>
 
-          <View style={styles.infoBox}>
+          {/* Info Section */}
+          <View style={styles.infoSection}>
+            <Text style={styles.infoTitle}>ℹ️ How Time Tracking Works</Text>
             <Text style={styles.infoText}>
-              💡 Use the calendar to mark days you&apos;re on annual leave or external training
+              - Time tracking runs automatically in the background
             </Text>
             <Text style={styles.infoText}>
-              📊 The calendar helps you track non-working days throughout the year
-            </Text>
-          </View>
-        </View>
-
-        {/* Notifications Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Background Notifications</Text>
-          <Text style={styles.sectionDescription}>
-            Automatic notifications will be sent for:
-          </Text>
-          
-          <View style={styles.notificationList}>
-            <View style={styles.notificationItem}>
-              <Text style={styles.notificationIcon}>🏢</Text>
-              <Text style={styles.notificationText}>Work Start - When your work day begins</Text>
-            </View>
-            <View style={styles.notificationItem}>
-              <Text style={styles.notificationIcon}>🍽️</Text>
-              <Text style={styles.notificationText}>Lunch Start - When your lunch break begins</Text>
-            </View>
-            <View style={styles.notificationItem}>
-              <Text style={styles.notificationIcon}>⏰</Text>
-              <Text style={styles.notificationText}>Lunch End - When your lunch break ends</Text>
-            </View>
-            <View style={styles.notificationItem}>
-              <Text style={styles.notificationIcon}>🎉</Text>
-              <Text style={styles.notificationText}>Work End - When your work day is complete</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              📱 Notifications are scheduled automatically when you save your work schedule
+              - Progress is calculated second by second
             </Text>
             <Text style={styles.infoText}>
-              ⚙️ Customize notification settings in Settings → Notification Preferences
+              - Lunch time is shown in a different color (Mon-Fri only)
+            </Text>
+            <Text style={styles.infoText}>
+              - Only tracks time on selected work days
+            </Text>
+            <Text style={styles.infoText}>
+              - Saturday has separate work hours (no lunch break)
+            </Text>
+            <Text style={styles.infoText}>
+              - Saturday frequency allows flexible scheduling
+            </Text>
+            <Text style={styles.infoText}>
+              - Background notifications alert you for work events
+            </Text>
+            <Text style={styles.infoText}>
+              - View live stats by tapping the progress bar on the dashboard
             </Text>
           </View>
-        </View>
-
-        {/* Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Schedule Summary</Text>
-          
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Work Hours:</Text>
-              <Text style={styles.summaryValue}>
-                {settings.workStartTime} - {settings.workEndTime}
-              </Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Lunch Break:</Text>
-              <Text style={styles.summaryValue}>
-                {settings.lunchStartTime} - {settings.lunchEndTime}
-              </Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Work Days:</Text>
-              <Text style={styles.summaryValue}>
-                {settings.workDays.length} days/week
-              </Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Saturday Frequency:</Text>
-              <Text style={styles.summaryValue}>
-                {getSaturdayFrequencyLabel(settings.saturdayFrequency || 0)}
-              </Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Status:</Text>
-              <Text style={[
-                styles.summaryValue,
-                { color: settings.enabled ? colors.success : colors.error }
-              ]}>
-                {settings.enabled ? '✅ Enabled' : '❌ Disabled'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: colors.primary }]}
-          onPress={handleSaveSettings}
-        >
-          <Text style={styles.saveButtonText}>💾 Save Work Schedule</Text>
-        </TouchableOpacity>
-
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>ℹ️ How Time Tracking Works</Text>
-          <Text style={styles.infoText}>
-            - Time tracking runs automatically in the background
-          </Text>
-          <Text style={styles.infoText}>
-            - Progress is calculated second by second
-          </Text>
-          <Text style={styles.infoText}>
-            - Lunch time is shown in a different color
-          </Text>
-          <Text style={styles.infoText}>
-            - Only tracks time on selected work days
-          </Text>
-          <Text style={styles.infoText}>
-            - Saturday frequency allows flexible scheduling
-          </Text>
-          <Text style={styles.infoText}>
-            - Background notifications alert you for work events
-          </Text>
-          <Text style={styles.infoText}>
-            - View live stats by tapping the progress bar on the dashboard
-          </Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
