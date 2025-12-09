@@ -123,6 +123,7 @@ module.exports = {
         },
       ],
       './plugins/gradleWrapperConfig.plugin.cjs',
+      './plugins/androidWidget.plugin.js',
     ],
     scheme: 'techtime',
     experiments: {
