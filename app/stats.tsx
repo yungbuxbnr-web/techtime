@@ -15,6 +15,11 @@ export default function StatsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [targetHours, setTargetHours] = useState(180);
   const [absenceHours, setAbsenceHours] = useState(0);
+  
+  // Month navigation state
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
   const loadJobs = useCallback(async () => {
     try {
@@ -25,17 +30,15 @@ export default function StatsScreen() {
       setJobs(jobsData);
       setTargetHours(settings.targetHours || 180);
       
-      // Get current month's absence hours
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
-      const currentAbsenceHours = (settings.absenceMonth === currentMonth && settings.absenceYear === currentYear) 
+      // Get absence hours for the selected month
+      const currentAbsenceHours = (settings.absenceMonth === selectedMonth && settings.absenceYear === selectedYear) 
         ? (settings.absenceHours || 0) 
         : 0;
       setAbsenceHours(currentAbsenceHours);
     } catch (error) {
       console.log('Error loading jobs:', error);
     }
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -60,51 +63,100 @@ export default function StatsScreen() {
     router.back();
   };
 
+  // Month navigation functions
+  const goToPreviousMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear(selectedYear - 1);
+    } else {
+      setSelectedMonth(selectedMonth - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    // Don't allow navigation beyond current month
+    const now = new Date();
+    const isCurrentMonth = selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+    
+    if (isCurrentMonth) {
+      return; // Already at current month
+    }
+
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear(selectedYear + 1);
+    } else {
+      setSelectedMonth(selectedMonth + 1);
+    }
+  };
+
+  const goToCurrentMonth = () => {
+    const now = new Date();
+    setSelectedMonth(now.getMonth());
+    setSelectedYear(now.getFullYear());
+  };
+
+  const isCurrentMonth = () => {
+    const now = new Date();
+    return selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+  };
+
+  const getMonthName = (month: number): string => {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return monthNames[month];
+  };
+
   const getStatsData = () => {
-    const monthlyStats = CalculationService.calculateMonthlyStats(jobs, targetHours, absenceHours);
+    // Filter jobs for the selected month
+    const monthlyJobs = CalculationService.getJobsByMonth(jobs, selectedMonth, selectedYear);
+    const totalAWs = monthlyJobs.reduce((sum, job) => sum + job.awValue, 0);
+    const totalTime = totalAWs * 5; // minutes
+    const totalSoldHours = CalculationService.calculateSoldHours(totalAWs);
+    const totalAvailableHours = CalculationService.calculateAvailableHoursToDate(selectedMonth, selectedYear, absenceHours);
+    const efficiency = CalculationService.calculateEfficiency(totalAWs, selectedMonth, selectedYear, absenceHours);
+
     const today = new Date();
-    const dailyJobs = CalculationService.getDailyJobs(jobs, today);
-    const weeklyJobs = CalculationService.getWeeklyJobs(jobs, today);
-    const monthlyJobs = CalculationService.getMonthlyJobs(jobs, today);
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const dailyJobs = CalculationService.getDailyJobs(monthlyJobs, today);
+    const weeklyJobs = CalculationService.getWeeklyJobs(monthlyJobs, today);
 
     switch (type) {
       case 'hours':
         // Monthly Target Hours Statistics
-        const hoursRemaining = Math.max(0, monthlyStats.targetHours - monthlyStats.totalSoldHours);
-        const targetProgress = monthlyStats.targetHours > 0 
-          ? Math.min((monthlyStats.totalSoldHours / monthlyStats.targetHours) * 100, 100)
+        const hoursRemaining = Math.max(0, targetHours - totalSoldHours);
+        const targetProgress = targetHours > 0 
+          ? Math.min((totalSoldHours / targetHours) * 100, 100)
           : 0;
         
         return {
           title: 'Monthly Target Hours',
-          mainValue: `${monthlyStats.totalSoldHours.toFixed(1)}h`,
-          mainLabel: `of ${monthlyStats.targetHours}h Target`,
+          mainValue: `${totalSoldHours.toFixed(1)}h`,
+          mainLabel: `of ${targetHours}h Target`,
           showProgress: true,
           progressPercentage: targetProgress,
           progressColor: targetProgress >= 100 ? colors.success : colors.primary,
           details: [
-            { label: 'Monthly Target', value: `${monthlyStats.targetHours}h` },
-            { label: 'Currently Sold Hours', value: `${monthlyStats.totalSoldHours.toFixed(2)}h` },
+            { label: 'Monthly Target', value: `${targetHours}h` },
+            { label: 'Currently Sold Hours', value: `${totalSoldHours.toFixed(2)}h` },
             { label: 'Hours Remaining', value: `${hoursRemaining.toFixed(2)}h` },
             { label: 'Progress', value: `${targetProgress.toFixed(1)}%` },
-            { label: 'Total AWs This Month', value: `${monthlyStats.totalAWs} AWs` },
-            { label: 'Total Jobs This Month', value: `${monthlyStats.totalJobs} jobs` },
+            { label: 'Total AWs This Month', value: `${totalAWs} AWs` },
+            { label: 'Total Jobs This Month', value: `${monthlyJobs.length} jobs` },
           ],
           additionalInfo: {
             title: 'Breakdown',
             items: [
-              { label: 'Today', value: `${dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs • ${CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}` },
-              { label: 'This Week', value: `${weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs • ${CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}` },
-              { label: 'This Month', value: `${monthlyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs • ${CalculationService.formatTime(monthlyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}` },
+              { label: 'Total Jobs', value: `${monthlyJobs.length} jobs` },
+              { label: 'Total AWs', value: `${totalAWs} AWs` },
+              { label: 'Total Time', value: CalculationService.formatTime(totalTime) },
             ]
           }
         };
 
       case 'efficiency':
         // Efficiency Statistics
-        const efficiency = monthlyStats.efficiency || 0;
         const efficiencyColor = CalculationService.getEfficiencyColor(efficiency);
         const efficiencyStatus = CalculationService.getEfficiencyStatus(efficiency);
         
@@ -117,11 +169,11 @@ export default function StatsScreen() {
           progressColor: efficiencyColor,
           details: [
             { label: 'Efficiency', value: `${efficiency}%`, highlight: true, color: efficiencyColor },
-            { label: 'Total Sold Hours', value: `${monthlyStats.totalSoldHours.toFixed(2)}h` },
-            { label: 'Total Available Hours', value: `${monthlyStats.totalAvailableHours.toFixed(2)}h` },
+            { label: 'Total Sold Hours', value: `${totalSoldHours.toFixed(2)}h` },
+            { label: 'Total Available Hours', value: `${totalAvailableHours.toFixed(2)}h` },
             { label: 'Absence Hours Deducted', value: `${absenceHours}h` },
-            { label: 'Total AWs', value: `${monthlyStats.totalAWs} AWs` },
-            { label: 'Calculation', value: `(${monthlyStats.totalSoldHours.toFixed(2)}h ÷ ${monthlyStats.totalAvailableHours.toFixed(2)}h) × 100` },
+            { label: 'Total AWs', value: `${totalAWs} AWs` },
+            { label: 'Calculation', value: `(${totalSoldHours.toFixed(2)}h ÷ ${totalAvailableHours.toFixed(2)}h) × 100` },
           ],
           additionalInfo: {
             title: 'Efficiency Ranges',
@@ -136,53 +188,58 @@ export default function StatsScreen() {
       case 'aws':
         return {
           title: 'Total AWs Breakdown',
-          mainValue: monthlyStats.totalAWs.toString(),
-          mainLabel: 'Total AWs This Month',
+          mainValue: totalAWs.toString(),
+          mainLabel: `Total AWs for ${getMonthName(selectedMonth)} ${selectedYear}`,
           details: [
-            { label: 'Today', value: `${dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs` },
-            { label: 'This Week', value: `${weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs` },
-            { label: 'This Month', value: `${monthlyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs` },
-            { label: 'All Time', value: `${jobs.reduce((sum, job) => sum + job.awValue, 0)} AWs` },
+            { label: 'Total AWs', value: `${totalAWs} AWs` },
+            { label: 'Total Jobs', value: `${monthlyJobs.length} jobs` },
+            { label: 'Total Time', value: CalculationService.formatTime(totalTime) },
+            { label: 'Average AWs per Job', value: monthlyJobs.length > 0 ? `${(totalAWs / monthlyJobs.length).toFixed(1)} AWs` : '0 AWs' },
           ]
         };
       
       case 'time':
         return {
           title: 'Time Logged Breakdown',
-          mainValue: CalculationService.formatTime(monthlyStats.totalTime),
-          mainLabel: 'Total Time This Month',
+          mainValue: CalculationService.formatTime(totalTime),
+          mainLabel: `Total Time for ${getMonthName(selectedMonth)} ${selectedYear}`,
           details: [
-            { label: 'Today', value: CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0)) },
-            { label: 'This Week', value: CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0)) },
-            { label: 'This Month', value: CalculationService.formatTime(monthlyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0)) },
-            { label: 'All Time', value: CalculationService.formatTime(jobs.reduce((sum, job) => sum + job.timeInMinutes, 0)) },
+            { label: 'Total Time', value: CalculationService.formatTime(totalTime) },
+            { label: 'Total AWs', value: `${totalAWs} AWs` },
+            { label: 'Total Jobs', value: `${monthlyJobs.length} jobs` },
+            { label: 'Average Time per Job', value: monthlyJobs.length > 0 ? CalculationService.formatTime(totalTime / monthlyJobs.length) : '0h 0m' },
           ]
         };
       
       case 'jobs':
         return {
           title: 'Jobs Completed Breakdown',
-          mainValue: monthlyStats.totalJobs.toString(),
-          mainLabel: 'Jobs This Month',
+          mainValue: monthlyJobs.length.toString(),
+          mainLabel: `Jobs for ${getMonthName(selectedMonth)} ${selectedYear}`,
           details: [
-            { label: 'Today', value: `${dailyJobs.length} jobs` },
-            { label: 'This Week', value: `${weeklyJobs.length} jobs` },
-            { label: 'This Month', value: `${monthlyJobs.length} jobs` },
-            { label: 'All Time', value: `${jobs.length} jobs` },
+            { label: 'Total Jobs', value: `${monthlyJobs.length} jobs` },
+            { label: 'Total AWs', value: `${totalAWs} AWs` },
+            { label: 'Total Time', value: CalculationService.formatTime(totalTime) },
+            { label: 'Average AWs per Job', value: monthlyJobs.length > 0 ? `${(totalAWs / monthlyJobs.length).toFixed(1)} AWs` : '0 AWs' },
           ]
         };
       
       case 'remaining':
-        const remainingMinutes = (monthlyStats.targetHours * 60) - monthlyStats.totalTime;
+        const remainingHours = Math.max(0, targetHours - totalSoldHours);
+        const remainingMinutes = remainingHours * 60;
+        const targetProgressRemaining = targetHours > 0 
+          ? Math.min((totalSoldHours / targetHours) * 100, 100)
+          : 0;
+        
         return {
           title: 'Hours Remaining',
-          mainValue: CalculationService.formatTime(Math.max(0, remainingMinutes)),
-          mainLabel: 'Hours Left This Month',
+          mainValue: `${remainingHours.toFixed(1)}h`,
+          mainLabel: `Hours Left for ${getMonthName(selectedMonth)} ${selectedYear}`,
           details: [
-            { label: 'Target Hours', value: `${monthlyStats.targetHours}h` },
-            { label: 'Completed', value: CalculationService.formatTime(monthlyStats.totalTime) },
-            { label: 'Remaining', value: CalculationService.formatTime(Math.max(0, remainingMinutes)) },
-            { label: 'Progress', value: `${monthlyStats.utilizationPercentage.toFixed(1)}%` },
+            { label: 'Target Hours', value: `${targetHours}h` },
+            { label: 'Completed', value: `${totalSoldHours.toFixed(2)}h` },
+            { label: 'Remaining', value: `${remainingHours.toFixed(2)}h` },
+            { label: 'Progress', value: `${targetProgressRemaining.toFixed(1)}%` },
           ]
         };
       
@@ -197,8 +254,11 @@ export default function StatsScreen() {
   };
 
   const statsData = getStatsData();
-  const monthlyStats = CalculationService.calculateMonthlyStats(jobs, targetHours, absenceHours);
+  const monthlyJobs = CalculationService.getJobsByMonth(jobs, selectedMonth, selectedYear);
   const styles = createStyles(colors);
+
+  // Show month navigation for hours and efficiency types
+  const showMonthNavigation = type === 'hours' || type === 'efficiency';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -208,6 +268,44 @@ export default function StatsScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>{statsData.title}</Text>
       </View>
+
+      {showMonthNavigation && (
+        <View style={styles.monthNavigationContainer}>
+          <TouchableOpacity 
+            onPress={goToPreviousMonth} 
+            style={styles.monthNavButton}
+          >
+            <Text style={styles.monthNavButtonText}>←</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.monthDisplayContainer}>
+            <Text style={styles.monthDisplayText}>
+              {getMonthName(selectedMonth)} {selectedYear}
+            </Text>
+            {!isCurrentMonth() && (
+              <TouchableOpacity onPress={goToCurrentMonth} style={styles.currentMonthButton}>
+                <Text style={styles.currentMonthButtonText}>Current Month</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            onPress={goToNextMonth} 
+            style={[
+              styles.monthNavButton,
+              isCurrentMonth() && styles.monthNavButtonDisabled
+            ]}
+            disabled={isCurrentMonth()}
+          >
+            <Text style={[
+              styles.monthNavButtonText,
+              isCurrentMonth() && styles.monthNavButtonTextDisabled
+            ]}>
+              →
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.mainStat}>
@@ -240,13 +338,13 @@ export default function StatsScreen() {
         {type === 'remaining' && (
           <View style={styles.progressSection}>
             <ProgressCircle
-              percentage={monthlyStats.utilizationPercentage}
+              percentage={statsData.progressPercentage || 0}
               size={150}
               strokeWidth={12}
-              color={monthlyStats.utilizationPercentage >= 100 ? colors.success : colors.primary}
+              color={(statsData.progressPercentage || 0) >= 100 ? colors.success : colors.primary}
             />
             <Text style={styles.progressText}>
-              {monthlyStats.utilizationPercentage.toFixed(1)}% Complete
+              {(statsData.progressPercentage || 0).toFixed(1)}% Complete
             </Text>
           </View>
         )}
@@ -297,12 +395,12 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {type === 'jobs' && jobs.length > 0 && (
+        {type === 'jobs' && monthlyJobs.length > 0 && (
           <View style={styles.recentJobsSection}>
-            <Text style={styles.sectionTitle}>Recent Jobs</Text>
-            {jobs
+            <Text style={styles.sectionTitle}>Jobs for {getMonthName(selectedMonth)} {selectedYear}</Text>
+            {monthlyJobs
               .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
-              .slice(0, 5)
+              .slice(0, 10)
               .map((job) => (
                 <View key={job.id} style={styles.jobCard}>
                   <View style={styles.jobHeader}>
@@ -323,13 +421,13 @@ export default function StatsScreen() {
 
         {type === 'aws' && (
           <View style={styles.awDistributionSection}>
-            <Text style={styles.sectionTitle}>AW Distribution</Text>
+            <Text style={styles.sectionTitle}>AW Distribution for {getMonthName(selectedMonth)} {selectedYear}</Text>
             <View style={styles.distributionGrid}>
               {[
-                { range: '1-10 AWs', jobs: jobs.filter(j => j.awValue >= 1 && j.awValue <= 10) },
-                { range: '11-25 AWs', jobs: jobs.filter(j => j.awValue >= 11 && j.awValue <= 25) },
-                { range: '26-50 AWs', jobs: jobs.filter(j => j.awValue >= 26 && j.awValue <= 50) },
-                { range: '51+ AWs', jobs: jobs.filter(j => j.awValue >= 51) },
+                { range: '1-10 AWs', jobs: monthlyJobs.filter(j => j.awValue >= 1 && j.awValue <= 10) },
+                { range: '11-25 AWs', jobs: monthlyJobs.filter(j => j.awValue >= 11 && j.awValue <= 25) },
+                { range: '26-50 AWs', jobs: monthlyJobs.filter(j => j.awValue >= 26 && j.awValue <= 50) },
+                { range: '51+ AWs', jobs: monthlyJobs.filter(j => j.awValue >= 51) },
               ].map((category, index) => (
                 <View key={index} style={styles.distributionCard}>
                   <Text style={styles.distributionRange}>{category.range}</Text>
@@ -342,6 +440,8 @@ export default function StatsScreen() {
             </View>
           </View>
         )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -375,6 +475,62 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
+  },
+  monthNavigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  monthNavButton: {
+    backgroundColor: colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  monthNavButtonDisabled: {
+    backgroundColor: colors.border,
+    opacity: 0.5,
+  },
+  monthNavButtonText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  monthNavButtonTextDisabled: {
+    color: colors.textSecondary,
+  },
+  monthDisplayContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  monthDisplayText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  currentMonthButton: {
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+  },
+  currentMonthButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   content: {
     flex: 1,
