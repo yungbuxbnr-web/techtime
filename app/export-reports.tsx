@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { StorageService } from '../utils/storage';
 import { ExportService, ExportType, ExportFormat, ExportOptions } from '../utils/exportService';
 import { Job, AppSettings } from '../types';
@@ -27,6 +28,10 @@ export default function ExportReportsScreen() {
   const [selectedWeek, setSelectedWeek] = useState<{ start: Date; end: Date }>(
     ExportService.getWeekRange(new Date())
   );
+
+  // Date picker visibility
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
 
   // iOS picker modals
   const [showTypePicker, setShowTypePicker] = useState(false);
@@ -118,6 +123,54 @@ export default function ExportReportsScreen() {
     }
   };
 
+  const handleSimpleExport = async () => {
+    if (!settings) {
+      showNotification('Settings not loaded', 'error');
+      return;
+    }
+
+    if (jobs.length === 0) {
+      showNotification('No jobs to export', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Build export options for simple export
+      const options: ExportOptions = {
+        type: 'simple',
+        format: 'pdf',
+        selectedDate,
+        selectedWeek,
+        selectedMonth,
+        selectedYear,
+      };
+
+      console.log('[SimpleExport] Starting simple export with options:', options);
+
+      // Perform simple export
+      const result = await ExportService.exportSimplePDF(
+        jobs,
+        technicianName,
+        options
+      );
+
+      if (result.success) {
+        showNotification(result.message, 'success');
+        console.log('[SimpleExport] Export successful:', result.fileUri);
+      } else {
+        showNotification(result.message, 'error');
+        console.error('[SimpleExport] Export failed:', result.message);
+      }
+    } catch (error: any) {
+      console.error('[SimpleExport] Export error:', error);
+      showNotification(error?.message || 'Export failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getAvailableMonths = () => {
     return ExportService.getAvailableMonths(jobs);
   };
@@ -144,6 +197,21 @@ export default function ExportReportsScreen() {
   const getSelectedMonthLabel = () => {
     const date = new Date(selectedYear, selectedMonth, 1);
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(false);
+    if (date) {
+      setSelectedDate(date);
+      setSelectedWeek(ExportService.getWeekRange(date));
+    }
+  };
+
+  const handleWeekChange = (event: any, date?: Date) => {
+    setShowWeekPicker(false);
+    if (date) {
+      setSelectedWeek(ExportService.getWeekRange(date));
+    }
   };
 
   const availableMonths = getAvailableMonths();
@@ -240,6 +308,67 @@ export default function ExportReportsScreen() {
             </View>
           )}
         </View>
+
+        {/* Date Selection (for daily export) */}
+        {exportType === 'daily' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📅 Select Date</Text>
+            <Text style={styles.sectionDescription}>
+              Choose which day to export
+            </Text>
+
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.dateButtonText}>
+                {selectedDate.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+          </View>
+        )}
+
+        {/* Week Selection (for weekly export) */}
+        {exportType === 'weekly' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📅 Select Week</Text>
+            <Text style={styles.sectionDescription}>
+              Choose which week to export (Monday - Saturday)
+            </Text>
+
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowWeekPicker(true)}
+            >
+              <Text style={styles.dateButtonText}>
+                {selectedWeek.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {selectedWeek.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </TouchableOpacity>
+
+            {showWeekPicker && (
+              <DateTimePicker
+                value={selectedWeek.start}
+                mode="date"
+                display="default"
+                onChange={handleWeekChange}
+              />
+            )}
+          </View>
+        )}
 
         {/* Month Selection (for monthly export) */}
         {exportType === 'monthly' && (
@@ -443,7 +572,7 @@ export default function ExportReportsScreen() {
           </View>
         </View>
 
-        {/* Export Button */}
+        {/* Export Buttons */}
         <TouchableOpacity
           style={[styles.exportButton, loading && styles.exportButtonDisabled]}
           onPress={handleExport}
@@ -453,7 +582,21 @@ export default function ExportReportsScreen() {
             <ActivityIndicator color="#ffffff" />
           ) : (
             <Text style={styles.exportButtonText}>
-              {exportFormat === 'pdf' ? '📄 Export to PDF' : '💾 Export to JSON'}
+              {exportFormat === 'pdf' ? '📄 Export Detailed PDF' : '💾 Export to JSON'}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.simpleExportButton, loading && styles.exportButtonDisabled]}
+          onPress={handleSimpleExport}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.exportButtonText}>
+              📋 Export Simple PDF
             </Text>
           )}
         </TouchableOpacity>
@@ -547,6 +690,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
+  dateButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -636,6 +794,17 @@ const createStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8,
     boxShadow: '0px 4px 12px rgba(37, 99, 235, 0.3)',
+    elevation: 4,
+  },
+  simpleExportButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    boxShadow: '0px 4px 12px rgba(16, 185, 129, 0.3)',
     elevation: 4,
   },
   exportButtonDisabled: {

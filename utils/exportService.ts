@@ -8,6 +8,7 @@ import { Platform, Alert } from 'react-native';
 
 export type ExportType = 'daily' | 'weekly' | 'monthly' | 'all' | 'simple';
 export type ExportFormat = 'pdf' | 'json';
+export type SimpleExportType = 'day' | 'week' | 'month' | 'entire';
 
 export interface ExportOptions {
   type: ExportType;
@@ -16,6 +17,7 @@ export interface ExportOptions {
   selectedMonth?: number;
   selectedYear?: number;
   selectedWeek?: { start: Date; end: Date };
+  simpleExportType?: SimpleExportType;
 }
 
 export interface ExportResult {
@@ -44,6 +46,7 @@ interface MonthGroup {
   month: string;
   year: number;
   weeks: WeekGroup[];
+  days: DayGroup[];
   totalAWs: number;
   totalHours: string;
 }
@@ -91,174 +94,439 @@ export const ExportService = {
   },
 
   /**
-   * Filter jobs based on export type
+   * Simple PDF Export with grouping options
    */
-  filterJobsByType(jobs: Job[], options: ExportOptions): Job[] {
-    const { type, selectedDate, selectedMonth, selectedYear, selectedWeek } = options;
+  async exportSimplePDF(
+    jobs: Job[],
+    technicianName: string,
+    options: ExportOptions
+  ): Promise<ExportResult> {
+    try {
+      console.log('[ExportService] Starting simple PDF export:', options);
 
-    switch (type) {
-      case 'daily':
-        if (!selectedDate) return [];
-        return CalculationService.getDailyJobs(jobs, selectedDate);
+      if (jobs.length === 0) {
+        return {
+          success: false,
+          message: 'No jobs to export',
+        };
+      }
 
-      case 'weekly':
-        if (!selectedWeek) return [];
-        return CalculationService.getJobsByDateRange(jobs, selectedWeek.start, selectedWeek.end);
+      // Generate HTML based on simple export type
+      let html: string;
+      let filteredJobs: Job[];
+      let filename: string;
 
-      case 'monthly':
-        if (selectedMonth === undefined || selectedYear === undefined) return [];
-        return CalculationService.getJobsByMonth(jobs, selectedMonth, selectedYear);
+      const { selectedDate, selectedWeek, selectedMonth, selectedYear } = options;
 
-      case 'all':
-      case 'simple':
-        return jobs;
+      // Determine export type from options
+      if (selectedDate) {
+        // Day export
+        filteredJobs = CalculationService.getDailyJobs(jobs, selectedDate);
+        if (filteredJobs.length === 0) {
+          return {
+            success: false,
+            message: 'No jobs found for the selected day',
+          };
+        }
+        html = this.generateSimpleDayHTML(filteredJobs, technicianName, selectedDate);
+        filename = `jobs-simple-day-${selectedDate.toISOString().split('T')[0]}.pdf`;
+      } else if (selectedWeek) {
+        // Week export
+        filteredJobs = CalculationService.getJobsByDateRange(jobs, selectedWeek.start, selectedWeek.end);
+        if (filteredJobs.length === 0) {
+          return {
+            success: false,
+            message: 'No jobs found for the selected week',
+          };
+        }
+        html = this.generateSimpleWeekHTML(filteredJobs, technicianName, selectedWeek);
+        filename = `jobs-simple-week-${selectedWeek.start.toISOString().split('T')[0]}.pdf`;
+      } else if (selectedMonth !== undefined && selectedYear !== undefined) {
+        // Month export
+        filteredJobs = CalculationService.getJobsByMonth(jobs, selectedMonth, selectedYear);
+        if (filteredJobs.length === 0) {
+          return {
+            success: false,
+            message: 'No jobs found for the selected month',
+          };
+        }
+        html = this.generateSimpleMonthHTML(filteredJobs, technicianName, selectedMonth, selectedYear);
+        filename = `jobs-simple-month-${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}.pdf`;
+      } else {
+        // Entire export
+        html = this.generateSimpleEntireHTML(jobs, technicianName);
+        filename = `jobs-simple-entire-${new Date().toISOString().split('T')[0]}.pdf`;
+      }
 
-      default:
-        return [];
+      // Create PDF
+      const { uri } = await Print.printToFileAsync({
+        html,
+        base64: false,
+      });
+
+      console.log('[ExportService] Simple PDF generated at temp location:', uri);
+
+      // Determine storage directory based on platform
+      let storageDir = FileSystem.documentDirectory;
+      
+      if (!storageDir) {
+        storageDir = FileSystem.cacheDirectory;
+        console.log('[ExportService] Using cache directory as fallback');
+      }
+
+      if (!storageDir) {
+        throw new Error('No storage directory available');
+      }
+
+      const permanentUri = storageDir + filename;
+
+      // Copy to permanent location
+      try {
+        await FileSystem.copyAsync({
+          from: uri,
+          to: permanentUri,
+        });
+        console.log('[ExportService] PDF copied to permanent location:', permanentUri);
+      } catch (copyError: any) {
+        console.error('[ExportService] Error copying PDF:', copyError);
+      }
+
+      // Share the file
+      const fileToShare = permanentUri;
+      
+      try {
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          console.log('[ExportService] Sharing PDF...');
+          await Sharing.shareAsync(fileToShare, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Export Simple Job List',
+            UTI: 'com.adobe.pdf',
+          });
+          
+          return {
+            success: true,
+            message: 'Simple PDF exported successfully',
+            fileUri: fileToShare,
+          };
+        } else {
+          console.log('[ExportService] Sharing not available on this platform');
+          
+          if (Platform.OS === 'web') {
+            const link = document.createElement('a');
+            link.href = fileToShare;
+            link.download = filename;
+            link.click();
+            
+            return {
+              success: true,
+              message: 'PDF downloaded successfully',
+              fileUri: fileToShare,
+            };
+          }
+          
+          return {
+            success: true,
+            message: `PDF saved to: ${fileToShare}`,
+            fileUri: fileToShare,
+          };
+        }
+      } catch (shareError: any) {
+        console.error('[ExportService] Error sharing PDF:', shareError);
+        
+        return {
+          success: true,
+          message: `PDF saved but sharing failed. File location: ${fileToShare}`,
+          fileUri: fileToShare,
+        };
+      }
+    } catch (error: any) {
+      console.error('[ExportService] Simple PDF export error:', error);
+      
+      let errorMessage = 'Simple PDF export failed';
+      
+      if (error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please check app permissions.';
+      } else if (error.message?.includes('storage')) {
+        errorMessage = 'Storage error. Please check available storage space.';
+      } else if (error.message) {
+        errorMessage = `Simple PDF export failed: ${error.message}`;
+      }
+      
+      return {
+        success: false,
+        message: errorMessage,
+      };
     }
   },
 
   /**
-   * Group jobs by day, week, and month for simple PDF export
+   * Generate Simple Day HTML
    */
-  groupJobsForSimplePDF(jobs: Job[]): MonthGroup[] {
-    // Sort jobs by date (oldest first)
-    const sortedJobs = [...jobs].sort((a, b) => 
-      new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+  generateSimpleDayHTML(jobs: Job[], technicianName: string, date: Date): string {
+    const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
+    const totalMinutes = totalAWs * 5;
+    const totalHours = CalculationService.formatTime(totalMinutes);
+    const dateStr = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    let jobsHTML = '';
+    jobs.forEach(job => {
+      const workDone = job.notes || job.jobDescription || '-';
+      const jobMinutes = job.awValue * 5;
+      const jobHours = CalculationService.formatTime(jobMinutes);
+      
+      jobsHTML += `
+        <tr>
+          <td><strong>${job.wipNumber}</strong></td>
+          <td>${workDone}</td>
+          <td><strong>${jobHours}</strong></td>
+        </tr>
+      `;
+    });
+
+    return this.generateSimplePDFTemplate(
+      technicianName,
+      `Day Report - ${dateStr}`,
+      totalAWs,
+      totalHours,
+      jobs.length,
+      `
+        <div class="day-section">
+          <div class="day-header">
+            <span class="day-date">${dateStr}</span>
+            <span class="day-total">${totalAWs} AWs (${totalHours})</span>
+          </div>
+          <table class="jobs-table">
+            <thead>
+              <tr>
+                <th>WIP Number</th>
+                <th>Work Done</th>
+                <th>Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jobsHTML}
+            </tbody>
+          </table>
+        </div>
+      `
     );
+  },
 
-    // Group by month
-    const monthMap = new Map<string, Job[]>();
+  /**
+   * Generate Simple Week HTML
+   */
+  generateSimpleWeekHTML(jobs: Job[], technicianName: string, week: { start: Date; end: Date }): string {
+    // Group jobs by day
+    const dayMap = new Map<string, Job[]>();
     
-    sortedJobs.forEach(job => {
+    jobs.forEach(job => {
       const date = new Date(job.dateCreated);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const dayKey = date.toISOString().split('T')[0];
       
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, []);
+      if (!dayMap.has(dayKey)) {
+        dayMap.set(dayKey, []);
       }
-      monthMap.get(monthKey)!.push(job);
+      dayMap.get(dayKey)!.push(job);
     });
 
-    // Process each month
-    const monthGroups: MonthGroup[] = [];
-
-    monthMap.forEach((monthJobs, monthKey) => {
-      const [year, month] = monthKey.split('-').map(Number);
-      const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-      // Group jobs by week within the month
-      const weekMap = new Map<string, Job[]>();
+    // Process each day
+    const dayGroups: DayGroup[] = [];
+    
+    dayMap.forEach((dayJobs, dayKey) => {
+      const dateObj = new Date(dayKey);
+      const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
+      const totalMinutes = totalAWs * 5;
       
-      monthJobs.forEach(job => {
-        const date = new Date(job.dateCreated);
-        const weekStart = this.getWeekStart(date);
-        const weekKey = weekStart.toISOString().split('T')[0];
-        
-        if (!weekMap.has(weekKey)) {
-          weekMap.set(weekKey, []);
-        }
-        weekMap.get(weekKey)!.push(job);
-      });
-
-      // Process each week
-      const weekGroups: WeekGroup[] = [];
-      
-      weekMap.forEach((weekJobs, weekKey) => {
-        const weekStart = new Date(weekKey);
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 5); // Monday to Saturday (6 days)
-
-        // Group jobs by day within the week
-        const dayMap = new Map<string, Job[]>();
-        
-        weekJobs.forEach(job => {
-          const date = new Date(job.dateCreated);
-          const dayKey = date.toISOString().split('T')[0];
-          
-          if (!dayMap.has(dayKey)) {
-            dayMap.set(dayKey, []);
-          }
-          dayMap.get(dayKey)!.push(job);
-        });
-
-        // Process each day
-        const dayGroups: DayGroup[] = [];
-        
-        dayMap.forEach((dayJobs, dayKey) => {
-          const dateObj = new Date(dayKey);
-          const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
-          const totalMinutes = totalAWs * 5;
-          
-          dayGroups.push({
-            date: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-            dateObj,
-            jobs: dayJobs,
-            totalAWs,
-            totalHours: CalculationService.formatTime(totalMinutes),
-          });
-        });
-
-        // Sort days by date
-        dayGroups.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
-
-        // Calculate week totals
-        const weekTotalAWs = weekJobs.reduce((sum, job) => sum + job.awValue, 0);
-        const weekTotalMinutes = weekTotalAWs * 5;
-
-        weekGroups.push({
-          weekStart,
-          weekEnd,
-          days: dayGroups,
-          totalAWs: weekTotalAWs,
-          totalHours: CalculationService.formatTime(weekTotalMinutes),
-        });
-      });
-
-      // Sort weeks by start date
-      weekGroups.sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
-
-      // Calculate month totals
-      const monthTotalAWs = monthJobs.reduce((sum, job) => sum + job.awValue, 0);
-      const monthTotalMinutes = monthTotalAWs * 5;
-
-      monthGroups.push({
-        month: monthName,
-        year,
-        weeks: weekGroups,
-        totalAWs: monthTotalAWs,
-        totalHours: CalculationService.formatTime(monthTotalMinutes),
+      dayGroups.push({
+        date: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        dateObj,
+        jobs: dayJobs,
+        totalAWs,
+        totalHours: CalculationService.formatTime(totalMinutes),
       });
     });
 
-    // Sort months by year and month
-    monthGroups.sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month.localeCompare(b.month);
+    // Sort days by date
+    dayGroups.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+    // Calculate week totals
+    const weekTotalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
+    const weekTotalMinutes = weekTotalAWs * 5;
+    const weekTotalHours = CalculationService.formatTime(weekTotalMinutes);
+
+    // Generate HTML for days
+    let daysHTML = '';
+    
+    dayGroups.forEach(dayGroup => {
+      let jobsHTML = '';
+      dayGroup.jobs.forEach(job => {
+        const workDone = job.notes || job.jobDescription || '-';
+        const jobMinutes = job.awValue * 5;
+        const jobHours = CalculationService.formatTime(jobMinutes);
+        
+        jobsHTML += `
+          <tr>
+            <td><strong>${job.wipNumber}</strong></td>
+            <td>${workDone}</td>
+            <td><strong>${jobHours}</strong></td>
+          </tr>
+        `;
+      });
+
+      daysHTML += `
+        <div class="day-section">
+          <div class="day-header">
+            <span class="day-date">${dayGroup.date}</span>
+            <span class="day-total">${dayGroup.totalAWs} AWs (${dayGroup.totalHours})</span>
+          </div>
+          <table class="jobs-table">
+            <thead>
+              <tr>
+                <th>WIP Number</th>
+                <th>Work Done</th>
+                <th>Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jobsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
     });
 
-    return monthGroups;
+    const weekStr = `${week.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${week.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+    return this.generateSimplePDFTemplate(
+      technicianName,
+      `Week Report - ${weekStr}`,
+      weekTotalAWs,
+      weekTotalHours,
+      jobs.length,
+      `
+        <div class="week-section">
+          ${daysHTML}
+          <div class="week-total">
+            <span class="week-label">Week Total (${weekStr}):</span>
+            <span class="week-value">${weekTotalAWs} AWs (${weekTotalHours})</span>
+          </div>
+        </div>
+      `
+    );
   },
 
   /**
-   * Get the start of the week (Monday) for a given date
+   * Generate Simple Month HTML
    */
-  getWeekStart(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    const monday = new Date(d.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    return monday;
+  generateSimpleMonthHTML(jobs: Job[], technicianName: string, month: number, year: number): string {
+    const monthName = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // Group jobs by day
+    const dayMap = new Map<string, Job[]>();
+    
+    jobs.forEach(job => {
+      const date = new Date(job.dateCreated);
+      const dayKey = date.toISOString().split('T')[0];
+      
+      if (!dayMap.has(dayKey)) {
+        dayMap.set(dayKey, []);
+      }
+      dayMap.get(dayKey)!.push(job);
+    });
+
+    // Process each day
+    const dayGroups: DayGroup[] = [];
+    
+    dayMap.forEach((dayJobs, dayKey) => {
+      const dateObj = new Date(dayKey);
+      const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
+      const totalMinutes = totalAWs * 5;
+      
+      dayGroups.push({
+        date: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        dateObj,
+        jobs: dayJobs,
+        totalAWs,
+        totalHours: CalculationService.formatTime(totalMinutes),
+      });
+    });
+
+    // Sort days by date
+    dayGroups.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+    // Calculate month totals
+    const monthTotalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
+    const monthTotalMinutes = monthTotalAWs * 5;
+    const monthTotalHours = CalculationService.formatTime(monthTotalMinutes);
+
+    // Generate HTML for days
+    let daysHTML = '';
+    
+    dayGroups.forEach(dayGroup => {
+      let jobsHTML = '';
+      dayGroup.jobs.forEach(job => {
+        const workDone = job.notes || job.jobDescription || '-';
+        const jobMinutes = job.awValue * 5;
+        const jobHours = CalculationService.formatTime(jobMinutes);
+        
+        jobsHTML += `
+          <tr>
+            <td><strong>${job.wipNumber}</strong></td>
+            <td>${workDone}</td>
+            <td><strong>${jobHours}</strong></td>
+          </tr>
+        `;
+      });
+
+      daysHTML += `
+        <div class="day-section">
+          <div class="day-header">
+            <span class="day-date">${dayGroup.date}</span>
+            <span class="day-total">${dayGroup.totalAWs} AWs (${dayGroup.totalHours})</span>
+          </div>
+          <table class="jobs-table">
+            <thead>
+              <tr>
+                <th>WIP Number</th>
+                <th>Work Done</th>
+                <th>Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jobsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
+
+    return this.generateSimplePDFTemplate(
+      technicianName,
+      `Month Report - ${monthName}`,
+      monthTotalAWs,
+      monthTotalHours,
+      jobs.length,
+      `
+        <div class="month-section">
+          <div class="month-header">
+            <h2>📅 ${monthName}</h2>
+            <div class="month-total">
+              <span class="total-label">Month Total:</span>
+              <span class="total-value">${monthTotalAWs} AWs (${monthTotalHours})</span>
+            </div>
+          </div>
+          ${daysHTML}
+        </div>
+      `
+    );
   },
 
   /**
-   * Generate Simple PDF HTML content
+   * Generate Simple Entire HTML
    */
-  generateSimplePDFHTML(
-    jobs: Job[],
-    technicianName: string
-  ): string {
+  generateSimpleEntireHTML(jobs: Job[], technicianName: string): string {
     const monthGroups = this.groupJobsForSimplePDF(jobs);
     
     // Calculate overall totals
@@ -271,6 +539,59 @@ export const ExportService = {
     let monthsHTML = '';
     
     monthGroups.forEach(monthGroup => {
+      // Generate days HTML for this month
+      let daysHTML = '';
+      
+      monthGroup.days.forEach(dayGroup => {
+        let jobsHTML = '';
+        dayGroup.jobs.forEach(job => {
+          const workDone = job.notes || job.jobDescription || '-';
+          const jobMinutes = job.awValue * 5;
+          const jobHours = CalculationService.formatTime(jobMinutes);
+          
+          jobsHTML += `
+            <tr>
+              <td><strong>${job.wipNumber}</strong></td>
+              <td>${workDone}</td>
+              <td><strong>${jobHours}</strong></td>
+            </tr>
+          `;
+        });
+
+        daysHTML += `
+          <div class="day-section">
+            <div class="day-header">
+              <span class="day-date">${dayGroup.date}</span>
+              <span class="day-total">${dayGroup.totalAWs} AWs (${dayGroup.totalHours})</span>
+            </div>
+            <table class="jobs-table">
+              <thead>
+                <tr>
+                  <th>WIP Number</th>
+                  <th>Work Done</th>
+                  <th>Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${jobsHTML}
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+
+      // Generate weeks HTML for this month
+      let weeksHTML = '';
+      
+      monthGroup.weeks.forEach(weekGroup => {
+        weeksHTML += `
+          <div class="week-total">
+            <span class="week-label">Week Total (${weekGroup.weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekGroup.weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}):</span>
+            <span class="week-value">${weekGroup.totalAWs} AWs (${weekGroup.totalHours})</span>
+          </div>
+        `;
+      });
+
       monthsHTML += `
         <div class="month-section">
           <div class="month-header">
@@ -280,74 +601,40 @@ export const ExportService = {
               <span class="total-value">${monthGroup.totalAWs} AWs (${monthGroup.totalHours})</span>
             </div>
           </div>
-      `;
-
-      monthGroup.weeks.forEach((weekGroup, weekIndex) => {
-        monthsHTML += `
-          <div class="week-section">
-        `;
-
-        weekGroup.days.forEach(dayGroup => {
-          monthsHTML += `
-            <div class="day-section">
-              <div class="day-header">
-                <span class="day-date">${dayGroup.date}</span>
-                <span class="day-total">${dayGroup.totalAWs} AWs (${dayGroup.totalHours})</span>
-              </div>
-              <table class="jobs-table">
-                <thead>
-                  <tr>
-                    <th>WIP Number</th>
-                    <th>Work Done</th>
-                    <th>Hours</th>
-                  </tr>
-                </thead>
-                <tbody>
-          `;
-
-          dayGroup.jobs.forEach(job => {
-            const workDone = job.notes || job.jobDescription || '-';
-            const jobMinutes = job.awValue * 5;
-            const jobHours = CalculationService.formatTime(jobMinutes);
-            
-            monthsHTML += `
-              <tr>
-                <td><strong>${job.wipNumber}</strong></td>
-                <td>${workDone}</td>
-                <td><strong>${jobHours}</strong></td>
-              </tr>
-            `;
-          });
-
-          monthsHTML += `
-                </tbody>
-              </table>
-            </div>
-          `;
-        });
-
-        // Add week total after Saturday
-        monthsHTML += `
-          <div class="week-total">
-            <span class="week-label">Week Total (Monday - Saturday):</span>
-            <span class="week-value">${weekGroup.totalAWs} AWs (${weekGroup.totalHours})</span>
-          </div>
-        </div>
-        `;
-      });
-
-      monthsHTML += `
+          ${daysHTML}
+          ${weeksHTML}
         </div>
       `;
     });
 
+    return this.generateSimplePDFTemplate(
+      technicianName,
+      'Complete Job History',
+      totalAWs,
+      totalHours,
+      totalJobs,
+      monthsHTML
+    );
+  },
+
+  /**
+   * Generate Simple PDF Template
+   */
+  generateSimplePDFTemplate(
+    technicianName: string,
+    title: string,
+    totalAWs: number,
+    totalHours: string,
+    totalJobs: number,
+    contentHTML: string
+  ): string {
     return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Job Records - ${technicianName}</title>
+          <title>${title} - ${technicianName}</title>
           <style>
             * {
               margin: 0;
@@ -603,7 +890,7 @@ export const ExportService = {
         </head>
         <body>
           <div class="header">
-            <h1>🔧 Job Records Report</h1>
+            <h1>🔧 ${title}</h1>
             <div class="technician-name">${technicianName}</div>
             <p>Generated: ${new Date().toLocaleString()}</p>
           </div>
@@ -623,7 +910,7 @@ export const ExportService = {
             </div>
           </div>
           
-          ${monthsHTML}
+          ${contentHTML}
           
           <div class="footer">
             <p><strong>Technician Records App</strong> v1.0.0</p>
@@ -635,6 +922,201 @@ export const ExportService = {
         </body>
       </html>
     `;
+  },
+
+  /**
+   * Filter jobs based on export type
+   */
+  filterJobsByType(jobs: Job[], options: ExportOptions): Job[] {
+    const { type, selectedDate, selectedMonth, selectedYear, selectedWeek } = options;
+
+    switch (type) {
+      case 'daily':
+        if (!selectedDate) return [];
+        return CalculationService.getDailyJobs(jobs, selectedDate);
+
+      case 'weekly':
+        if (!selectedWeek) return [];
+        return CalculationService.getJobsByDateRange(jobs, selectedWeek.start, selectedWeek.end);
+
+      case 'monthly':
+        if (selectedMonth === undefined || selectedYear === undefined) return [];
+        return CalculationService.getJobsByMonth(jobs, selectedMonth, selectedYear);
+
+      case 'all':
+      case 'simple':
+        return jobs;
+
+      default:
+        return [];
+    }
+  },
+
+  /**
+   * Group jobs by day, week, and month for simple PDF export
+   */
+  groupJobsForSimplePDF(jobs: Job[]): MonthGroup[] {
+    // Sort jobs by date (oldest first)
+    const sortedJobs = [...jobs].sort((a, b) => 
+      new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+    );
+
+    // Group by month
+    const monthMap = new Map<string, Job[]>();
+    
+    sortedJobs.forEach(job => {
+      const date = new Date(job.dateCreated);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, []);
+      }
+      monthMap.get(monthKey)!.push(job);
+    });
+
+    // Process each month
+    const monthGroups: MonthGroup[] = [];
+
+    monthMap.forEach((monthJobs, monthKey) => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      // Group jobs by week within the month
+      const weekMap = new Map<string, Job[]>();
+      
+      monthJobs.forEach(job => {
+        const date = new Date(job.dateCreated);
+        const weekStart = this.getWeekStart(date);
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        if (!weekMap.has(weekKey)) {
+          weekMap.set(weekKey, []);
+        }
+        weekMap.get(weekKey)!.push(job);
+      });
+
+      // Process each week
+      const weekGroups: WeekGroup[] = [];
+      
+      weekMap.forEach((weekJobs, weekKey) => {
+        const weekStart = new Date(weekKey);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 5); // Monday to Saturday (6 days)
+
+        // Group jobs by day within the week
+        const dayMap = new Map<string, Job[]>();
+        
+        weekJobs.forEach(job => {
+          const date = new Date(job.dateCreated);
+          const dayKey = date.toISOString().split('T')[0];
+          
+          if (!dayMap.has(dayKey)) {
+            dayMap.set(dayKey, []);
+          }
+          dayMap.get(dayKey)!.push(job);
+        });
+
+        // Process each day
+        const dayGroups: DayGroup[] = [];
+        
+        dayMap.forEach((dayJobs, dayKey) => {
+          const dateObj = new Date(dayKey);
+          const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
+          const totalMinutes = totalAWs * 5;
+          
+          dayGroups.push({
+            date: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+            dateObj,
+            jobs: dayJobs,
+            totalAWs,
+            totalHours: CalculationService.formatTime(totalMinutes),
+          });
+        });
+
+        // Sort days by date
+        dayGroups.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+        // Calculate week totals
+        const weekTotalAWs = weekJobs.reduce((sum, job) => sum + job.awValue, 0);
+        const weekTotalMinutes = weekTotalAWs * 5;
+
+        weekGroups.push({
+          weekStart,
+          weekEnd,
+          days: dayGroups,
+          totalAWs: weekTotalAWs,
+          totalHours: CalculationService.formatTime(weekTotalMinutes),
+        });
+      });
+
+      // Sort weeks by start date
+      weekGroups.sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+
+      // Group jobs by day for the entire month (for month view)
+      const monthDayMap = new Map<string, Job[]>();
+      
+      monthJobs.forEach(job => {
+        const date = new Date(job.dateCreated);
+        const dayKey = date.toISOString().split('T')[0];
+        
+        if (!monthDayMap.has(dayKey)) {
+          monthDayMap.set(dayKey, []);
+        }
+        monthDayMap.get(dayKey)!.push(job);
+      });
+
+      const monthDayGroups: DayGroup[] = [];
+      
+      monthDayMap.forEach((dayJobs, dayKey) => {
+        const dateObj = new Date(dayKey);
+        const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
+        const totalMinutes = totalAWs * 5;
+        
+        monthDayGroups.push({
+          date: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+          dateObj,
+          jobs: dayJobs,
+          totalAWs,
+          totalHours: CalculationService.formatTime(totalMinutes),
+        });
+      });
+
+      // Sort days by date
+      monthDayGroups.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+      // Calculate month totals
+      const monthTotalAWs = monthJobs.reduce((sum, job) => sum + job.awValue, 0);
+      const monthTotalMinutes = monthTotalAWs * 5;
+
+      monthGroups.push({
+        month: monthName,
+        year,
+        weeks: weekGroups,
+        days: monthDayGroups,
+        totalAWs: monthTotalAWs,
+        totalHours: CalculationService.formatTime(monthTotalMinutes),
+      });
+    });
+
+    // Sort months by year and month
+    monthGroups.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month.localeCompare(b.month);
+    });
+
+    return monthGroups;
+  },
+
+  /**
+   * Get the start of the week (Monday) for a given date
+   */
+  getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const monday = new Date(d.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
   },
 
   /**
@@ -1050,6 +1532,16 @@ export const ExportService = {
         message: error?.message || 'JSON export failed',
       };
     }
+  },
+
+  /**
+   * Generate Simple PDF HTML content (legacy - for backward compatibility)
+   */
+  generateSimplePDFHTML(
+    jobs: Job[],
+    technicianName: string
+  ): string {
+    return this.generateSimpleEntireHTML(jobs, technicianName);
   },
 
   /**
@@ -1945,11 +2437,13 @@ export const ExportService = {
    */
   getWeekRange(date: Date): { start: Date; end: Date } {
     const start = new Date(date);
-    start.setDate(date.getDate() - date.getDay()); // Start of week (Sunday)
+    const day = start.getDay();
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    start.setDate(diff);
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(start);
-    end.setDate(start.getDate() + 6); // End of week (Saturday)
+    end.setDate(start.getDate() + 5); // Saturday (6 days from Monday)
     end.setHours(23, 59, 59, 999);
 
     return { start, end };
