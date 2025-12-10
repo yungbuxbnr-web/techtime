@@ -6,7 +6,7 @@ import { Job, AppSettings } from '../types';
 import { CalculationService } from './calculations';
 import { Platform, Alert } from 'react-native';
 
-export type ExportType = 'daily' | 'weekly' | 'monthly' | 'all';
+export type ExportType = 'daily' | 'weekly' | 'monthly' | 'all' | 'simple';
 export type ExportFormat = 'pdf' | 'json';
 
 export interface ExportOptions {
@@ -22,6 +22,30 @@ export interface ExportResult {
   success: boolean;
   message: string;
   fileUri?: string;
+}
+
+interface DayGroup {
+  date: string;
+  dateObj: Date;
+  jobs: Job[];
+  totalAWs: number;
+  totalHours: string;
+}
+
+interface WeekGroup {
+  weekStart: Date;
+  weekEnd: Date;
+  days: DayGroup[];
+  totalAWs: number;
+  totalHours: string;
+}
+
+interface MonthGroup {
+  month: string;
+  year: number;
+  weeks: WeekGroup[];
+  totalAWs: number;
+  totalHours: string;
 }
 
 /**
@@ -86,11 +110,531 @@ export const ExportService = {
         return CalculationService.getJobsByMonth(jobs, selectedMonth, selectedYear);
 
       case 'all':
+      case 'simple':
         return jobs;
 
       default:
         return [];
     }
+  },
+
+  /**
+   * Group jobs by day, week, and month for simple PDF export
+   */
+  groupJobsForSimplePDF(jobs: Job[]): MonthGroup[] {
+    // Sort jobs by date (oldest first)
+    const sortedJobs = [...jobs].sort((a, b) => 
+      new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+    );
+
+    // Group by month
+    const monthMap = new Map<string, Job[]>();
+    
+    sortedJobs.forEach(job => {
+      const date = new Date(job.dateCreated);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, []);
+      }
+      monthMap.get(monthKey)!.push(job);
+    });
+
+    // Process each month
+    const monthGroups: MonthGroup[] = [];
+
+    monthMap.forEach((monthJobs, monthKey) => {
+      const [year, month] = monthKey.split('-').map(Number);
+      const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      // Group jobs by week within the month
+      const weekMap = new Map<string, Job[]>();
+      
+      monthJobs.forEach(job => {
+        const date = new Date(job.dateCreated);
+        const weekStart = this.getWeekStart(date);
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        if (!weekMap.has(weekKey)) {
+          weekMap.set(weekKey, []);
+        }
+        weekMap.get(weekKey)!.push(job);
+      });
+
+      // Process each week
+      const weekGroups: WeekGroup[] = [];
+      
+      weekMap.forEach((weekJobs, weekKey) => {
+        const weekStart = new Date(weekKey);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 5); // Monday to Saturday (6 days)
+
+        // Group jobs by day within the week
+        const dayMap = new Map<string, Job[]>();
+        
+        weekJobs.forEach(job => {
+          const date = new Date(job.dateCreated);
+          const dayKey = date.toISOString().split('T')[0];
+          
+          if (!dayMap.has(dayKey)) {
+            dayMap.set(dayKey, []);
+          }
+          dayMap.get(dayKey)!.push(job);
+        });
+
+        // Process each day
+        const dayGroups: DayGroup[] = [];
+        
+        dayMap.forEach((dayJobs, dayKey) => {
+          const dateObj = new Date(dayKey);
+          const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
+          const totalMinutes = totalAWs * 5;
+          
+          dayGroups.push({
+            date: dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+            dateObj,
+            jobs: dayJobs,
+            totalAWs,
+            totalHours: CalculationService.formatTime(totalMinutes),
+          });
+        });
+
+        // Sort days by date
+        dayGroups.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+        // Calculate week totals
+        const weekTotalAWs = weekJobs.reduce((sum, job) => sum + job.awValue, 0);
+        const weekTotalMinutes = weekTotalAWs * 5;
+
+        weekGroups.push({
+          weekStart,
+          weekEnd,
+          days: dayGroups,
+          totalAWs: weekTotalAWs,
+          totalHours: CalculationService.formatTime(weekTotalMinutes),
+        });
+      });
+
+      // Sort weeks by start date
+      weekGroups.sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+
+      // Calculate month totals
+      const monthTotalAWs = monthJobs.reduce((sum, job) => sum + job.awValue, 0);
+      const monthTotalMinutes = monthTotalAWs * 5;
+
+      monthGroups.push({
+        month: monthName,
+        year,
+        weeks: weekGroups,
+        totalAWs: monthTotalAWs,
+        totalHours: CalculationService.formatTime(monthTotalMinutes),
+      });
+    });
+
+    // Sort months by year and month
+    monthGroups.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month.localeCompare(b.month);
+    });
+
+    return monthGroups;
+  },
+
+  /**
+   * Get the start of the week (Monday) for a given date
+   */
+  getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const monday = new Date(d.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  },
+
+  /**
+   * Generate Simple PDF HTML content
+   */
+  generateSimplePDFHTML(
+    jobs: Job[],
+    technicianName: string
+  ): string {
+    const monthGroups = this.groupJobsForSimplePDF(jobs);
+    
+    // Calculate overall totals
+    const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
+    const totalMinutes = totalAWs * 5;
+    const totalHours = CalculationService.formatTime(totalMinutes);
+    const totalJobs = jobs.length;
+
+    // Generate HTML for all months
+    let monthsHTML = '';
+    
+    monthGroups.forEach(monthGroup => {
+      monthsHTML += `
+        <div class="month-section">
+          <div class="month-header">
+            <h2>📅 ${monthGroup.month}</h2>
+            <div class="month-total">
+              <span class="total-label">Month Total:</span>
+              <span class="total-value">${monthGroup.totalAWs} AWs (${monthGroup.totalHours})</span>
+            </div>
+          </div>
+      `;
+
+      monthGroup.weeks.forEach((weekGroup, weekIndex) => {
+        monthsHTML += `
+          <div class="week-section">
+        `;
+
+        weekGroup.days.forEach(dayGroup => {
+          monthsHTML += `
+            <div class="day-section">
+              <div class="day-header">
+                <span class="day-date">${dayGroup.date}</span>
+                <span class="day-total">${dayGroup.totalAWs} AWs (${dayGroup.totalHours})</span>
+              </div>
+              <table class="jobs-table">
+                <thead>
+                  <tr>
+                    <th>WIP Number</th>
+                    <th>Work Done</th>
+                    <th>Hours</th>
+                  </tr>
+                </thead>
+                <tbody>
+          `;
+
+          dayGroup.jobs.forEach(job => {
+            const workDone = job.notes || job.jobDescription || '-';
+            const jobMinutes = job.awValue * 5;
+            const jobHours = CalculationService.formatTime(jobMinutes);
+            
+            monthsHTML += `
+              <tr>
+                <td><strong>${job.wipNumber}</strong></td>
+                <td>${workDone}</td>
+                <td><strong>${jobHours}</strong></td>
+              </tr>
+            `;
+          });
+
+          monthsHTML += `
+                </tbody>
+              </table>
+            </div>
+          `;
+        });
+
+        // Add week total after Saturday
+        monthsHTML += `
+          <div class="week-total">
+            <span class="week-label">Week Total (Monday - Saturday):</span>
+            <span class="week-value">${weekGroup.totalAWs} AWs (${weekGroup.totalHours})</span>
+          </div>
+        </div>
+        `;
+      });
+
+      monthsHTML += `
+        </div>
+      `;
+    });
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Job Records - ${technicianName}</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              font-size: 11px;
+              line-height: 1.5;
+              color: #1f2937;
+              padding: 20px;
+              background: #ffffff;
+            }
+            
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding-bottom: 20px;
+              border-bottom: 3px solid #2563eb;
+            }
+            
+            .header h1 {
+              font-size: 28px;
+              font-weight: 800;
+              color: #1f2937;
+              margin-bottom: 8px;
+            }
+            
+            .header .technician-name {
+              font-size: 18px;
+              font-weight: 600;
+              color: #2563eb;
+              margin-bottom: 12px;
+            }
+            
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 15px;
+              margin-bottom: 30px;
+              padding: 20px;
+              background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+              border-radius: 12px;
+              border: 2px solid #bae6fd;
+            }
+            
+            .summary-item {
+              text-align: center;
+              padding: 12px;
+              background: #ffffff;
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            }
+            
+            .summary-item .label {
+              font-size: 10px;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 6px;
+              font-weight: 600;
+            }
+            
+            .summary-item .value {
+              font-size: 22px;
+              font-weight: 800;
+              color: #2563eb;
+            }
+            
+            .month-section {
+              margin-bottom: 40px;
+              page-break-inside: avoid;
+            }
+            
+            .month-header {
+              background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+              color: #ffffff;
+              padding: 16px 20px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            
+            .month-header h2 {
+              font-size: 20px;
+              font-weight: 700;
+              margin: 0;
+            }
+            
+            .month-total {
+              display: flex;
+              gap: 10px;
+              align-items: center;
+            }
+            
+            .total-label {
+              font-size: 11px;
+              font-weight: 500;
+              opacity: 0.9;
+            }
+            
+            .total-value {
+              font-size: 14px;
+              font-weight: 700;
+              background: rgba(255, 255, 255, 0.2);
+              padding: 6px 12px;
+              border-radius: 6px;
+            }
+            
+            .week-section {
+              margin-bottom: 25px;
+              padding: 15px;
+              background: #f8fafc;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
+            }
+            
+            .day-section {
+              margin-bottom: 15px;
+              background: #ffffff;
+              border-radius: 6px;
+              overflow: hidden;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+            
+            .day-header {
+              background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+              padding: 10px 15px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #bae6fd;
+            }
+            
+            .day-date {
+              font-size: 12px;
+              font-weight: 700;
+              color: #0c4a6e;
+            }
+            
+            .day-total {
+              font-size: 11px;
+              font-weight: 700;
+              color: #2563eb;
+              background: #ffffff;
+              padding: 4px 10px;
+              border-radius: 4px;
+            }
+            
+            .jobs-table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            
+            .jobs-table thead {
+              background: #f8fafc;
+            }
+            
+            .jobs-table th {
+              text-align: left;
+              padding: 10px 15px;
+              font-size: 10px;
+              font-weight: 700;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              border-bottom: 2px solid #e5e7eb;
+            }
+            
+            .jobs-table td {
+              padding: 10px 15px;
+              font-size: 11px;
+              border-bottom: 1px solid #f3f4f6;
+            }
+            
+            .jobs-table tbody tr:hover {
+              background: #f9fafb;
+            }
+            
+            .jobs-table tbody tr:last-child td {
+              border-bottom: none;
+            }
+            
+            .week-total {
+              margin-top: 15px;
+              padding: 12px 15px;
+              background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+              border-radius: 6px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border: 2px solid #fbbf24;
+            }
+            
+            .week-label {
+              font-size: 11px;
+              font-weight: 700;
+              color: #92400e;
+            }
+            
+            .week-value {
+              font-size: 13px;
+              font-weight: 800;
+              color: #92400e;
+            }
+            
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+            }
+            
+            .footer p {
+              font-size: 10px;
+              color: #6b7280;
+              margin-bottom: 8px;
+            }
+            
+            .signature {
+              margin-top: 15px;
+              padding: 12px 24px;
+              background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+              color: #ffffff;
+              border-radius: 6px;
+              font-size: 12px;
+              font-weight: 700;
+              display: inline-block;
+            }
+            
+            @media print {
+              body {
+                padding: 10px;
+              }
+              
+              .month-section {
+                page-break-inside: avoid;
+              }
+              
+              .week-section {
+                page-break-inside: avoid;
+              }
+              
+              .day-section {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🔧 Job Records Report</h1>
+            <div class="technician-name">${technicianName}</div>
+            <p>Generated: ${new Date().toLocaleString()}</p>
+          </div>
+          
+          <div class="summary">
+            <div class="summary-item">
+              <div class="label">Total Jobs</div>
+              <div class="value">${totalJobs}</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Total AWs</div>
+              <div class="value">${totalAWs}</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Total Hours</div>
+              <div class="value">${totalHours}</div>
+            </div>
+          </div>
+          
+          ${monthsHTML}
+          
+          <div class="footer">
+            <p><strong>Technician Records App</strong> v1.0.0</p>
+            <p>Professional job tracking for vehicle technicians</p>
+            <div class="signature">
+              ✍️ ${technicianName}
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
   },
 
   /**
@@ -270,8 +814,13 @@ export const ExportService = {
     try {
       console.log('[ExportService] Generating PDF...');
 
-      // Generate HTML content
-      const html = this.generatePDFHTML(jobs, settings, technicianName, options);
+      // Generate HTML content based on export type
+      let html: string;
+      if (options.type === 'simple') {
+        html = this.generateSimplePDFHTML(jobs, technicianName);
+      } else {
+        html = this.generatePDFHTML(jobs, settings, technicianName, options);
+      }
 
       // Create PDF
       const { uri } = await Print.printToFileAsync({
@@ -1037,6 +1586,9 @@ export const ExportService = {
       case 'all':
         return 'Complete Job History';
 
+      case 'simple':
+        return 'Simple Job List';
+
       default:
         return 'Job Records Export';
     }
@@ -1073,6 +1625,10 @@ export const ExportService = {
 
       case 'all':
         prefix = `jobs-all-${timestamp}`;
+        break;
+
+      case 'simple':
+        prefix = `jobs-simple-${timestamp}`;
         break;
     }
 
