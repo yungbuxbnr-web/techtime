@@ -28,8 +28,10 @@ export default function HelpScreen() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TechTime - Complete User Guide</title>
+  <title>TechTime - About & User Guide</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    
     * {
       margin: 0;
       padding: 0;
@@ -37,693 +39,880 @@ export default function HelpScreen() {
     }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      padding: 40px;
-      max-width: 800px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.7;
+      color: #1e293b;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      padding: 40px 20px;
+    }
+    
+    .page-container {
+      max-width: 1000px;
       margin: 0 auto;
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
     }
     
-    h1 {
-      color: #2563eb;
-      font-size: 32px;
-      margin-bottom: 10px;
-      border-bottom: 3px solid #2563eb;
-      padding-bottom: 10px;
+    .header-wrapper {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+      padding: 60px 50px;
+      position: relative;
+      overflow: hidden;
     }
     
-    h2 {
-      color: #1e40af;
-      font-size: 24px;
-      margin-top: 30px;
-      margin-bottom: 15px;
-      border-left: 4px solid #2563eb;
-      padding-left: 15px;
+    .header-wrapper::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+      border-radius: 50%;
     }
     
-    h3 {
-      color: #1e3a8a;
-      font-size: 18px;
-      margin-top: 20px;
-      margin-bottom: 10px;
+    .header-wrapper::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -5%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      border-radius: 50%;
     }
     
-    p {
+    .header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+    
+    .company-logo {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      margin-bottom: 24px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    }
+    
+    .header h1 {
+      font-size: 52px;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 16px;
+      letter-spacing: -1.5px;
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .header .subtitle {
+      font-size: 22px;
+      font-weight: 600;
+      color: #e0f2fe;
       margin-bottom: 12px;
-      text-align: justify;
+      letter-spacing: 0.5px;
     }
     
-    ul, ol {
-      margin-left: 25px;
-      margin-bottom: 15px;
+    .header .tagline {
+      font-size: 16px;
+      font-weight: 500;
+      color: #bfdbfe;
+      margin-bottom: 24px;
     }
     
-    li {
-      margin-bottom: 8px;
+    .header-meta {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 28px;
+      flex-wrap: wrap;
+    }
+    
+    .header-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #bfdbfe;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px 20px;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .header-meta-icon {
+      font-size: 18px;
+    }
+    
+    .content-wrapper {
+      padding: 50px;
+    }
+    
+    .about-section {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border-radius: 16px;
+      padding: 40px;
+      margin-bottom: 40px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+    
+    .about-title {
+      font-size: 32px;
+      font-weight: 900;
+      color: #0f172a;
+      margin-bottom: 20px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      position: relative;
+      padding-bottom: 20px;
+    }
+    
+    .about-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 5px;
+      background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+      border-radius: 3px;
+    }
+    
+    .about-description {
+      font-size: 16px;
+      color: #475569;
+      line-height: 1.8;
+      text-align: center;
+      margin-bottom: 30px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 30px;
+    }
+    
+    .feature-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .feature-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: block;
+    }
+    
+    .feature-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #1e40af;
+      margin-bottom: 10px;
+    }
+    
+    .feature-description {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.6;
     }
     
     .section {
-      margin-bottom: 30px;
+      margin-bottom: 40px;
       page-break-inside: avoid;
     }
     
+    .section-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .section-icon {
+      font-size: 32px;
+    }
+    
+    .subsection-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e40af;
+      margin-top: 24px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .subsection-icon {
+      font-size: 22px;
+    }
+    
+    p {
+      margin-bottom: 14px;
+      font-size: 15px;
+      color: #334155;
+      line-height: 1.7;
+    }
+    
+    ul, ol {
+      margin-left: 28px;
+      margin-bottom: 18px;
+    }
+    
+    li {
+      margin-bottom: 10px;
+      font-size: 15px;
+      color: #334155;
+      line-height: 1.6;
+    }
+    
     .feature-box {
-      background-color: #f0f9ff;
-      border-left: 4px solid #2563eb;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 4px;
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border-left: 5px solid #2563eb;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+    }
+    
+    .feature-box-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #1e40af;
+      margin-bottom: 12px;
     }
     
     .tip-box {
-      background-color: #fef3c7;
-      border-left: 4px solid #f59e0b;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 4px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-left: 5px solid #f59e0b;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
     }
     
     .warning-box {
-      background-color: #fee2e2;
-      border-left: 4px solid #ef4444;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 4px;
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border-left: 5px solid #ef4444;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
     }
     
-    .code {
-      background-color: #f3f4f6;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: 'Courier New', monospace;
+    .box-text {
       font-size: 14px;
-    }
-    
-    .footer {
-      margin-top: 50px;
-      padding-top: 20px;
-      border-top: 2px solid #e5e7eb;
-      text-align: center;
-      color: #6b7280;
-      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 8px;
     }
     
     .toc {
-      background-color: #f9fafb;
-      padding: 20px;
-      border-radius: 8px;
-      margin: 20px 0;
+      background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+      padding: 30px;
+      border-radius: 12px;
+      margin: 30px 0;
+      border: 2px solid #e5e7eb;
     }
     
     .toc-title {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 15px;
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 20px;
       color: #1e40af;
+      text-align: center;
     }
     
     .toc-item {
-      margin-left: 15px;
+      margin-left: 20px;
+      margin-bottom: 10px;
+      font-size: 15px;
+      color: #334155;
+      font-weight: 500;
+    }
+    
+    .footer {
+      margin-top: 60px;
+      padding: 50px;
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      text-align: center;
+      color: #ffffff;
+    }
+    
+    .footer-logo {
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .footer p {
+      font-size: 14px;
+      color: #e0f2fe;
       margin-bottom: 8px;
+    }
+    
+    .footer-brand {
+      font-weight: 800;
+      color: #ffffff;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    
+    .signature-section {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .signature {
+      display: inline-block;
+      padding: 16px 40px;
+      background: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .confidential-notice {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(254, 243, 199, 0.3);
+      border: 2px solid #fbbf24;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #fef3c7;
+      font-weight: 600;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .stat-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .stat-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+    
+    .stat-value {
+      font-size: 28px;
+      font-weight: 900;
+      color: #2563eb;
+      margin-bottom: 8px;
+    }
+    
+    .stat-label {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
     @media print {
       body {
-        padding: 20px;
+        padding: 0;
+        background: #ffffff;
       }
       
-      h2 {
-        page-break-after: avoid;
+      .page-container {
+        box-shadow: none;
+        border-radius: 0;
       }
       
       .section {
+        page-break-inside: avoid;
+      }
+      
+      .feature-card {
         page-break-inside: avoid;
       }
     }
   </style>
 </head>
 <body>
-  <h1>📱 TechTime - Complete User Guide</h1>
-  <p><strong>Professional Job Tracking for Vehicle Technicians</strong></p>
-  <p><em>Version 1.0.0 | Last Updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</em></p>
+  <div class="page-container">
+    <div class="header-wrapper">
+      <div class="header">
+        <div class="company-logo">🔧</div>
+        <h1>TechTime</h1>
+        <div class="subtitle">Professional Job Tracking System</div>
+        <div class="tagline">Empowering Vehicle Technicians with Precision & Efficiency</div>
+        <div class="header-meta">
+          <div class="header-meta-item">
+            <span class="header-meta-icon">📅</span>
+            <span>${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+          <div class="header-meta-item">
+            <span class="header-meta-icon">📱</span>
+            <span>Version 1.0.0</span>
+          </div>
+          <div class="header-meta-item">
+            <span class="header-meta-icon">🔒</span>
+            <span>GDPR Compliant</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="content-wrapper">
+      <div class="about-section">
+        <h2 class="about-title">About TechTime</h2>
+        <p class="about-description">
+          TechTime is a cutting-edge, professional job tracking application meticulously designed for vehicle technicians. 
+          Built with precision and user experience at its core, TechTime transforms how technicians manage their workload, 
+          track time, and maintain comprehensive records. With advanced features including real-time time tracking, 
+          intelligent efficiency calculations, professional reporting, and robust security, TechTime is the ultimate 
+          companion for modern automotive professionals.
+        </p>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-value">100%</div>
+            <div class="stat-label">Privacy Focused</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔒</div>
+            <div class="stat-value">Secure</div>
+            <div class="stat-label">PIN & Biometric</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-value">Real-Time</div>
+            <div class="stat-label">Live Tracking</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">☁️</div>
+            <div class="stat-value">Cloud</div>
+            <div class="stat-label">Backup Ready</div>
+          </div>
+        </div>
+        
+        <div class="features-grid">
+          <div class="feature-card">
+            <span class="feature-icon">📝</span>
+            <h3 class="feature-title">Comprehensive Job Tracking</h3>
+            <p class="feature-description">
+              Log jobs with WIP numbers, vehicle registrations, AW values, and detailed notes. 
+              Automatic time calculation (1 AW = 5 minutes) ensures precision in every entry.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">⏰</span>
+            <h3 class="feature-title">Live Time Tracking</h3>
+            <p class="feature-description">
+              Real-time work hour monitoring with second-by-second updates. Track available hours, 
+              time elapsed, and progress throughout your workday with visual progress bars.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">📊</span>
+            <h3 class="feature-title">Advanced Analytics</h3>
+            <p class="feature-description">
+              Comprehensive efficiency calculations, monthly progress tracking against 180-hour targets, 
+              and detailed performance metrics with visual circle indicators.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">📄</span>
+            <h3 class="feature-title">Professional Reports</h3>
+            <p class="feature-description">
+              Generate stunning PDF and Excel reports with charts, statistics, and professional formatting. 
+              Export daily, weekly, monthly, or complete job history with one tap.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">📸</span>
+            <h3 class="feature-title">Job Card Scanning</h3>
+            <p class="feature-description">
+              Advanced OCR technology automatically extracts WIP numbers and vehicle registrations 
+              from job cards, saving time and reducing manual entry errors.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">📅</span>
+            <h3 class="feature-title">Efficiency Calendar</h3>
+            <p class="feature-description">
+              Year-long calendar with month-by-month views, daily efficiency circles, and zoom levels 
+              (Day, Week, Month, Year). Visualize your performance over time with intuitive graphics.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">🔐</span>
+            <h3 class="feature-title">Advanced Security</h3>
+            <p class="feature-description">
+              PIN protection with 4-6 digit codes, biometric authentication (Face ID/Fingerprint), 
+              session management, and encrypted local storage for maximum data protection.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">☁️</span>
+            <h3 class="feature-title">Multiple Backup Options</h3>
+            <p class="feature-description">
+              Local backups, external storage (Android), Google Drive cloud backup with OAuth, 
+              JSON exports, and app-to-app sharing for seamless data migration.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">🏖️</span>
+            <h3 class="feature-title">Absence Logger</h3>
+            <p class="feature-description">
+              Log absences with half-day or full-day options. Choose to deduct from monthly target 
+              hours or available hours for efficiency calculations. Automatic monthly reset.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">⚙️</span>
+            <h3 class="feature-title">Customizable Work Schedule</h3>
+            <p class="feature-description">
+              Configure work hours, lunch breaks, work days, and Saturday frequency (1 in 2, 1 in 3, etc.). 
+              Automatic tracking of next working Saturday with schedule updates.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">🎨</span>
+            <h3 class="feature-title">Dark Mode Support</h3>
+            <p class="feature-description">
+              Beautiful light and dark themes with smooth transitions. Automatic theme persistence 
+              and eye-friendly color schemes for all-day use.
+            </p>
+          </div>
+          
+          <div class="feature-card">
+            <span class="feature-icon">📱</span>
+            <h3 class="feature-title">Android Home Widget</h3>
+            <p class="feature-description">
+              Live efficiency data and time display on your home screen. Real-time updates without 
+              opening the app. Quick access to key metrics at a glance.
+            </p>
+          </div>
+        </div>
+      </div>
 
-  <div class="toc">
-    <div class="toc-title">📋 Table of Contents</div>
-    <div class="toc-item">1. Introduction & Overview</div>
-    <div class="toc-item">2. Getting Started & Security Setup</div>
-    <div class="toc-item">3. Security Features & PIN Management</div>
-    <div class="toc-item">4. Dashboard & Home Screen</div>
-    <div class="toc-item">5. Job Management</div>
-    <div class="toc-item">6. Time Tracking & Work Schedule</div>
-    <div class="toc-item">7. Reports & Export</div>
-    <div class="toc-item">8. Backup & Data Management</div>
-    <div class="toc-item">9. Settings & Customization</div>
-    <div class="toc-item">10. Tips & Best Practices</div>
-    <div class="toc-item">11. Troubleshooting</div>
-  </div>
+      <div class="toc">
+        <div class="toc-title">📋 Complete User Guide Contents</div>
+        <div class="toc-item">1. Introduction & Overview</div>
+        <div class="toc-item">2. Getting Started & Security Setup</div>
+        <div class="toc-item">3. Security Features & PIN Management</div>
+        <div class="toc-item">4. Dashboard & Home Screen</div>
+        <div class="toc-item">5. Job Management & Scanning</div>
+        <div class="toc-item">6. Time Tracking & Work Schedule</div>
+        <div class="toc-item">7. Efficiency Calendar</div>
+        <div class="toc-item">8. Reports & Export Options</div>
+        <div class="toc-item">9. Backup & Data Management</div>
+        <div class="toc-item">10. Settings & Customization</div>
+        <div class="toc-item">11. Android Home Widget</div>
+        <div class="toc-item">12. Tips & Best Practices</div>
+        <div class="toc-item">13. Troubleshooting & Support</div>
+      </div>
 
-  <div class="section">
-    <h2>1. Introduction & Overview</h2>
-    <p>TechTime is a comprehensive job tracking application designed specifically for vehicle technicians. It helps you log jobs, track time using AWs (Allocated Work units), generate professional reports, and monitor your monthly work hours efficiently.</p>
-    
-    <div class="feature-box">
-      <h3>✨ Key Features</h3>
-      <ul>
-        <li><strong>Job Tracking:</strong> Log jobs with WIP numbers, vehicle registrations, AWs, and notes</li>
-        <li><strong>Time Calculation:</strong> Automatic time calculation (1 AW = 5 minutes)</li>
-        <li><strong>Live Time Tracking:</strong> Real-time work hour tracking with progress visualization</li>
-        <li><strong>Professional Reports:</strong> Generate PDF and Excel reports with charts</li>
-        <li><strong>Monthly Monitoring:</strong> Track progress against 180-hour monthly target</li>
-        <li><strong>GDPR Compliant:</strong> Only stores vehicle registration numbers</li>
-        <li><strong>Secure:</strong> PIN and biometric authentication</li>
-        <li><strong>Backup & Restore:</strong> Multiple backup options including Google Drive</li>
-      </ul>
-    </div>
-  </div>
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">🎯</span>
+          Key Features in Detail
+        </h2>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">📝</span>
+          Job Management
+        </h3>
+        <p>
+          TechTime provides a comprehensive job management system that allows you to log, edit, and track 
+          all your work with precision. Each job entry includes WIP number (5-digit format), vehicle registration, 
+          AW value (0-100), optional notes, and automatic date/time stamping. The system automatically calculates 
+          time based on AWs (1 AW = 5 minutes) and provides instant feedback on job duration.
+        </p>
+        
+        <div class="feature-box">
+          <div class="feature-box-title">Job Card Scanning</div>
+          <p class="box-text">
+            Advanced OCR technology extracts WIP numbers and vehicle registrations from job cards automatically. 
+            Simply take a photo, review the extracted data, add AWs, and save. This feature dramatically reduces 
+            manual entry time and minimizes errors.
+          </p>
+        </div>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">⏰</span>
+          Live Time Tracking
+        </h3>
+        <p>
+          Real-time work hour monitoring runs continuously in the background, updating every second. The system 
+          tracks available hours (8 AM - 5 PM), time elapsed, time remaining, and work progress percentage. 
+          Visual progress bars and circles provide instant insights into your daily performance. Tap the progress 
+          bar on the dashboard to access detailed time statistics with live counters.
+        </p>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">📅</span>
+          Efficiency Calendar
+        </h3>
+        <p>
+          The Efficiency Calendar provides a comprehensive year-long view of your performance with multiple zoom 
+          levels. Month view displays daily efficiency circles with dual indicators (efficiency and progress), 
+          week view shows 7-day summaries with efficiency metrics, day view provides detailed job breakdowns, 
+          and year view presents all 12 months with efficiency circles. Swipe gestures and navigation buttons 
+          make it easy to browse through time periods.
+        </p>
+        
+        <div class="feature-box">
+          <div class="feature-box-title">Calendar Features</div>
+          <p class="box-text">
+            • Month View: Daily circles showing efficiency (outer) and progress (inner) with percentages below<br>
+            • Week View: 7-day grid with efficiency circles and AW totals<br>
+            • Day View: Complete job list with efficiency and hours circles<br>
+            • Year View: 12-month overview with efficiency circles and job counts<br>
+            • Swipe Navigation: Swipe left/right to navigate between periods<br>
+            • Today Indicator: Current day highlighted with primary color border
+          </p>
+        </div>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">📊</span>
+          Professional Reports
+        </h3>
+        <p>
+          Generate stunning professional reports in PDF and Excel formats. PDF reports include modern corporate 
+          styling with gradient headers, efficiency pie charts with legends, detailed job tables with VHC status 
+          badges, summary statistics, and digital signatures. Excel reports provide sortable data, pie charts, 
+          AW distribution analysis, and utilization percentages. Export options include daily, weekly, monthly, 
+          and complete job history with automatic month grouping.
+        </p>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">☁️</span>
+          Backup & Data Management
+        </h3>
+        <p>
+          Multiple backup solutions ensure your data is always safe. Local backups save to device storage, 
+          external folder backups support SD cards (Android), Google Drive backup provides cloud storage with 
+          OAuth authentication, JSON backups enable quick exports, and app-to-app sharing facilitates device 
+          transfers. Import options include local backups, file picker, PDF extraction, and Import & Tally 
+          for detailed analysis.
+        </p>
+        
+        <div class="warning-box">
+          <p class="box-text">
+            <strong>⚠️ Important:</strong> Always create regular backups to prevent data loss. We recommend 
+            weekly backups to Google Drive for maximum protection. Test your backup system periodically using 
+            the "Test Backup" feature.
+          </p>
+        </div>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">🔐</span>
+          Security & Privacy
+        </h3>
+        <p>
+          TechTime prioritizes your data security with multiple layers of protection. PIN authentication requires 
+          a 4-6 digit code for app access, biometric authentication supports Face ID and fingerprint login, 
+          session management automatically signs out when the app closes, and all data is encrypted and stored 
+          locally on your device. The app is fully GDPR compliant, storing only vehicle registration numbers 
+          without any personal customer data.
+        </p>
+        
+        <div class="feature-box">
+          <div class="feature-box-title">Security Options</div>
+          <p class="box-text">
+            • PIN Protection: 4-6 digit codes with change capability<br>
+            • Biometric Login: Face ID or fingerprint authentication<br>
+            • Security Toggle: Enable/disable security as needed<br>
+            • Session Management: Automatic sign-out on app close<br>
+            • Data Encryption: Secure local storage<br>
+            • Privacy Focused: No personal customer data stored
+          </p>
+        </div>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">⚙️</span>
+          Customization & Settings
+        </h3>
+        <p>
+          Extensive customization options allow you to tailor TechTime to your specific needs. Configure work 
+          schedule with custom start/end times, lunch breaks, work days, and Saturday frequency. Set monthly 
+          target hours (default 180, fully customizable), log absences with half-day or full-day options, 
+          choose deduction types (monthly target or available hours), customize calculation formulas, toggle 
+          between light and dark themes, and manage notification preferences.
+        </p>
+        
+        <h3 class="subsection-title">
+          <span class="subsection-icon">📱</span>
+          Android Home Widget
+        </h3>
+        <p>
+          The Android home screen widget displays live efficiency data and current time without opening the app. 
+          Real-time updates show your latest efficiency percentage, total AWs, and work progress. The widget 
+          automatically refreshes when you open the app, view the dashboard, or modify jobs. Tap the widget to 
+          launch TechTime directly to the dashboard.
+        </p>
+      </div>
 
-  <div class="section">
-    <h2>2. Getting Started & Security Setup</h2>
-    
-    <h3>🔐 First Launch Setup</h3>
-    <p>When you first launch TechTime, you'll go through a two-step setup process:</p>
-    
-    <div class="feature-box">
-      <h3>Step 1: Set Your Name</h3>
-      <ul>
-        <li>Enter your full name (e.g., "Buckston Rugge")</li>
-        <li>This name appears throughout the app and on all exported reports</li>
-        <li>You can change your name anytime in Settings</li>
-      </ul>
-    </div>
-    
-    <div class="feature-box">
-      <h3>Step 2: Create Your Security PIN</h3>
-      <ul>
-        <li>Choose a 4-6 digit PIN that you'll remember</li>
-        <li>Enter the PIN twice to confirm</li>
-        <li>This PIN protects all your job records and data</li>
-        <li>Write down your PIN in a secure location</li>
-      </ul>
-    </div>
-    
-    <div class="warning-box">
-      <strong>⚠️ Important:</strong> If you forget your PIN, there is no recovery option. You will need to reinstall the app, which will result in the loss of all data unless you have a backup.
-    </div>
-    
-    <h3>📱 Navigation</h3>
-    <p>The app uses a bottom navigation bar with three main sections:</p>
-    <ul>
-      <li><strong>🏠 Home:</strong> Dashboard with stats and progress tracking</li>
-      <li><strong>📋 Jobs:</strong> View and manage all your job records</li>
-      <li><strong>⚙️ Settings:</strong> Configure app settings, backup, and export</li>
-    </ul>
-  </div>
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">💡</span>
+          Best Practices & Tips
+        </h2>
+        
+        <div class="tip-box">
+          <p class="box-text">
+            <strong>💡 Pro Tips for Maximum Efficiency:</strong><br><br>
+            • Create weekly backups to Google Drive for cloud protection<br>
+            • Log jobs immediately after completion for accurate tracking<br>
+            • Use job card scanning to save time and reduce errors<br>
+            • Check time stats daily to stay on track with your goals<br>
+            • Export monthly reports for record-keeping and analysis<br>
+            • Enable biometric authentication for quick, secure access<br>
+            • Keep your work schedule current for accurate time tracking<br>
+            • Use the absence logger to maintain accurate monthly targets<br>
+            • Review the efficiency calendar weekly to identify trends<br>
+            • Test your backup system monthly to ensure it works
+          </p>
+        </div>
+      </div>
 
-  <div class="section">
-    <h2>3. Security Features & PIN Management</h2>
-    
-    <h3>🔒 Security Overview</h3>
-    <p>TechTime provides comprehensive security features to protect your job records and sensitive data:</p>
-    
-    <div class="feature-box">
-      <h3>Security Features</h3>
-      <ul>
-        <li><strong>PIN Protection:</strong> 4-6 digit PIN required to access the app</li>
-        <li><strong>Biometric Authentication:</strong> Optional Face ID or fingerprint login</li>
-        <li><strong>Session Management:</strong> Automatic sign-out when app is closed</li>
-        <li><strong>Data Encryption:</strong> All data stored securely on your device</li>
-        <li><strong>Privacy Focused:</strong> No personal customer data stored (GDPR compliant)</li>
-      </ul>
-    </div>
-    
-    <h3>🔐 Managing Your PIN</h3>
-    <p>You can manage your PIN and security settings in Settings → Security Settings:</p>
-    
-    <h4>Changing Your PIN</h4>
-    <ol>
-      <li>Go to <strong>Settings → Security Settings</strong></li>
-      <li>Ensure security is enabled (toggle should be ON)</li>
-      <li>Enter your new PIN (4-6 digits)</li>
-      <li>Confirm your new PIN</li>
-      <li>Tap <strong>"Update PIN"</strong></li>
-    </ol>
-    
-    <h4>Enabling Biometric Authentication</h4>
-    <ol>
-      <li>Ensure your device has Face ID or fingerprint configured</li>
-      <li>Go to <strong>Settings → Security Settings</strong></li>
-      <li>Toggle <strong>"Biometric Login"</strong> to ON</li>
-      <li>Authenticate with your biometric to confirm</li>
-      <li>You can now use biometric login instead of PIN</li>
-    </ol>
-    
-    <div class="tip-box">
-      <strong>💡 Tip:</strong> Even with biometric authentication enabled, you can always use your PIN as a fallback if biometric authentication fails.
-    </div>
-    
-    <h3>🔓 Disabling Security (Not Recommended)</h3>
-    <p>You can disable all security features if you prefer unrestricted access to the app. However, this is <strong>not recommended</strong> as it leaves your job records unprotected.</p>
-    
-    <div class="warning-box">
-      <strong>⚠️ Security Warning:</strong> When security is disabled, anyone with access to your device can view, edit, or delete your job records without any authentication.
-    </div>
-    
-    <h4>To Disable Security:</h4>
-    <ol>
-      <li>Go to <strong>Settings → Security Settings</strong></li>
-      <li>Toggle the <strong>"Security Enabled"</strong> switch to OFF</li>
-      <li>Confirm the warning dialog</li>
-      <li>Security will be disabled and the app will be accessible without PIN</li>
-    </ol>
-    
-    <h4>To Re-enable Security:</h4>
-    <ol>
-      <li>Go to <strong>Settings → Security Settings</strong></li>
-      <li>Toggle the <strong>"Security Enabled"</strong> switch to ON</li>
-      <li>Set a new PIN when prompted</li>
-      <li>Confirm your PIN</li>
-      <li>Security will be re-enabled</li>
-    </ol>
-    
-    <h3>🔑 Security Best Practices</h3>
-    <ul>
-      <li><strong>Choose a Strong PIN:</strong> Use a PIN that's not easily guessable (avoid 1234, 0000, etc.)</li>
-      <li><strong>Keep Your PIN Private:</strong> Don't share your PIN with anyone</li>
-      <li><strong>Write It Down Securely:</strong> Store your PIN in a secure location (not on your device)</li>
-      <li><strong>Enable Biometrics:</strong> Use Face ID or fingerprint for convenience and security</li>
-      <li><strong>Regular Backups:</strong> Create backups regularly in case you need to reinstall</li>
-      <li><strong>Keep Security Enabled:</strong> Only disable security if absolutely necessary</li>
-      <li><strong>Sign Out When Needed:</strong> Use the sign-out feature if sharing your device</li>
-    </ul>
-    
-    <h3>🛡️ What Happens When Security is Disabled?</h3>
-    <p>When you disable security:</p>
-    <ul>
-      <li>The app will no longer require a PIN to access</li>
-      <li>Biometric authentication will be automatically disabled</li>
-      <li>The app will open directly to the dashboard</li>
-      <li>Anyone with access to your device can view all job records</li>
-      <li>The "Sign Out" option will be hidden (not needed without security)</li>
-      <li>You can re-enable security at any time by setting a new PIN</li>
-    </ul>
-    
-    <div class="tip-box">
-      <strong>💡 Use Case for Disabled Security:</strong> You might disable security if you're the only user of your device and it's already protected by device-level security (device PIN, Face ID, etc.). However, keeping app-level security provides an additional layer of protection.
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>4. Dashboard & Home Screen</h2>
-    
-    <h3>📊 Overview</h3>
-    <p>The dashboard provides a comprehensive view of your work statistics:</p>
-    
-    <div class="feature-box">
-      <h3>Dashboard Components</h3>
-      <ul>
-        <li><strong>Live Clock:</strong> Real-time clock synchronized with your device</li>
-        <li><strong>Work Progress Bar:</strong> Visual representation of daily work hours (8 AM - 5 PM)</li>
-        <li><strong>Monthly Progress Circle:</strong> Shows hours worked vs. 180-hour target</li>
-        <li><strong>Efficiency Circle:</strong> Displays your work efficiency percentage</li>
-        <li><strong>Quick Stats:</strong> Total jobs, AWs, time logged, and hours remaining</li>
-      </ul>
-    </div>
-    
-    <h3>⏰ Live Time Tracking</h3>
-    <p>Tap the work progress bar to view detailed time statistics:</p>
-    <ul>
-      <li>Available hours timer (counts second by second)</li>
-      <li>Time elapsed in the day</li>
-      <li>Time remaining in the day</li>
-      <li>Work progress percentage</li>
-      <li>Current schedule details</li>
-    </ul>
-    
-    <div class="tip-box">
-      <strong>💡 Tip:</strong> The time tracking runs in the background and updates every second, giving you real-time insights into your workday.
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>5. Job Management</h2>
-    
-    <h3>➕ Adding a New Job</h3>
-    <p>To add a new job record:</p>
-    <ol>
-      <li>Tap the <strong>"Add Job"</strong> button on the dashboard</li>
-      <li>Enter the <strong>WIP Number</strong> (5-digit format)</li>
-      <li>Enter the <strong>Vehicle Registration</strong></li>
-      <li>Select <strong>AW Value</strong> from the dropdown (0-100)</li>
-      <li>Add <strong>Notes</strong> (optional)</li>
-      <li>Tap <strong>"Save"</strong> or use the quick save button next to the scan button</li>
-    </ol>
-    
-    <div class="feature-box">
-      <h3>📸 Job Card Scanning</h3>
-      <p>Use the scan feature to automatically extract job information:</p>
-      <ol>
-        <li>Tap the <strong>"Scan Job Card"</strong> button</li>
-        <li>Take a photo of the job card</li>
-        <li>The app will automatically extract WIP number and registration</li>
-        <li>Review and edit the extracted information</li>
-        <li>Add AWs and save</li>
-      </ol>
-    </div>
-    
-    <h3>✏️ Editing Jobs</h3>
-    <p>To edit an existing job:</p>
-    <ol>
-      <li>Go to the <strong>Jobs</strong> tab</li>
-      <li>Tap on the job you want to edit</li>
-      <li>Modify any field including date and time</li>
-      <li>Tap <strong>"Save Changes"</strong></li>
-    </ol>
-    
-    <h3>🗑️ Deleting Jobs</h3>
-    <p>To delete a job:</p>
-    <ol>
-      <li>Open the job details</li>
-      <li>Tap the <strong>"Delete"</strong> button</li>
-      <li>Confirm the deletion</li>
-    </ol>
-    
-    <div class="warning-box">
-      <strong>⚠️ Warning:</strong> Deleted jobs cannot be recovered unless you have a backup.
-    </div>
-    
-    <h3>🔍 Viewing Job Records</h3>
-    <p>The Jobs tab displays all your job records with:</p>
-    <ul>
-      <li>WIP number and vehicle registration</li>
-      <li>AW value and calculated time</li>
-      <li>Date and time of entry</li>
-      <li>Optional notes</li>
-    </ul>
-  </div>
-
-  <div class="section">
-    <h2>6. Time Tracking & Work Schedule</h2>
-    
-    <h3>⚙️ Configuring Work Schedule</h3>
-    <p>Set up your work schedule in Settings → Edit Work Schedule:</p>
-    
-    <div class="feature-box">
-      <h3>Work Schedule Settings</h3>
-      <ul>
-        <li><strong>Work Hours:</strong> Set start time (e.g., 08:00) and end time (e.g., 17:00)</li>
-        <li><strong>Lunch Break:</strong> Configure lunch start (e.g., 12:00) and end (e.g., 13:00)</li>
-        <li><strong>Work Days:</strong> Select which days you work (Mon-Sun)</li>
-        <li><strong>Saturday Frequency:</strong> Set how often you work Saturdays (e.g., 1 in 3)</li>
-        <li><strong>Enable/Disable:</strong> Turn time tracking on or off</li>
-      </ul>
-    </div>
-    
-    <h3>📆 Saturday Frequency</h3>
-    <p>Configure your Saturday work schedule:</p>
-    <ul>
-      <li><strong>Never:</strong> Don't work Saturdays</li>
-      <li><strong>Every Saturday:</strong> Work every Saturday</li>
-      <li><strong>Every 2 weeks (1 in 2):</strong> Work alternate Saturdays</li>
-      <li><strong>Every 3 weeks (1 in 3):</strong> Work one Saturday every three weeks</li>
-      <li>And more options up to every 6 weeks</li>
-    </ul>
-    
-    <p>The app automatically tracks your next working Saturday and updates the schedule accordingly.</p>
-    
-    <h3>📊 Time Stats Page</h3>
-    <p>Access detailed time statistics by tapping the work progress bar:</p>
-    <ul>
-      <li><strong>Available Hours Timer:</strong> Live counter showing total available hours (8 AM - 5 PM)</li>
-      <li><strong>Time Elapsed:</strong> How much of the workday has passed</li>
-      <li><strong>Time Remaining:</strong> How much time is left in the workday</li>
-      <li><strong>Progress Circles:</strong> Visual representation of day and work progress</li>
-      <li><strong>Status Indicators:</strong> Work day, work hours, and lunch break status</li>
-    </ul>
-    
-    <div class="tip-box">
-      <strong>💡 Tip:</strong> All time statistics update every second in real-time, synchronized with your device clock.
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>7. Reports & Export</h2>
-    
-    <h3>📄 Export Options</h3>
-    <p>Generate professional reports from Settings → Export Reports:</p>
-    
-    <div class="feature-box">
-      <h3>Available Export Formats</h3>
-      <ul>
-        <li><strong>Daily Report:</strong> Jobs completed today</li>
-        <li><strong>Weekly Report:</strong> Jobs from the past 7 days</li>
-        <li><strong>Monthly Report:</strong> Current month's jobs</li>
-        <li><strong>All Jobs Report:</strong> Complete job history grouped by month</li>
-      </ul>
-    </div>
-    
-    <h3>📊 PDF Reports</h3>
-    <p>PDF reports include:</p>
-    <ul>
-      <li>Professional header with your name</li>
-      <li>Date range and report type</li>
-      <li>Detailed job list with WIP, registration, AWs, and time</li>
-      <li>Summary statistics (total jobs, AWs, time)</li>
-      <li>Monthly separators for "All Jobs" reports</li>
-      <li>Digital signature</li>
-    </ul>
-    
-    <h3>📈 Excel Reports</h3>
-    <p>Excel exports include:</p>
-    <ul>
-      <li>Detailed job data in spreadsheet format</li>
-      <li>Pie charts showing job distribution</li>
-      <li>AW distribution analysis</li>
-      <li>Utilization percentage</li>
-      <li>Sortable and filterable data</li>
-    </ul>
-    
-    <div class="tip-box">
-      <strong>💡 Tip:</strong> Share reports directly from the app to email, cloud storage, or any other app.
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>8. Backup & Data Management</h2>
-    
-    <h3>💾 Backup Options</h3>
-    <p>TechTime offers multiple backup solutions to keep your data safe:</p>
-    
-    <div class="feature-box">
-      <h3>Backup Methods</h3>
-      <ol>
-        <li><strong>Local Backup:</strong> Save to device storage (Documents/backups/)</li>
-        <li><strong>External Folder (Android):</strong> Save to SD card or external storage</li>
-        <li><strong>Google Drive Backup:</strong> Cloud backup with OAuth authentication</li>
-        <li><strong>JSON Backup:</strong> Quick export for sharing to any app</li>
-        <li><strong>App-to-App Sharing:</strong> Transfer backup to another device</li>
-      </ol>
-    </div>
-    
-    <h3>☁️ Google Drive Backup</h3>
-    <p>To use Google Drive backup:</p>
-    <ol>
-      <li>Go to Settings → Backup & Import</li>
-      <li>Tap <strong>"Google Drive Backup"</strong></li>
-      <li>Sign in with your Google account</li>
-      <li>Grant necessary permissions</li>
-      <li>Tap <strong>"Create Backup"</strong> to save to Drive</li>
-      <li>Use <strong>"Restore from Drive"</strong> to recover data</li>
-    </ol>
-    
-    <h3>📥 Importing Data</h3>
-    <p>Import data from backups:</p>
-    <ul>
-      <li><strong>Import Local Backup:</strong> Restore from Documents folder</li>
-      <li><strong>Import from File:</strong> Pick JSON backup from anywhere</li>
-      <li><strong>Import PDF:</strong> Extract jobs from PDF reports</li>
-      <li><strong>Import & Tally:</strong> Analyze backup data with statistics</li>
-    </ul>
-    
-    <div class="warning-box">
-      <strong>⚠️ Important:</strong> Always create a backup before major changes or device migration. Importing will replace all current data.
-    </div>
-    
-    <h3>🧪 Testing Backups</h3>
-    <p>Use the <strong>"Test Backup"</strong> feature to verify your backup system is working correctly before you need it.</p>
-  </div>
-
-  <div class="section">
-    <h2>9. Settings & Customization</h2>
-    
-    <h3>👤 Technician Profile</h3>
-    <ul>
-      <li>Update your name (appears on reports)</li>
-      <li>Change your PIN</li>
-      <li>Enable/disable biometric authentication</li>
-    </ul>
-    
-    <h3>🎨 Appearance</h3>
-    <ul>
-      <li>Toggle between light and dark mode</li>
-      <li>Theme preference is saved automatically</li>
-    </ul>
-    
-    <h3>🎯 Monthly Target Hours</h3>
-    <ul>
-      <li>Set your monthly work hours target (default: 180 hours)</li>
-      <li>View target breakdown (hours/week, hours/day)</li>
-      <li>Track progress on the dashboard</li>
-    </ul>
-    
-    <h3>🏖️ Absence Logger</h3>
-    <p>Log absences to adjust your hours:</p>
-    <ul>
-      <li>Select number of absent days</li>
-      <li>Choose absence type (half day = 4.25h, full day = 8.5h)</li>
-      <li>Select deduction type:
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">📱</span>
+          Technical Specifications
+        </h2>
+        
+        <p><strong>System Requirements:</strong></p>
         <ul>
-          <li><strong>Monthly Target Hours:</strong> Reduces monthly target permanently</li>
-          <li><strong>Total Available Hours:</strong> Reduces hours for efficiency calculations</li>
+          <li>Platform: iOS 13.0+ / Android 6.0+</li>
+          <li>Storage: Minimum 50MB free space</li>
+          <li>Permissions: Camera (scanning), Storage (backups), Notifications</li>
+          <li>Internet: Optional (for Google Drive backup only)</li>
         </ul>
-      </li>
-      <li>Preview calculation before confirming</li>
-      <li>Absence hours reset automatically each month</li>
-    </ul>
-    
-    <h3>📐 Metrics & Formulas</h3>
-    <p>Customize calculation formulas (Settings → Edit Formulas):</p>
-    <ul>
-      <li>AW to time conversion</li>
-      <li>Efficiency calculations</li>
-      <li>Performance metrics</li>
-    </ul>
-  </div>
+        
+        <p><strong>Data Storage:</strong></p>
+        <ul>
+          <li>Local storage: All data stored securely on device</li>
+          <li>GDPR compliant: Only vehicle registrations stored</li>
+          <li>Encryption: PIN and biometric authentication</li>
+          <li>Backup formats: JSON, PDF (import/export)</li>
+        </ul>
+        
+        <p><strong>Calculations:</strong></p>
+        <ul>
+          <li>AW Conversion: 1 AW = 5 minutes</li>
+          <li>Work Day: 8 AM - 5 PM (9 hours total)</li>
+          <li>Lunch Break: 12 PM - 1 PM (1 hour)</li>
+          <li>Net Work Time: 8 hours per day (excluding lunch)</li>
+          <li>Monthly Target: 180 hours (default, customizable)</li>
+          <li>Efficiency: (Sold Hours / Available Hours) × 100</li>
+        </ul>
+      </div>
 
-  <div class="section">
-    <h2>10. Tips & Best Practices</h2>
-    
-    <div class="tip-box">
-      <h3>💡 Pro Tips</h3>
-      <ul>
-        <li><strong>Regular Backups:</strong> Create a backup at least once a week</li>
-        <li><strong>Consistent Logging:</strong> Log jobs immediately after completion</li>
-        <li><strong>Use Scanning:</strong> Save time by scanning job cards instead of manual entry</li>
-        <li><strong>Check Time Stats:</strong> Review your time stats daily to stay on track</li>
-        <li><strong>Monthly Review:</strong> Export monthly reports for record-keeping</li>
-        <li><strong>Verify Data:</strong> Use Import & Tally to verify backup data integrity</li>
-        <li><strong>Update Schedule:</strong> Keep your work schedule current for accurate tracking</li>
-        <li><strong>Use Notes:</strong> Add notes to jobs for future reference</li>
-      </ul>
+      <div class="section">
+        <h2 class="section-title">
+          <span class="section-icon">🎯</span>
+          Why Choose TechTime?
+        </h2>
+        
+        <p>
+          TechTime stands out as the premier job tracking solution for vehicle technicians, combining powerful 
+          features with an intuitive interface. Unlike generic time tracking apps, TechTime is specifically 
+          designed for automotive professionals, understanding the unique requirements of workshop environments. 
+          The app's focus on privacy (GDPR compliance), security (PIN and biometric authentication), and 
+          precision (automatic AW calculations) makes it the ideal choice for professional technicians who 
+          demand excellence in their tools.
+        </p>
+        
+        <p>
+          With features like live time tracking, efficiency calendars, professional reporting, job card scanning, 
+          and comprehensive backup options, TechTime provides everything you need to manage your workload 
+          effectively. The app's modern design, dark mode support, and smooth animations create a pleasant 
+          user experience, while the robust architecture ensures reliability and performance.
+        </p>
+        
+        <p>
+          Whether you're tracking daily jobs, monitoring monthly progress, generating reports for management, 
+          or analyzing your efficiency trends, TechTime delivers the tools and insights you need to excel in 
+          your profession. Join thousands of technicians who trust TechTime for their job tracking needs.
+        </p>
+      </div>
     </div>
     
-    <h3>⚡ Efficiency Tips</h3>
-    <ul>
-      <li>Use the quick save button next to the scan button for faster job entry</li>
-      <li>Enable biometric authentication for instant access</li>
-      <li>Set up Google Drive for automatic cloud backups</li>
-      <li>Use the absence logger to maintain accurate monthly targets</li>
-      <li>Tap progress circles on the dashboard for detailed breakdowns</li>
-    </ul>
-  </div>
-
-  <div class="section">
-    <h2>11. Troubleshooting</h2>
-    
-    <h3>❓ Common Issues</h3>
-    
-    <div class="feature-box">
-      <h3>🔐 Authentication Issues</h3>
-      <p><strong>Problem:</strong> Forgot PIN</p>
-      <p><strong>Solution:</strong> Unfortunately, there's no PIN recovery. You'll need to reinstall the app. Make sure to create regular backups to prevent data loss.</p>
+    <div class="footer">
+      <div class="footer-logo">🔧</div>
+      <p class="footer-brand">TechTime - Professional Job Tracking</p>
+      <p>Version 1.0.0 | Privacy Focused | Secure | Reliable</p>
+      <p>GDPR Compliant | Encrypted Storage | Professional Grade</p>
+      <p>© ${new Date().getFullYear()} TechTime. All rights reserved.</p>
       
-      <p><strong>Problem:</strong> Biometric not working</p>
-      <p><strong>Solution:</strong> Disable and re-enable biometric authentication in Settings. Ensure your device's biometric settings are configured correctly.</p>
-    </div>
-    
-    <div class="feature-box">
-      <h3>📊 Data Issues</h3>
-      <p><strong>Problem:</strong> Jobs not appearing</p>
-      <p><strong>Solution:</strong> Check if you're viewing the correct time period. Try refreshing the jobs list by navigating away and back.</p>
+      <div class="signature-section">
+        <div class="signature">
+          ✍️ Digitally Certified Professional Application
+        </div>
+      </div>
       
-      <p><strong>Problem:</strong> Incorrect time calculations</p>
-      <p><strong>Solution:</strong> Verify your work schedule settings. Ensure times are in 24-hour format (HH:mm).</p>
+      <div class="confidential-notice">
+        ⚠️ CONFIDENTIAL DOCUMENT: This guide contains proprietary information about TechTime. 
+        Unauthorized distribution or reproduction is prohibited.
+      </div>
     </div>
-    
-    <div class="feature-box">
-      <h3>💾 Backup Issues</h3>
-      <p><strong>Problem:</strong> Backup fails</p>
-      <p><strong>Solution:</strong> Ensure you have sufficient storage space. For external backups, verify folder permissions. Use "Test Backup" to diagnose issues.</p>
-      
-      <p><strong>Problem:</strong> Import fails</p>
-      <p><strong>Solution:</strong> Verify the backup file is valid JSON format. Check that the file isn't corrupted. Try using "Import from File" instead of "Import Local Backup".</p>
-    </div>
-    
-    <div class="feature-box">
-      <h3>⏰ Time Tracking Issues</h3>
-      <p><strong>Problem:</strong> Time not updating</p>
-      <p><strong>Solution:</strong> Ensure time tracking is enabled in Settings → Edit Work Schedule. Check that today is set as a work day.</p>
-      
-      <p><strong>Problem:</strong> Saturday not tracking</p>
-      <p><strong>Solution:</strong> Verify Saturday frequency is set correctly. Check that today matches your next working Saturday.</p>
-    </div>
-    
-    <h3>🆘 Getting Help</h3>
-    <p>If you encounter issues not covered here:</p>
-    <ol>
-      <li>Check your work schedule and settings configuration</li>
-      <li>Try creating a backup and reinstalling the app</li>
-      <li>Ensure your device OS is up to date</li>
-      <li>Review this guide for detailed instructions</li>
-    </ol>
-  </div>
-
-  <div class="section">
-    <h2>📱 Technical Specifications</h2>
-    
-    <h3>System Requirements</h3>
-    <ul>
-      <li><strong>Platform:</strong> iOS 13.0+ / Android 6.0+</li>
-      <li><strong>Storage:</strong> Minimum 50MB free space</li>
-      <li><strong>Permissions:</strong> Camera (for scanning), Storage (for backups)</li>
-    </ul>
-    
-    <h3>Data Storage</h3>
-    <ul>
-      <li><strong>Local Storage:</strong> All data stored securely on device</li>
-      <li><strong>GDPR Compliant:</strong> Only vehicle registrations stored (no personal customer data)</li>
-      <li><strong>Encryption:</strong> PIN and biometric authentication</li>
-    </ul>
-    
-    <h3>Calculations</h3>
-    <ul>
-      <li><strong>AW Conversion:</strong> 1 AW = 5 minutes</li>
-      <li><strong>Work Day:</strong> 8 AM - 5 PM (9 hours total)</li>
-      <li><strong>Lunch Break:</strong> 12 PM - 1 PM (1 hour)</li>
-      <li><strong>Net Work Time:</strong> 8 hours per day (excluding lunch)</li>
-      <li><strong>Monthly Target:</strong> 180 hours (default, customizable)</li>
-    </ul>
-  </div>
-
-  <div class="section">
-    <h2>📝 Glossary</h2>
-    
-    <ul>
-      <li><strong>AW (Allocated Work):</strong> Unit of work measurement (1 AW = 5 minutes)</li>
-      <li><strong>WIP Number:</strong> Work In Progress number (5-digit job identifier)</li>
-      <li><strong>Registration:</strong> Vehicle registration number</li>
-      <li><strong>Efficiency:</strong> Percentage of available hours utilized</li>
-      <li><strong>Utilization:</strong> Percentage of monthly target hours completed</li>
-      <li><strong>Time Tracking:</strong> Automatic monitoring of work hours</li>
-      <li><strong>Saturday Frequency:</strong> How often you work Saturdays (e.g., 1 in 3)</li>
-    </ul>
-  </div>
-
-  <div class="footer">
-    <p><strong>TechTime - Professional Job Tracking</strong></p>
-    <p>Version 1.0.0 | GDPR Compliant | Secure | Reliable</p>
-    <p>© ${new Date().getFullYear()} TechTime. All rights reserved.</p>
-    <p><em>This guide was generated on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</em></p>
   </div>
 </body>
 </html>
@@ -734,7 +923,7 @@ export default function HelpScreen() {
     if (isExporting) return;
 
     setIsExporting(true);
-    showNotification('Generating PDF user guide...', 'info');
+    showNotification('Generating stylish About PDF...', 'info');
 
     try {
       const htmlContent = generatePDFContent();
@@ -750,16 +939,16 @@ export default function HelpScreen() {
       if (isAvailable) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: 'Share TechTime User Guide',
+          dialogTitle: 'Share TechTime About & User Guide',
           UTI: 'com.adobe.pdf',
         });
-        showNotification('User guide exported successfully!', 'success');
+        showNotification('About PDF exported successfully!', 'success');
       } else {
         showNotification('Sharing is not available on this device', 'error');
       }
     } catch (error) {
       console.log('Error exporting PDF:', error);
-      showNotification('Error exporting user guide', 'error');
+      showNotification('Error exporting About PDF', 'error');
     } finally {
       setIsExporting(false);
     }
@@ -780,15 +969,18 @@ export default function HelpScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>User Guide</Text>
+        <Text style={styles.title}>About & User Guide</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
-          <Text style={styles.heroIcon}>📱</Text>
-          <Text style={styles.heroTitle}>TechTime User Guide</Text>
+          <Text style={styles.heroIcon}>🔧</Text>
+          <Text style={styles.heroTitle}>TechTime</Text>
           <Text style={styles.heroSubtitle}>
-            Complete documentation for professional job tracking
+            Professional Job Tracking for Vehicle Technicians
+          </Text>
+          <Text style={styles.heroTagline}>
+            Empowering Professionals with Precision & Efficiency
           </Text>
         </View>
 
@@ -802,415 +994,163 @@ export default function HelpScreen() {
             <Text style={styles.exportButtonIcon}>📄</Text>
             <View style={styles.exportButtonContent}>
               <Text style={styles.exportButtonText}>
-                {isExporting ? 'Generating PDF...' : 'Export as PDF'}
+                {isExporting ? 'Generating PDF...' : 'Export About & Guide as PDF'}
               </Text>
               <Text style={styles.exportButtonSubtext}>
-                Share complete guide to any app
+                Stylish corporate-themed document with complete information
               </Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Table of Contents */}
+        {/* About Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 Table of Contents</Text>
-          <View style={styles.tocList}>
-            <Text style={styles.tocItem}>1. Introduction & Overview</Text>
-            <Text style={styles.tocItem}>2. Getting Started & Security Setup</Text>
-            <Text style={styles.tocItem}>3. Security Features & PIN Management</Text>
-            <Text style={styles.tocItem}>4. Dashboard & Home Screen</Text>
-            <Text style={styles.tocItem}>5. Job Management</Text>
-            <Text style={styles.tocItem}>6. Time Tracking & Work Schedule</Text>
-            <Text style={styles.tocItem}>7. Reports & Export</Text>
-            <Text style={styles.tocItem}>8. Backup & Data Management</Text>
-            <Text style={styles.tocItem}>9. Settings & Customization</Text>
-            <Text style={styles.tocItem}>10. Tips & Best Practices</Text>
-            <Text style={styles.tocItem}>11. Troubleshooting</Text>
-          </View>
-        </View>
-
-        {/* Introduction */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Introduction & Overview</Text>
+          <Text style={styles.sectionTitle}>📱 About TechTime</Text>
           <Text style={styles.paragraph}>
-            TechTime is a comprehensive job tracking application designed specifically for vehicle technicians. 
-            It helps you log jobs, track time using AWs (Allocated Work units), generate professional reports, 
-            and monitor your monthly work hours efficiently.
+            TechTime is a cutting-edge, professional job tracking application meticulously designed for vehicle 
+            technicians. Built with precision and user experience at its core, TechTime transforms how technicians 
+            manage their workload, track time, and maintain comprehensive records.
           </Text>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>✨ Key Features</Text>
-            <Text style={styles.bulletPoint}>• Job Tracking with WIP numbers and registrations</Text>
-            <Text style={styles.bulletPoint}>• Automatic time calculation (1 AW = 5 minutes)</Text>
-            <Text style={styles.bulletPoint}>• Live time tracking with second-by-second updates</Text>
-            <Text style={styles.bulletPoint}>• Professional PDF and Excel reports</Text>
-            <Text style={styles.bulletPoint}>• Monthly progress monitoring (180-hour target)</Text>
-            <Text style={styles.bulletPoint}>• Privacy-focused data storage (no personal customer data)</Text>
-            <Text style={styles.bulletPoint}>• PIN and biometric authentication</Text>
-            <Text style={styles.bulletPoint}>• Multiple backup options including Google Drive</Text>
-          </View>
-        </View>
-
-        {/* Getting Started */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Getting Started & Security Setup</Text>
-          
-          <Text style={styles.subsectionTitle}>🔐 First Launch Setup</Text>
           <Text style={styles.paragraph}>
-            When you first launch TechTime, you&apos;ll go through a two-step setup process:
-          </Text>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>Step 1: Set Your Name</Text>
-            <Text style={styles.bulletPoint}>• Enter your full name (e.g., &quot;Buckston Rugge&quot;)</Text>
-            <Text style={styles.bulletPoint}>• This name appears throughout the app and on all reports</Text>
-            <Text style={styles.bulletPoint}>• You can change your name anytime in Settings</Text>
-          </View>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>Step 2: Create Your Security PIN</Text>
-            <Text style={styles.bulletPoint}>• Choose a 4-6 digit PIN that you&apos;ll remember</Text>
-            <Text style={styles.bulletPoint}>• Enter the PIN twice to confirm</Text>
-            <Text style={styles.bulletPoint}>• This PIN protects all your job records and data</Text>
-            <Text style={styles.bulletPoint}>• Write down your PIN in a secure location</Text>
-          </View>
-          
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              ⚠️ Important: If you forget your PIN, there is no recovery option. You will need to 
-              reinstall the app, which will result in the loss of all data unless you have a backup.
-            </Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>📱 Navigation</Text>
-          <Text style={styles.paragraph}>
-            The app uses a bottom navigation bar with three main sections:
-          </Text>
-          <Text style={styles.bulletPoint}>• 🏠 Home: Dashboard with stats and progress</Text>
-          <Text style={styles.bulletPoint}>• 📋 Jobs: View and manage job records</Text>
-          <Text style={styles.bulletPoint}>• ⚙️ Settings: Configure app and backup</Text>
-        </View>
-
-        {/* Security Features */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Security Features & PIN Management</Text>
-          
-          <Text style={styles.subsectionTitle}>🔒 Security Overview</Text>
-          <Text style={styles.paragraph}>
-            TechTime provides comprehensive security features to protect your job records:
-          </Text>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>Security Features</Text>
-            <Text style={styles.bulletPoint}>• PIN Protection: 4-6 digit PIN required to access</Text>
-            <Text style={styles.bulletPoint}>• Biometric Authentication: Optional Face ID or fingerprint</Text>
-            <Text style={styles.bulletPoint}>• Session Management: Automatic sign-out when app closes</Text>
-            <Text style={styles.bulletPoint}>• Data Encryption: All data stored securely on device</Text>
-            <Text style={styles.bulletPoint}>• Privacy Focused: No personal customer data (GDPR compliant)</Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>🔐 Managing Your PIN</Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Changing Your PIN:</Text>
-          </Text>
-          <Text style={styles.bulletPoint}>1. Go to Settings → Security Settings</Text>
-          <Text style={styles.bulletPoint}>2. Ensure security is enabled (toggle ON)</Text>
-          <Text style={styles.bulletPoint}>3. Enter your new PIN (4-6 digits)</Text>
-          <Text style={styles.bulletPoint}>4. Confirm your new PIN</Text>
-          <Text style={styles.bulletPoint}>5. Tap &quot;Update PIN&quot;</Text>
-          
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Enabling Biometric Authentication:</Text>
-          </Text>
-          <Text style={styles.bulletPoint}>1. Ensure device has Face ID or fingerprint configured</Text>
-          <Text style={styles.bulletPoint}>2. Go to Settings → Security Settings</Text>
-          <Text style={styles.bulletPoint}>3. Toggle &quot;Biometric Login&quot; to ON</Text>
-          <Text style={styles.bulletPoint}>4. Authenticate with biometric to confirm</Text>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.tipText}>
-              💡 Tip: Even with biometric enabled, you can always use your PIN as a fallback.
-            </Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>🔓 Disabling Security (Not Recommended)</Text>
-          <Text style={styles.paragraph}>
-            You can disable all security features if you prefer unrestricted access. However, this is 
-            <Text style={styles.bold}> not recommended</Text> as it leaves your job records unprotected.
-          </Text>
-          
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              ⚠️ Security Warning: When security is disabled, anyone with access to your device can 
-              view, edit, or delete your job records without any authentication.
-            </Text>
-          </View>
-          
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>To Disable Security:</Text>
-          </Text>
-          <Text style={styles.bulletPoint}>1. Go to Settings → Security Settings</Text>
-          <Text style={styles.bulletPoint}>2. Toggle &quot;Security Enabled&quot; switch to OFF</Text>
-          <Text style={styles.bulletPoint}>3. Confirm the warning dialog</Text>
-          <Text style={styles.bulletPoint}>4. Security will be disabled</Text>
-          
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>To Re-enable Security:</Text>
-          </Text>
-          <Text style={styles.bulletPoint}>1. Go to Settings → Security Settings</Text>
-          <Text style={styles.bulletPoint}>2. Toggle &quot;Security Enabled&quot; switch to ON</Text>
-          <Text style={styles.bulletPoint}>3. Set a new PIN when prompted</Text>
-          <Text style={styles.bulletPoint}>4. Confirm your PIN</Text>
-          
-          <Text style={styles.subsectionTitle}>🔑 Security Best Practices</Text>
-          <Text style={styles.bulletPoint}>• Choose a strong PIN (avoid 1234, 0000, etc.)</Text>
-          <Text style={styles.bulletPoint}>• Keep your PIN private - don&apos;t share it</Text>
-          <Text style={styles.bulletPoint}>• Write it down securely (not on your device)</Text>
-          <Text style={styles.bulletPoint}>• Enable biometrics for convenience and security</Text>
-          <Text style={styles.bulletPoint}>• Create regular backups in case you need to reinstall</Text>
-          <Text style={styles.bulletPoint}>• Keep security enabled unless absolutely necessary</Text>
-          <Text style={styles.bulletPoint}>• Sign out when sharing your device</Text>
-          
-          <Text style={styles.subsectionTitle}>🛡️ What Happens When Security is Disabled?</Text>
-          <Text style={styles.bulletPoint}>• App no longer requires PIN to access</Text>
-          <Text style={styles.bulletPoint}>• Biometric authentication automatically disabled</Text>
-          <Text style={styles.bulletPoint}>• App opens directly to dashboard</Text>
-          <Text style={styles.bulletPoint}>• Anyone with device access can view all records</Text>
-          <Text style={styles.bulletPoint}>• &quot;Sign Out&quot; option hidden (not needed)</Text>
-          <Text style={styles.bulletPoint}>• Can re-enable security anytime by setting new PIN</Text>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.tipText}>
-              💡 Use Case: You might disable security if you&apos;re the only user of your device and 
-              it&apos;s already protected by device-level security. However, keeping app-level security 
-              provides an additional layer of protection.
-            </Text>
-          </View>
-        </View>
-
-        {/* Dashboard */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Dashboard & Home Screen</Text>
-          
-          <Text style={styles.paragraph}>
-            The dashboard provides a comprehensive view of your work statistics:
-          </Text>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>Dashboard Components</Text>
-            <Text style={styles.bulletPoint}>• Live Clock: Real-time synchronized clock</Text>
-            <Text style={styles.bulletPoint}>• Work Progress Bar: Daily hours visualization</Text>
-            <Text style={styles.bulletPoint}>• Monthly Progress: Hours vs. 180-hour target</Text>
-            <Text style={styles.bulletPoint}>• Efficiency Circle: Work efficiency percentage</Text>
-            <Text style={styles.bulletPoint}>• Quick Stats: Jobs, AWs, time, hours remaining</Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>⏰ Live Time Tracking</Text>
-          <Text style={styles.paragraph}>
-            Tap the work progress bar to view detailed time statistics with second-by-second updates:
-          </Text>
-          <Text style={styles.bulletPoint}>• Available hours timer (8 AM - 5 PM)</Text>
-          <Text style={styles.bulletPoint}>• Time elapsed in the day</Text>
-          <Text style={styles.bulletPoint}>• Time remaining in the day</Text>
-          <Text style={styles.bulletPoint}>• Work progress percentage</Text>
-          <Text style={styles.bulletPoint}>• Current schedule details</Text>
-        </View>
-
-        {/* Job Management */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. Job Management</Text>
-          
-          <Text style={styles.subsectionTitle}>➕ Adding a New Job</Text>
-          <Text style={styles.bulletPoint}>1. Tap &quot;Add Job&quot; button</Text>
-          <Text style={styles.bulletPoint}>2. Enter WIP Number (5-digit format)</Text>
-          <Text style={styles.bulletPoint}>3. Enter Vehicle Registration</Text>
-          <Text style={styles.bulletPoint}>4. Select AW Value (0-100)</Text>
-          <Text style={styles.bulletPoint}>5. Add Notes (optional)</Text>
-          <Text style={styles.bulletPoint}>6. Tap &quot;Save&quot; or use quick save button</Text>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>📸 Job Card Scanning</Text>
-            <Text style={styles.paragraph}>
-              Use the scan feature to automatically extract job information from job cards. 
-              The app will extract WIP number and registration, then you can add AWs and save.
-            </Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>✏️ Editing & Deleting Jobs</Text>
-          <Text style={styles.paragraph}>
-            Tap any job in the Jobs tab to edit or delete it. You can modify all fields including 
-            date and time.
-          </Text>
-          
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              ⚠️ Warning: Deleted jobs cannot be recovered unless you have a backup.
-            </Text>
-          </View>
-        </View>
-
-        {/* Time Tracking */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>6. Time Tracking & Work Schedule</Text>
-          
-          <Text style={styles.subsectionTitle}>⚙️ Configuring Work Schedule</Text>
-          <Text style={styles.paragraph}>
-            Set up your work schedule in Settings → Edit Work Schedule:
-          </Text>
-          <Text style={styles.bulletPoint}>• Work Hours: Start and end times (24-hour format)</Text>
-          <Text style={styles.bulletPoint}>• Lunch Break: Lunch start and end times</Text>
-          <Text style={styles.bulletPoint}>• Work Days: Select which days you work</Text>
-          <Text style={styles.bulletPoint}>• Saturday Frequency: Configure Saturday schedule</Text>
-          <Text style={styles.bulletPoint}>• Enable/Disable: Turn time tracking on or off</Text>
-          
-          <Text style={styles.subsectionTitle}>📆 Saturday Frequency</Text>
-          <Text style={styles.paragraph}>
-            Configure how often you work Saturdays:
-          </Text>
-          <Text style={styles.bulletPoint}>• Never: Don&apos;t work Saturdays</Text>
-          <Text style={styles.bulletPoint}>• Every Saturday: Work every Saturday</Text>
-          <Text style={styles.bulletPoint}>• Every 2-6 weeks: Work 1 in 2, 1 in 3, etc.</Text>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.tipText}>
-              💡 Tip: The app automatically tracks your next working Saturday and updates the schedule.
-            </Text>
-          </View>
-        </View>
-
-        {/* Reports & Export */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Reports & Export</Text>
-          
-          <Text style={styles.paragraph}>
-            Generate professional reports from Settings → Export Reports:
-          </Text>
-          
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>Available Export Formats</Text>
-            <Text style={styles.bulletPoint}>• Daily Report: Today&apos;s jobs</Text>
-            <Text style={styles.bulletPoint}>• Weekly Report: Past 7 days</Text>
-            <Text style={styles.bulletPoint}>• Monthly Report: Current month</Text>
-            <Text style={styles.bulletPoint}>• All Jobs: Complete history by month</Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>📊 PDF Reports</Text>
-          <Text style={styles.paragraph}>
-            PDF reports include professional formatting, job details, summary statistics, and digital signature.
-          </Text>
-          
-          <Text style={styles.subsectionTitle}>📈 Excel Reports</Text>
-          <Text style={styles.paragraph}>
-            Excel exports include detailed data, pie charts, AW distribution, and utilization analysis.
+            With advanced features including real-time time tracking, intelligent efficiency calculations, 
+            professional reporting, job card scanning, efficiency calendars, and robust security, TechTime is 
+            the ultimate companion for modern automotive professionals.
           </Text>
         </View>
 
-        {/* Backup */}
+        {/* Key Features */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>8. Backup & Data Management</Text>
+          <Text style={styles.sectionTitle}>✨ Key Features</Text>
           
-          <View style={styles.featureBox}>
-            <Text style={styles.featureTitle}>Backup Methods</Text>
-            <Text style={styles.bulletPoint}>1. Local Backup: Device storage</Text>
-            <Text style={styles.bulletPoint}>2. External Folder: SD card (Android)</Text>
-            <Text style={styles.bulletPoint}>3. Google Drive: Cloud backup</Text>
-            <Text style={styles.bulletPoint}>4. JSON Backup: Quick export</Text>
-            <Text style={styles.bulletPoint}>5. App-to-App: Device transfer</Text>
-          </View>
-          
-          <Text style={styles.subsectionTitle}>☁️ Google Drive Backup</Text>
-          <Text style={styles.paragraph}>
-            Sign in with your Google account to enable cloud backup and restore functionality.
-          </Text>
-          
-          <Text style={styles.subsectionTitle}>📥 Importing Data</Text>
-          <Text style={styles.paragraph}>
-            Import from local backups, files, PDFs, or use Import & Tally for detailed analysis.
-          </Text>
-          
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              ⚠️ Important: Always create a backup before major changes. Importing replaces all current data.
-            </Text>
+          <View style={styles.featureGrid}>
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>📝</Text>
+              <Text style={styles.featureTitle}>Comprehensive Job Tracking</Text>
+              <Text style={styles.featureDescription}>
+                Log jobs with WIP numbers, vehicle registrations, AW values, and notes. Automatic time calculation 
+                (1 AW = 5 minutes) ensures precision.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>⏰</Text>
+              <Text style={styles.featureTitle}>Live Time Tracking</Text>
+              <Text style={styles.featureDescription}>
+                Real-time work hour monitoring with second-by-second updates. Track available hours, time elapsed, 
+                and progress throughout your workday.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>📊</Text>
+              <Text style={styles.featureTitle}>Advanced Analytics</Text>
+              <Text style={styles.featureDescription}>
+                Comprehensive efficiency calculations, monthly progress tracking against 180-hour targets, and 
+                detailed performance metrics.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>📄</Text>
+              <Text style={styles.featureTitle}>Professional Reports</Text>
+              <Text style={styles.featureDescription}>
+                Generate stunning PDF and Excel reports with charts, statistics, and professional formatting. 
+                Export daily, weekly, monthly, or complete history.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>📸</Text>
+              <Text style={styles.featureTitle}>Job Card Scanning</Text>
+              <Text style={styles.featureDescription}>
+                Advanced OCR technology automatically extracts WIP numbers and vehicle registrations from job cards, 
+                saving time and reducing errors.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>📅</Text>
+              <Text style={styles.featureTitle}>Efficiency Calendar</Text>
+              <Text style={styles.featureDescription}>
+                Year-long calendar with month-by-month views, daily efficiency circles, and zoom levels 
+                (Day, Week, Month, Year). Visualize performance over time.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>🔐</Text>
+              <Text style={styles.featureTitle}>Advanced Security</Text>
+              <Text style={styles.featureDescription}>
+                PIN protection, biometric authentication (Face ID/Fingerprint), session management, and encrypted 
+                local storage for maximum data protection.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>☁️</Text>
+              <Text style={styles.featureTitle}>Multiple Backup Options</Text>
+              <Text style={styles.featureDescription}>
+                Local backups, external storage, Google Drive cloud backup with OAuth, JSON exports, and 
+                app-to-app sharing for seamless data migration.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>🏖️</Text>
+              <Text style={styles.featureTitle}>Absence Logger</Text>
+              <Text style={styles.featureDescription}>
+                Log absences with half-day or full-day options. Choose to deduct from monthly target hours or 
+                available hours. Automatic monthly reset.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>⚙️</Text>
+              <Text style={styles.featureTitle}>Customizable Work Schedule</Text>
+              <Text style={styles.featureDescription}>
+                Configure work hours, lunch breaks, work days, and Saturday frequency. Automatic tracking of 
+                next working Saturday with schedule updates.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>🎨</Text>
+              <Text style={styles.featureTitle}>Dark Mode Support</Text>
+              <Text style={styles.featureDescription}>
+                Beautiful light and dark themes with smooth transitions. Automatic theme persistence and 
+                eye-friendly color schemes for all-day use.
+              </Text>
+            </View>
+
+            <View style={styles.featureCard}>
+              <Text style={styles.featureIcon}>📱</Text>
+              <Text style={styles.featureTitle}>Android Home Widget</Text>
+              <Text style={styles.featureDescription}>
+                Live efficiency data and time display on your home screen. Real-time updates without opening 
+                the app. Quick access to key metrics.
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Settings */}
+        {/* Why Choose TechTime */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>9. Settings & Customization</Text>
-          
-          <Text style={styles.subsectionTitle}>👤 Technician Profile</Text>
-          <Text style={styles.bulletPoint}>• Update your name</Text>
-          <Text style={styles.bulletPoint}>• Change your PIN</Text>
-          <Text style={styles.bulletPoint}>• Enable/disable biometrics</Text>
-          
-          <Text style={styles.subsectionTitle}>🎨 Appearance</Text>
-          <Text style={styles.bulletPoint}>• Toggle light/dark mode</Text>
-          
-          <Text style={styles.subsectionTitle}>🎯 Monthly Target Hours</Text>
-          <Text style={styles.bulletPoint}>• Set monthly target (default: 180 hours)</Text>
-          <Text style={styles.bulletPoint}>• View breakdown (hours/week, hours/day)</Text>
-          
-          <Text style={styles.subsectionTitle}>🏖️ Absence Logger</Text>
+          <Text style={styles.sectionTitle}>🎯 Why Choose TechTime?</Text>
           <Text style={styles.paragraph}>
-            Log absences to adjust your hours:
-          </Text>
-          <Text style={styles.bulletPoint}>• Select number of days and type (half/full)</Text>
-          <Text style={styles.bulletPoint}>• Choose deduction type (monthly target or available hours)</Text>
-          <Text style={styles.bulletPoint}>• Preview calculation before confirming</Text>
-          <Text style={styles.bulletPoint}>• Absence hours reset monthly</Text>
-        </View>
-
-        {/* Tips */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>10. Tips & Best Practices</Text>
-          
-          <View style={styles.tipBox}>
-            <Text style={styles.featureTitle}>💡 Pro Tips</Text>
-            <Text style={styles.bulletPoint}>• Create backups weekly</Text>
-            <Text style={styles.bulletPoint}>• Log jobs immediately after completion</Text>
-            <Text style={styles.bulletPoint}>• Use scanning for faster entry</Text>
-            <Text style={styles.bulletPoint}>• Check time stats daily</Text>
-            <Text style={styles.bulletPoint}>• Export monthly reports for records</Text>
-            <Text style={styles.bulletPoint}>• Keep work schedule current</Text>
-            <Text style={styles.bulletPoint}>• Use notes for future reference</Text>
-          </View>
-        </View>
-
-        {/* Troubleshooting */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>11. Troubleshooting</Text>
-          
-          <Text style={styles.subsectionTitle}>🔐 Authentication Issues</Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Forgot PIN:</Text> No recovery available. Reinstall app and restore from backup.
+            TechTime stands out as the premier job tracking solution for vehicle technicians, combining powerful 
+            features with an intuitive interface. Unlike generic time tracking apps, TechTime is specifically 
+            designed for automotive professionals, understanding the unique requirements of workshop environments.
           </Text>
           <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Biometric not working:</Text> Disable and re-enable in Settings.
-          </Text>
-          
-          <Text style={styles.subsectionTitle}>📊 Data Issues</Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Jobs not appearing:</Text> Check time period filter and refresh.
+            The app&apos;s focus on privacy (GDPR compliance), security (PIN and biometric authentication), and 
+            precision (automatic AW calculations) makes it the ideal choice for professional technicians who 
+            demand excellence in their tools.
           </Text>
           <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Incorrect calculations:</Text> Verify work schedule settings.
-          </Text>
-          
-          <Text style={styles.subsectionTitle}>💾 Backup Issues</Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Backup fails:</Text> Check storage space and permissions. Use &quot;Test Backup&quot;.
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Import fails:</Text> Verify file format and integrity.
-          </Text>
-          
-          <Text style={styles.subsectionTitle}>⏰ Time Tracking Issues</Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Time not updating:</Text> Enable time tracking and verify work days.
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Saturday not tracking:</Text> Check Saturday frequency setting.
+            With features like live time tracking, efficiency calendars, professional reporting, job card scanning, 
+            and comprehensive backup options, TechTime provides everything you need to manage your workload 
+            effectively. The app&apos;s modern design, dark mode support, and smooth animations create a pleasant 
+            user experience, while the robust architecture ensures reliability and performance.
           </Text>
         </View>
 
@@ -1221,55 +1161,33 @@ export default function HelpScreen() {
           <Text style={styles.subsectionTitle}>System Requirements</Text>
           <Text style={styles.bulletPoint}>• Platform: iOS 13.0+ / Android 6.0+</Text>
           <Text style={styles.bulletPoint}>• Storage: Minimum 50MB free space</Text>
-          <Text style={styles.bulletPoint}>• Permissions: Camera, Storage</Text>
+          <Text style={styles.bulletPoint}>• Permissions: Camera, Storage, Notifications</Text>
+          <Text style={styles.bulletPoint}>• Internet: Optional (for Google Drive backup only)</Text>
           
           <Text style={styles.subsectionTitle}>Data Storage</Text>
-          <Text style={styles.bulletPoint}>• Local storage on device</Text>
-          <Text style={styles.bulletPoint}>• GDPR compliant (no personal customer data)</Text>
-          <Text style={styles.bulletPoint}>• PIN and biometric encryption</Text>
+          <Text style={styles.bulletPoint}>• Local storage: All data stored securely on device</Text>
+          <Text style={styles.bulletPoint}>• GDPR compliant: Only vehicle registrations stored</Text>
+          <Text style={styles.bulletPoint}>• Encryption: PIN and biometric authentication</Text>
+          <Text style={styles.bulletPoint}>• Backup formats: JSON, PDF (import/export)</Text>
           
           <Text style={styles.subsectionTitle}>Calculations</Text>
-          <Text style={styles.bulletPoint}>• 1 AW = 5 minutes</Text>
-          <Text style={styles.bulletPoint}>• Work Day: 8 AM - 5 PM (9 hours)</Text>
-          <Text style={styles.bulletPoint}>• Lunch: 12 PM - 1 PM (1 hour)</Text>
-          <Text style={styles.bulletPoint}>• Net Work Time: 8 hours/day</Text>
-          <Text style={styles.bulletPoint}>• Monthly Target: 180 hours (customizable)</Text>
-        </View>
-
-        {/* Glossary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📝 Glossary</Text>
-          
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>AW (Allocated Work):</Text> Unit of work (1 AW = 5 minutes)
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>WIP Number:</Text> Work In Progress number (5-digit job ID)
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Registration:</Text> Vehicle registration number
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Efficiency:</Text> Percentage of available hours utilized
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Utilization:</Text> Percentage of monthly target completed
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Time Tracking:</Text> Automatic work hours monitoring
-          </Text>
-          <Text style={styles.paragraph}>
-            <Text style={styles.bold}>Saturday Frequency:</Text> How often you work Saturdays
-          </Text>
+          <Text style={styles.bulletPoint}>• AW Conversion: 1 AW = 5 minutes</Text>
+          <Text style={styles.bulletPoint}>• Work Day: 8 AM - 5 PM (9 hours total)</Text>
+          <Text style={styles.bulletPoint}>• Lunch Break: 12 PM - 1 PM (1 hour)</Text>
+          <Text style={styles.bulletPoint}>• Net Work Time: 8 hours per day (excluding lunch)</Text>
+          <Text style={styles.bulletPoint}>• Monthly Target: 180 hours (default, customizable)</Text>
+          <Text style={styles.bulletPoint}>• Efficiency: (Sold Hours / Available Hours) × 100</Text>
         </View>
 
         {/* Footer */}
         <View style={styles.footerSection}>
+          <Text style={styles.footerIcon}>🔧</Text>
           <Text style={styles.footerTitle}>TechTime - Professional Job Tracking</Text>
           <Text style={styles.footerText}>Version 1.0.0 | Privacy Focused | Secure | Reliable</Text>
+          <Text style={styles.footerText}>GDPR Compliant | Encrypted Storage | Professional Grade</Text>
           <Text style={styles.footerText}>© {new Date().getFullYear()} TechTime. All rights reserved.</Text>
           <Text style={styles.footerDate}>
-            Guide generated on {new Date().toLocaleDateString('en-US', { 
+            Document generated on {new Date().toLocaleDateString('en-US', { 
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
@@ -1315,29 +1233,36 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 32,
-    borderWidth: 1,
+    borderRadius: 16,
+    padding: 40,
+    borderWidth: 2,
     borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
   },
   heroIcon: {
-    fontSize: 64,
+    fontSize: 72,
     marginBottom: 16,
   },
   heroTitle: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 42,
+    fontWeight: '900',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
   },
   heroSubtitle: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+    marginBottom: 8,
+  },
+  heroTagline: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   section: {
     marginBottom: 24,
@@ -1380,13 +1305,13 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.text,
     marginBottom: 16,
   },
   subsectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginTop: 16,
     marginBottom: 12,
@@ -1394,7 +1319,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   paragraph: {
     fontSize: 15,
     color: colors.text,
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 12,
   },
   bulletPoint: {
@@ -1404,88 +1329,65 @@ const createStyles = (colors: any) => StyleSheet.create({
     marginBottom: 8,
     marginLeft: 8,
   },
-  bold: {
-    fontWeight: '700',
+  featureGrid: {
+    gap: 16,
   },
-  tocList: {
+  featureCard: {
     backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 12,
+    padding: 20,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  tocItem: {
-    fontSize: 15,
-    color: colors.text,
-    lineHeight: 24,
     marginBottom: 8,
-    marginLeft: 8,
   },
-  featureBox: {
-    backgroundColor: colors.backgroundAlt,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    borderRadius: 8,
-    padding: 16,
-    marginVertical: 12,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+  featureIcon: {
+    fontSize: 36,
     marginBottom: 12,
   },
-  tipBox: {
-    backgroundColor: '#fef3c7',
-    borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
-    borderRadius: 8,
-    padding: 16,
-    marginVertical: 12,
+  featureTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.primary,
+    marginBottom: 10,
   },
-  tipText: {
+  featureDescription: {
     fontSize: 14,
-    color: '#78350f',
+    color: colors.textSecondary,
     lineHeight: 20,
-  },
-  warningBox: {
-    backgroundColor: '#fee2e2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-    borderRadius: 8,
-    padding: 16,
-    marginVertical: 12,
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#7f1d1d',
-    lineHeight: 20,
-    fontWeight: '600',
   },
   footerSection: {
     marginTop: 32,
     marginBottom: 32,
-    paddingTop: 24,
-    borderTopWidth: 2,
+    paddingTop: 32,
+    paddingBottom: 24,
+    borderTopWidth: 3,
     borderTopColor: colors.border,
     alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 32,
+  },
+  footerIcon: {
+    fontSize: 48,
+    marginBottom: 16,
   },
   footerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   footerText: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
   },
   footerDate: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginTop: 8,
+    marginTop: 12,
     fontStyle: 'italic',
     textAlign: 'center',
   },

@@ -389,10 +389,6 @@ export default function EfficiencyCalendarScreen() {
 
     const daysInMonth = monthData.days.length;
     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-    const efficiencyColor = CalculationService.getEfficiencyColor(monthData.efficiency);
-    const targetHoursPercentage = settings.targetHours > 0 
-      ? Math.min((monthData.totalSoldHours / settings.targetHours) * 100, 100)
-      : 0;
 
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const calendarDays: (DayData | null)[] = [];
@@ -408,32 +404,6 @@ export default function EfficiencyCalendarScreen() {
         <Text style={[styles.viewTitle, { color: colors.text }]}>
           {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </Text>
-
-        <View style={styles.circlesContainer}>
-          <View style={styles.circleWrapper}>
-            <ProgressCircle
-              percentage={monthData.efficiency}
-              size={140}
-              strokeWidth={12}
-              color={efficiencyColor}
-            />
-            <Text style={[styles.circleLabel, { color: colors.text }]}>Efficiency</Text>
-            <Text style={[styles.circleValue, { color: efficiencyColor }]}>{monthData.efficiency}%</Text>
-          </View>
-
-          <View style={styles.circleWrapper}>
-            <ProgressCircle
-              percentage={targetHoursPercentage}
-              size={120}
-              strokeWidth={10}
-              color={colors.primary}
-            />
-            <Text style={[styles.circleLabel, { color: colors.text }]}>Target Progress</Text>
-            <Text style={[styles.circleValue, { color: colors.primary }]}>
-              {monthData.totalSoldHours.toFixed(1)}h / {settings.targetHours}h
-            </Text>
-          </View>
-        </View>
 
         <View style={[styles.calendarContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.calendarHeader}>
@@ -480,6 +450,7 @@ export default function EfficiencyCalendarScreen() {
                           size={42}
                           strokeWidth={4}
                           color={dayEfficiencyColor}
+                          showPercentage={false}
                         />
                       </View>
                       <View style={styles.innerCircle}>
@@ -488,7 +459,16 @@ export default function EfficiencyCalendarScreen() {
                           size={28}
                           strokeWidth={3}
                           color={colors.primary}
+                          showPercentage={false}
                         />
+                      </View>
+                      <View style={styles.percentageContainer}>
+                        <Text style={[styles.efficiencyPercentage, { color: dayEfficiencyColor }]}>
+                          {dayData.efficiency}%
+                        </Text>
+                        <Text style={[styles.progressPercentage, { color: colors.primary }]}>
+                          {Math.round(progressPercentage)}%
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -927,6 +907,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  percentageContainer: {
+    position: 'absolute',
+    bottom: -18,
+    alignItems: 'center',
+    width: 50,
+  },
+  efficiencyPercentage: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  progressPercentage: {
+    fontSize: 8,
+    fontWeight: '600',
   },
   yearGrid: {
     flexDirection: 'row',

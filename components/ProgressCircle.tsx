@@ -12,6 +12,7 @@ interface ProgressCircleProps {
   backgroundColor?: string;
   centerText?: string;
   centerSubtext?: string;
+  showPercentage?: boolean;
 }
 
 export default function ProgressCircle({
@@ -21,7 +22,8 @@ export default function ProgressCircle({
   color,
   backgroundColor,
   centerText,
-  centerSubtext
+  centerSubtext,
+  showPercentage = true
 }: ProgressCircleProps) {
   const { colors } = useTheme();
   const bgColor = backgroundColor || (colors.border || '#e5e7eb');
@@ -57,24 +59,26 @@ export default function ProgressCircle({
         />
       </Svg>
       {/* Text in the center */}
-      <View style={styles.textContainer}>
-        {centerText ? (
-          <>
-            <Text style={[styles.centerText, { color: colors.text }]}>
-              {centerText}
-            </Text>
-            {centerSubtext && (
-              <Text style={[styles.centerSubtext, { color: colors.textSecondary }]}>
-                {centerSubtext}
+      {showPercentage && (
+        <View style={styles.textContainer}>
+          {centerText ? (
+            <>
+              <Text style={[styles.centerText, { color: colors.text }]}>
+                {centerText}
               </Text>
-            )}
-          </>
-        ) : (
-          <Text style={[styles.percentageText, { color: colors.text }]}>
-            {percentage.toFixed(1)}%
-          </Text>
-        )}
-      </View>
+              {centerSubtext && (
+                <Text style={[styles.centerSubtext, { color: colors.textSecondary }]}>
+                  {centerSubtext}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.percentageText, { color: colors.text }]}>
+              {percentage.toFixed(1)}%
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
