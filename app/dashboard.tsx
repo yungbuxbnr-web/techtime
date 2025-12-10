@@ -233,6 +233,10 @@ export default function DashboardScreen() {
   };
 
   const navigateToCalendar = () => {
+    router.push('/efficiency-calendar');
+  };
+
+  const navigateToWorkSchedule = () => {
     router.push('/work-schedule-calendar');
   };
 
@@ -570,7 +574,14 @@ export default function DashboardScreen() {
                 style={styles.secondaryAction}
                 onPress={navigateToCalendar}
               >
-                <Text style={styles.secondaryActionText}>📅 Calendar</Text>
+                <Text style={styles.secondaryActionText}>📊 Efficiency</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={navigateToWorkSchedule}
+              >
+                <Text style={styles.secondaryActionText}>📅 Schedule</Text>
               </TouchableOpacity>
             </View>
           </View>
