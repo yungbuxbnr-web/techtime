@@ -8,7 +8,7 @@ const config = getDefaultConfig(__dirname, {
 // Add resolver configuration for better module resolution
 config.resolver = {
   ...config.resolver,
-  sourceExts: [...(config.resolver?.sourceExts || []), 'cjs'],
+  sourceExts: [...(config.resolver?.sourceExts || []), 'cjs', 'mjs'],
   assetExts: config.resolver?.assetExts?.filter((ext) => ext !== 'svg') || [],
 };
 
@@ -16,5 +16,16 @@ config.resolver = {
 config.resolver.nodeModulesPaths = [
   ...config.resolver.nodeModulesPaths || [],
 ];
+
+// Add transformer configuration for react-native-reanimated
+config.transformer = {
+  ...config.transformer,
+  getTransformOptions: async () => ({
+    transform: {
+      experimentalImportSupport: false,
+      inlineRequires: true,
+    },
+  }),
+};
 
 module.exports = config;

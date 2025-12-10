@@ -34,9 +34,9 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'systemProp.http.connectionTimeout', value: '120000' },
         ];
 
-        // Memory settings for Gradle
+        // Memory settings for Gradle - increased for react-native-reanimated
         const memorySettings = [
-          { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8' },
+          { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx6144m -XX:MaxMetaspaceSize=1536m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseG1GC' },
         ];
 
         // CI-specific settings: Disable daemons and parallel builds to prevent cache locking
@@ -55,7 +55,15 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'org.gradle.daemon.idletimeout', value: '3600000' },
         ];
 
-        const allSettings = [...networkSettings, ...memorySettings, ...ciSettings];
+        // React Native and Reanimated specific settings
+        const rnSettings = [
+          { type: 'property', key: 'android.useAndroidX', value: 'true' },
+          { type: 'property', key: 'android.enableJetifier', value: 'true' },
+          { type: 'property', key: 'hermesEnabled', value: 'true' },
+          { type: 'property', key: 'newArchEnabled', value: 'true' },
+        ];
+
+        const allSettings = [...networkSettings, ...memorySettings, ...ciSettings, ...rnSettings];
 
         // Remove existing settings to avoid duplicates
         config.modResults = config.modResults.filter(

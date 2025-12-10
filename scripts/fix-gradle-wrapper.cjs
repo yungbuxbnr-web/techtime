@@ -54,15 +54,15 @@ try {
   if (fs.existsSync(wrapperPropertiesPath)) {
     let wrapperContent = fs.readFileSync(wrapperPropertiesPath, 'utf8');
     
-    // Replace Gradle version with 8.13 (minimum required version)
+    // Use Gradle 8.14.3 for better compatibility with React Native 0.81.4
     const newContent = wrapperContent.replace(
       /distributionUrl=.*gradle-.*-bin\.zip/,
-      'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-bin.zip'
+      'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.3-bin.zip'
     );
 
     if (newContent !== wrapperContent) {
       fs.writeFileSync(wrapperPropertiesPath, newContent, 'utf8');
-      console.log('✅ Gradle wrapper configured to use version 8.13');
+      console.log('✅ Gradle wrapper configured to use version 8.14.3');
     } else {
       console.log('✅ Gradle wrapper already configured correctly');
     }
@@ -74,7 +74,7 @@ try {
     
     // Define settings based on environment
     const memorySettings = [
-      'org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8',
+      'org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1536m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseG1GC',
     ];
 
     const ciSettings = isCI ? [
@@ -91,7 +91,15 @@ try {
       'org.gradle.daemon.idletimeout=3600000',
     ];
 
-    const allSettings = [...memorySettings, ...ciSettings];
+    // Add React Native and Reanimated specific settings
+    const rnSettings = [
+      'android.useAndroidX=true',
+      'android.enableJetifier=true',
+      'hermesEnabled=true',
+      'newArchEnabled=true',
+    ];
+
+    const allSettings = [...memorySettings, ...ciSettings, ...rnSettings];
 
     let modified = false;
     for (const setting of allSettings) {
@@ -129,7 +137,10 @@ try {
     console.log('');
     console.log('📝 Next steps:');
     console.log('   1. Run: npm run gradle:stop');
-    console.log('   2. Run: npm run build:android');
+    console.log('   2. Run: npm run gradle:clean');
+    console.log('   3. Delete android and ios folders');
+    console.log('   4. Run: npm run prebuild:android');
+    console.log('   5. Run: npm run android');
   }
   
   console.log('');

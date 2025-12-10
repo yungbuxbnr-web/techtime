@@ -4,10 +4,14 @@ module.exports = function (api) {
   
   // Ensure NODE_ENV is set with a safe default
   const NODE_ENV = process.env.NODE_ENV || 'production';
+  const isProduction = NODE_ENV === 'production';
   
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      '@babel/plugin-proposal-export-namespace-from',
+      'babel-plugin-module-resolver',
+      // react-native-reanimated/plugin MUST be listed last
       'react-native-reanimated/plugin',
     ],
     env: {
