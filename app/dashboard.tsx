@@ -232,6 +232,10 @@ export default function DashboardScreen() {
     router.push(`/stats?type=${type}`);
   };
 
+  const navigateToCalendar = () => {
+    router.push('/work-schedule-calendar');
+  };
+
   const toggleOptionsMenu = () => {
     setShowOptionsMenu(!showOptionsMenu);
   };
@@ -320,6 +324,12 @@ export default function DashboardScreen() {
             <Text style={styles.nameText}>{technicianName}</Text>
           </View>
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.calendarIconButton}
+              onPress={navigateToCalendar}
+            >
+              <Text style={styles.calendarIconText}>📅</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.scanIconButton}
               onPress={handleScanPress}
@@ -555,6 +565,13 @@ export default function DashboardScreen() {
               >
                 <Text style={styles.secondaryActionText}>Statistics</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={navigateToCalendar}
+              >
+                <Text style={styles.secondaryActionText}>📅 Calendar</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -643,6 +660,19 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  calendarIconButton: {
+    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
+  },
+  calendarIconText: {
+    fontSize: 20,
   },
   scanIconButton: {
     backgroundColor: colors.primary,
