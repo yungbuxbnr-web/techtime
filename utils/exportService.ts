@@ -679,7 +679,7 @@ export const ExportService = {
   },
 
   /**
-   * Generate SVG pie chart
+   * Generate SVG pie chart with modern styling
    */
   generatePieChartSVG(stats: {
     vhcGreen: number;
@@ -692,9 +692,16 @@ export const ExportService = {
 
     if (totalAWs === 0) {
       return `
-        <svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="150" cy="150" r="100" fill="#e5e7eb" />
-          <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-size="16" fill="#6b7280">
+        <svg width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="emptyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#e5e7eb;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#d1d5db;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <circle cx="140" cy="140" r="100" fill="url(#emptyGradient)" />
+          <circle cx="140" cy="140" r="70" fill="#ffffff" />
+          <text x="140" y="140" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="600" fill="#6b7280">
             No Data
           </text>
         </svg>
@@ -707,22 +714,26 @@ export const ExportService = {
     const redPercent = (vhcRed / totalAWs) * 100;
     const nonePercent = (vhcNone / totalAWs) * 100;
 
-    // Colors
+    // Modern corporate colors with gradients
     const colors = {
       green: '#10b981',
+      greenDark: '#059669',
       orange: '#f59e0b',
+      orangeDark: '#d97706',
       red: '#ef4444',
-      none: '#9ca3af',
+      redDark: '#dc2626',
+      none: '#94a3b8',
+      noneDark: '#64748b',
     };
 
     // Calculate pie slices
     const radius = 100;
-    const centerX = 150;
-    const centerY = 150;
+    const centerX = 140;
+    const centerY = 140;
 
     let currentAngle = -90; // Start at top
 
-    const createSlice = (percent: number, color: string): string => {
+    const createSlice = (percent: number, color: string, colorDark: string, id: string): string => {
       if (percent === 0) return '';
 
       const angle = (percent / 100) * 360;
@@ -742,26 +753,60 @@ export const ExportService = {
       currentAngle = endAngle;
 
       return `
+        <defs>
+          <linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${color};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${colorDark};stop-opacity:1" />
+          </linearGradient>
+          <filter id="shadow${id}" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+            <feOffset dx="0" dy="2" result="offsetblur"/>
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.3"/>
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
         <path d="M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z"
-              fill="${color}" stroke="#ffffff" stroke-width="2" />
+              fill="url(#${id})" stroke="#ffffff" stroke-width="3" filter="url(#shadow${id})" />
       `;
     };
 
     const slices = [
-      createSlice(greenPercent, colors.green),
-      createSlice(orangePercent, colors.orange),
-      createSlice(redPercent, colors.red),
-      createSlice(nonePercent, colors.none),
+      createSlice(greenPercent, colors.green, colors.greenDark, 'greenGradient'),
+      createSlice(orangePercent, colors.orange, colors.orangeDark, 'orangeGradient'),
+      createSlice(redPercent, colors.red, colors.redDark, 'redGradient'),
+      createSlice(nonePercent, colors.none, colors.noneDark, 'noneGradient'),
     ].join('');
 
     return `
-      <svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+      <svg width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="centerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#f8fafc;stop-opacity:1" />
+          </linearGradient>
+          <filter id="centerShadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+            <feOffset dx="0" dy="2" result="offsetblur"/>
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.2"/>
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
         ${slices}
-        <circle cx="${centerX}" cy="${centerY}" r="60" fill="#ffffff" />
-        <text x="${centerX}" y="${centerY - 10}" text-anchor="middle" font-size="32" font-weight="700" fill="#1f2937">
+        <circle cx="${centerX}" cy="${centerY}" r="70" fill="url(#centerGradient)" filter="url(#centerShadow)" stroke="#e5e7eb" stroke-width="2" />
+        <text x="${centerX}" y="${centerY - 15}" text-anchor="middle" font-size="38" font-weight="800" fill="#1e293b">
           ${totalAWs}
         </text>
-        <text x="${centerX}" y="${centerY + 15}" text-anchor="middle" font-size="14" fill="#6b7280">
+        <text x="${centerX}" y="${centerY + 10}" text-anchor="middle" font-size="14" font-weight="600" fill="#64748b">
           Total AWs
         </text>
       </svg>
@@ -769,7 +814,7 @@ export const ExportService = {
   },
 
   /**
-   * Generate legend HTML for pie chart
+   * Generate legend HTML for pie chart with modern styling
    */
   generateLegendHTML(stats: {
     vhcGreen: number;
@@ -780,24 +825,29 @@ export const ExportService = {
   }): string {
     const { vhcGreen, vhcOrange, vhcRed, vhcNone, totalAWs } = stats;
 
-    const createLegendItem = (label: string, value: number, color: string): string => {
+    const createLegendItem = (label: string, value: number, color: string, colorDark: string): string => {
       if (value === 0) return '';
       const percent = totalAWs > 0 ? ((value / totalAWs) * 100).toFixed(1) : '0.0';
       return `
         <div class="legend-item">
-          <div class="legend-color" style="background-color: ${color};"></div>
-          <div class="legend-label">${label}</div>
-          <div class="legend-value">${value} AWs (${percent}%)</div>
+          <div class="legend-color-wrapper">
+            <div class="legend-color" style="background: linear-gradient(135deg, ${color} 0%, ${colorDark} 100%);"></div>
+          </div>
+          <div class="legend-content">
+            <div class="legend-label">${label}</div>
+            <div class="legend-value">${value} AWs</div>
+            <div class="legend-percent">${percent}%</div>
+          </div>
         </div>
       `;
     };
 
     return `
       <div class="legend">
-        ${createLegendItem('Green VHC', vhcGreen, '#10b981')}
-        ${createLegendItem('Orange VHC', vhcOrange, '#f59e0b')}
-        ${createLegendItem('Red VHC', vhcRed, '#ef4444')}
-        ${createLegendItem('No VHC', vhcNone, '#9ca3af')}
+        ${createLegendItem('Green VHC', vhcGreen, '#10b981', '#059669')}
+        ${createLegendItem('Orange VHC', vhcOrange, '#f59e0b', '#d97706')}
+        ${createLegendItem('Red VHC', vhcRed, '#ef4444', '#dc2626')}
+        ${createLegendItem('No VHC', vhcNone, '#94a3b8', '#64748b')}
       </div>
     `;
   },
@@ -1003,7 +1053,7 @@ export const ExportService = {
   },
 
   /**
-   * Generate PDF HTML content with modern styling and pie chart
+   * Generate PDF HTML content with modern corporate styling
    */
   generatePDFHTML(
     jobs: Job[],
@@ -1047,23 +1097,24 @@ export const ExportService = {
       Object.keys(groupedJobs).forEach((monthKey) => {
         const monthJobs = groupedJobs[monthKey];
         jobRowsHTML += `
-          <tr style="background-color: #e0f2fe;">
-            <td colspan="6" style="padding: 14px; font-weight: 700; font-size: 13px; border-bottom: 3px solid #0ea5e9; color: #0c4a6e;">
-              📅 ${monthKey}
+          <tr class="month-separator">
+            <td colspan="6">
+              <div class="month-badge">
+                <span class="month-icon">📅</span>
+                <span class="month-text">${monthKey}</span>
+              </div>
             </td>
           </tr>
         `;
         
         monthJobs.forEach((job, index) => {
-          const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-          jobRowsHTML += this.generateJobRowHTML(job, bgColor);
+          jobRowsHTML += this.generateJobRowHTML(job, index);
         });
       });
     } else {
       // Render without grouping
       sortedJobs.forEach((job, index) => {
-        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        jobRowsHTML += this.generateJobRowHTML(job, bgColor);
+        jobRowsHTML += this.generateJobRowHTML(job, index);
       });
     }
 
@@ -1075,6 +1126,8 @@ export const ExportService = {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Job Records Export - ${periodTitle}</title>
           <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            
             * {
               margin: 0;
               padding: 0;
@@ -1082,77 +1135,151 @@ export const ExportService = {
             }
             
             body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-              font-size: 12px;
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              font-size: 11px;
               line-height: 1.6;
-              color: #1f2937;
-              padding: 30px;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: #1e293b;
+              background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+              padding: 40px 20px;
             }
             
-            .page-wrapper {
+            .page-container {
+              max-width: 1200px;
+              margin: 0 auto;
               background: #ffffff;
-              border-radius: 16px;
-              padding: 40px;
-              box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+              border-radius: 20px;
+              overflow: hidden;
+              box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            }
+            
+            .header-wrapper {
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+              padding: 50px 40px;
+              position: relative;
+              overflow: hidden;
+            }
+            
+            .header-wrapper::before {
+              content: '';
+              position: absolute;
+              top: -50%;
+              right: -10%;
+              width: 500px;
+              height: 500px;
+              background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+              border-radius: 50%;
+            }
+            
+            .header-wrapper::after {
+              content: '';
+              position: absolute;
+              bottom: -30%;
+              left: -5%;
+              width: 400px;
+              height: 400px;
+              background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+              border-radius: 50%;
             }
             
             .header {
+              position: relative;
+              z-index: 1;
               text-align: center;
-              margin-bottom: 40px;
-              padding-bottom: 30px;
-              border-bottom: 4px solid transparent;
-              background: linear-gradient(90deg, #667eea, #764ba2);
-              background-clip: text;
-              -webkit-background-clip: text;
-              -webkit-text-fill-color: transparent;
+            }
+            
+            .company-logo {
+              width: 60px;
+              height: 60px;
+              background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+              border-radius: 12px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 32px;
+              margin-bottom: 20px;
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             }
             
             .header h1 {
-              font-size: 36px;
+              font-size: 42px;
               font-weight: 800;
+              color: #ffffff;
               margin-bottom: 12px;
-              letter-spacing: -0.5px;
+              letter-spacing: -1px;
+              text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             }
             
             .header h2 {
-              font-size: 22px;
+              font-size: 24px;
               font-weight: 600;
-              color: #1f2937;
-              margin-bottom: 8px;
-              -webkit-text-fill-color: #1f2937;
+              color: #e0f2fe;
+              margin-bottom: 16px;
+              letter-spacing: 0.5px;
             }
             
-            .header p {
-              font-size: 13px;
-              color: #6b7280;
-              -webkit-text-fill-color: #6b7280;
+            .header-meta {
+              display: flex;
+              justify-content: center;
+              gap: 30px;
+              margin-top: 20px;
+              flex-wrap: wrap;
+            }
+            
+            .header-meta-item {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              color: #bfdbfe;
+              font-size: 12px;
+              font-weight: 500;
+            }
+            
+            .header-meta-icon {
+              font-size: 16px;
+            }
+            
+            .content-wrapper {
+              padding: 40px;
             }
             
             .chart-section {
-              background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
               border-radius: 16px;
-              padding: 30px;
+              padding: 40px;
               margin-bottom: 40px;
-              box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
-              border: 2px solid #bae6fd;
+              border: 2px solid #e2e8f0;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             }
             
             .chart-title {
               text-align: center;
-              font-size: 20px;
-              font-weight: 700;
-              color: #0c4a6e;
-              margin-bottom: 25px;
+              font-size: 22px;
+              font-weight: 800;
+              color: #0f172a;
+              margin-bottom: 30px;
               text-transform: uppercase;
-              letter-spacing: 1px;
+              letter-spacing: 2px;
+              position: relative;
+              padding-bottom: 15px;
+            }
+            
+            .chart-title::after {
+              content: '';
+              position: absolute;
+              bottom: 0;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 80px;
+              height: 4px;
+              background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+              border-radius: 2px;
             }
             
             .chart-container {
               display: flex;
               justify-content: center;
               align-items: center;
-              gap: 40px;
+              gap: 50px;
               flex-wrap: wrap;
             }
             
@@ -1163,41 +1290,56 @@ export const ExportService = {
             .legend {
               display: flex;
               flex-direction: column;
-              gap: 12px;
-              min-width: 200px;
+              gap: 16px;
+              min-width: 240px;
             }
             
             .legend-item {
               display: flex;
               align-items: center;
-              gap: 12px;
-              padding: 10px 16px;
+              gap: 16px;
+              padding: 14px 18px;
               background: #ffffff;
-              border-radius: 8px;
+              border-radius: 10px;
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-              transition: transform 0.2s;
+              border: 1px solid #e2e8f0;
+              transition: all 0.3s ease;
+            }
+            
+            .legend-color-wrapper {
+              flex-shrink: 0;
             }
             
             .legend-color {
-              width: 20px;
-              height: 20px;
-              border-radius: 4px;
-              flex-shrink: 0;
-              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+              width: 24px;
+              height: 24px;
+              border-radius: 6px;
+              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            }
+            
+            .legend-content {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
             }
             
             .legend-label {
-              font-size: 12px;
-              font-weight: 600;
-              color: #374151;
-              flex: 1;
+              font-size: 13px;
+              font-weight: 700;
+              color: #1e293b;
             }
             
             .legend-value {
               font-size: 11px;
-              font-weight: 700;
-              color: #6b7280;
-              white-space: nowrap;
+              font-weight: 600;
+              color: #64748b;
+            }
+            
+            .legend-percent {
+              font-size: 10px;
+              font-weight: 500;
+              color: #94a3b8;
             }
             
             .summary {
@@ -1209,109 +1351,175 @@ export const ExportService = {
             
             .summary-card {
               background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-              border: 2px solid #e5e7eb;
-              border-radius: 12px;
-              padding: 20px;
+              border: 2px solid #e2e8f0;
+              border-radius: 14px;
+              padding: 24px;
               text-align: center;
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-              transition: transform 0.2s;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+              position: relative;
+              overflow: hidden;
             }
             
-            .summary-card:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            .summary-card::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 4px;
+              background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
             }
             
             .summary-card .label {
               font-size: 11px;
-              color: #6b7280;
+              color: #64748b;
               text-transform: uppercase;
-              letter-spacing: 1px;
-              margin-bottom: 10px;
-              font-weight: 600;
+              letter-spacing: 1.2px;
+              margin-bottom: 12px;
+              font-weight: 700;
             }
             
             .summary-card .value {
-              font-size: 28px;
+              font-size: 36px;
               font-weight: 800;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
               background-clip: text;
               -webkit-background-clip: text;
               -webkit-text-fill-color: transparent;
+              line-height: 1;
+            }
+            
+            .table-section {
+              margin-bottom: 40px;
+            }
+            
+            .table-header {
+              font-size: 20px;
+              font-weight: 800;
+              color: #0f172a;
+              margin-bottom: 20px;
+              padding-bottom: 12px;
+              border-bottom: 3px solid #e2e8f0;
             }
             
             .table-container {
-              border-radius: 12px;
+              border-radius: 14px;
               overflow: hidden;
-              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-              margin-bottom: 40px;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+              border: 2px solid #e2e8f0;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
+              background: #ffffff;
+            }
+            
+            thead {
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
             }
             
             th {
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: #ffffff;
               font-weight: 700;
               text-align: left;
-              padding: 16px;
+              padding: 16px 18px;
               font-size: 11px;
               text-transform: uppercase;
               letter-spacing: 1px;
+              border-bottom: 3px solid #1e40af;
             }
             
             td {
-              padding: 14px 16px;
-              border-bottom: 1px solid #e5e7eb;
+              padding: 16px 18px;
+              border-bottom: 1px solid #f1f5f9;
               font-size: 12px;
+              color: #334155;
             }
             
-            tr:hover {
-              background: #f1f5f9 !important;
+            tbody tr {
+              transition: background-color 0.2s ease;
             }
             
-            tr:last-child td {
+            tbody tr:nth-child(even) {
+              background-color: #f8fafc;
+            }
+            
+            tbody tr:hover {
+              background-color: #e0f2fe !important;
+            }
+            
+            tbody tr:last-child td {
               border-bottom: none;
+            }
+            
+            .month-separator {
+              background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+            }
+            
+            .month-separator td {
+              padding: 0 !important;
+              border-bottom: none !important;
+            }
+            
+            .month-badge {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 16px 20px;
+              font-weight: 800;
+              font-size: 14px;
+              color: #1e40af;
+            }
+            
+            .month-icon {
+              font-size: 20px;
+            }
+            
+            .month-text {
+              letter-spacing: 0.5px;
             }
             
             .vhc-badge {
               display: inline-block;
-              padding: 6px 12px;
-              border-radius: 6px;
+              padding: 6px 14px;
+              border-radius: 8px;
               font-size: 10px;
               font-weight: 700;
               text-transform: uppercase;
-              letter-spacing: 0.5px;
-              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              letter-spacing: 0.8px;
+              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
             }
             
             .vhc-green {
               background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
               color: #065f46;
+              border: 1px solid #6ee7b7;
             }
             
             .vhc-orange {
               background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
               color: #92400e;
+              border: 1px solid #fb923c;
             }
             
             .vhc-red {
               background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
               color: #991b1b;
+              border: 1px solid #fca5a5;
             }
             
             .vhc-none {
-              background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-              color: #6b7280;
+              background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+              color: #475569;
+              border: 1px solid #cbd5e1;
             }
             
             .footer {
               margin-top: 50px;
-              padding-top: 30px;
-              border-top: 3px solid #e5e7eb;
+              padding: 40px;
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+              border-top: 3px solid #e2e8f0;
               text-align: center;
             }
             
@@ -1319,45 +1527,77 @@ export const ExportService = {
               display: flex;
               flex-direction: column;
               align-items: center;
-              gap: 12px;
+              gap: 16px;
+            }
+            
+            .footer-logo {
+              width: 50px;
+              height: 50px;
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+              border-radius: 10px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 28px;
+              box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
             }
             
             .footer p {
               font-size: 11px;
-              color: #6b7280;
+              color: #64748b;
+              font-weight: 500;
+            }
+            
+            .footer-brand {
+              font-weight: 800;
+              color: #1e293b;
+              font-size: 13px;
+            }
+            
+            .signature-section {
+              margin-top: 30px;
+              padding-top: 30px;
+              border-top: 2px solid #e2e8f0;
             }
             
             .signature {
-              margin-top: 20px;
-              padding: 16px 32px;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              display: inline-block;
+              padding: 18px 36px;
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
               color: #ffffff;
-              border-radius: 8px;
-              font-size: 14px;
+              border-radius: 10px;
+              font-size: 15px;
               font-weight: 700;
-              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+              box-shadow: 0 6px 20px rgba(30, 64, 175, 0.3);
+              letter-spacing: 0.5px;
             }
             
-            .watermark {
-              position: fixed;
-              bottom: 20px;
-              right: 20px;
-              opacity: 0.1;
-              font-size: 80px;
-              font-weight: 900;
-              color: #667eea;
-              transform: rotate(-15deg);
-              pointer-events: none;
+            .signature-icon {
+              margin-right: 8px;
+              font-size: 18px;
+            }
+            
+            .confidential-notice {
+              margin-top: 20px;
+              padding: 16px;
+              background: #fef3c7;
+              border: 2px solid #fbbf24;
+              border-radius: 8px;
+              font-size: 10px;
+              color: #92400e;
+              font-weight: 600;
+              text-align: center;
             }
             
             @media print {
               body {
-                padding: 10px;
+                padding: 0;
                 background: #ffffff;
               }
               
-              .page-wrapper {
+              .page-container {
                 box-shadow: none;
+                border-radius: 0;
               }
               
               .summary {
@@ -1377,97 +1617,129 @@ export const ExportService = {
                 page-break-after: auto;
               }
               
-              .watermark {
-                display: none;
+              thead {
+                display: table-header-group;
               }
             }
           </style>
         </head>
         <body>
-          <div class="page-wrapper">
-            <div class="header">
-              <h1>🔧 Technician Records</h1>
-              <h2>${technicianName || 'Technician'}</h2>
-              <p>${periodTitle}</p>
-              <p>Generated: ${new Date().toLocaleString()}</p>
-            </div>
-            
-            <div class="chart-section">
-              <div class="chart-title">⚡ Efficiency Breakdown</div>
-              <div class="chart-container">
-                <div class="chart-wrapper">
-                  ${pieChartSVG}
+          <div class="page-container">
+            <div class="header-wrapper">
+              <div class="header">
+                <div class="company-logo">🔧</div>
+                <h1>Technician Records</h1>
+                <h2>${technicianName || 'Professional Technician'}</h2>
+                <div class="header-meta">
+                  <div class="header-meta-item">
+                    <span class="header-meta-icon">📊</span>
+                    <span>${periodTitle}</span>
+                  </div>
+                  <div class="header-meta-item">
+                    <span class="header-meta-icon">📅</span>
+                    <span>${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  </div>
+                  <div class="header-meta-item">
+                    <span class="header-meta-icon">🕐</span>
+                    <span>${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 </div>
-                ${legendHTML}
               </div>
             </div>
             
-            <div class="summary">
-              <div class="summary-card">
-                <div class="label">Total Jobs</div>
-                <div class="value">${totalJobs}</div>
+            <div class="content-wrapper">
+              <div class="chart-section">
+                <div class="chart-title">⚡ Efficiency Analysis</div>
+                <div class="chart-container">
+                  <div class="chart-wrapper">
+                    ${pieChartSVG}
+                  </div>
+                  ${legendHTML}
+                </div>
               </div>
-              <div class="summary-card">
-                <div class="label">Total AWs</div>
-                <div class="value">${totalAWs}</div>
+              
+              <div class="summary">
+                <div class="summary-card">
+                  <div class="label">Total Jobs</div>
+                  <div class="value">${totalJobs}</div>
+                </div>
+                <div class="summary-card">
+                  <div class="label">Total AWs</div>
+                  <div class="value">${totalAWs}</div>
+                </div>
+                <div class="summary-card">
+                  <div class="label">Total Time</div>
+                  <div class="value">${totalHours}</div>
+                </div>
+                <div class="summary-card">
+                  <div class="label">Avg AWs/Job</div>
+                  <div class="value">${totalJobs > 0 ? (totalAWs / totalJobs).toFixed(1) : '0'}</div>
+                </div>
               </div>
-              <div class="summary-card">
-                <div class="label">Total Time</div>
-                <div class="value">${totalHours}</div>
+              
+              <div class="table-section">
+                <div class="table-header">📋 Detailed Job Records</div>
+                <div class="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>📅 Date</th>
+                        <th>🔢 WIP Number</th>
+                        <th>🚗 Vehicle Reg</th>
+                        <th>🔍 VHC Status</th>
+                        <th>📝 Description</th>
+                        <th>⚙️ AWs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${jobRowsHTML}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div class="summary-card">
-                <div class="label">Avg AWs/Job</div>
-                <div class="value">${totalJobs > 0 ? (totalAWs / totalJobs).toFixed(1) : '0'}</div>
-              </div>
-            </div>
-            
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>📅 Date</th>
-                    <th>🔢 WIP Number</th>
-                    <th>🚗 Vehicle Reg</th>
-                    <th>🔍 VHC Status</th>
-                    <th>📝 Description</th>
-                    <th>⚙️ AWs</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${jobRowsHTML}
-                </tbody>
-              </table>
             </div>
             
             <div class="footer">
               <div class="footer-content">
-                <p><strong>Technician Records App</strong> v1.0.0</p>
-                <p>Professional job tracking for vehicle technicians</p>
-                <div class="signature">
-                  ✍️ Digitally signed by ${technicianName || 'Technician'}
+                <div class="footer-logo">🔧</div>
+                <p class="footer-brand">Technician Records App</p>
+                <p>Professional job tracking and reporting system for vehicle technicians</p>
+                <p>Version 1.0.0 • Confidential Document</p>
+                
+                <div class="signature-section">
+                  <div class="signature">
+                    <span class="signature-icon">✍️</span>
+                    <span>Digitally Signed by ${technicianName || 'Technician'}</span>
+                  </div>
+                </div>
+                
+                <div class="confidential-notice">
+                  ⚠️ CONFIDENTIAL: This document contains proprietary information. Unauthorized distribution is prohibited.
                 </div>
               </div>
             </div>
           </div>
-          
-          <div class="watermark">TECH</div>
         </body>
       </html>
     `;
   },
 
   /**
-   * Generate a single job row HTML
+   * Generate a single job row HTML with modern styling
    */
-  generateJobRowHTML(job: Job, bgColor: string): string {
-    const date = new Date(job.dateCreated).toLocaleDateString();
+  generateJobRowHTML(job: Job, index: number): string {
+    const date = new Date(job.dateCreated).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
     const vhcStatus = job.vhcStatus || 'N/A';
     const vhcClass = this.getVHCClass(vhcStatus);
     const description = job.notes || job.jobDescription || '-';
 
     return `
-      <tr style="background-color: ${bgColor};">
-        <td>${date}</td>
+      <tr>
+        <td><strong>${date}</strong></td>
         <td><strong>${job.wipNumber}</strong></td>
         <td><strong>${job.vehicleRegistration}</strong></td>
         <td><span class="vhc-badge ${vhcClass}">${vhcStatus}</span></td>
