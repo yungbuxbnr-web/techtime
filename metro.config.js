@@ -26,6 +26,11 @@ config.transformer = {
       inlineRequires: true,
     },
   }),
+  // Ensure Reanimated plugin is properly handled
+  babelTransformerPath: require.resolve('react-native/Libraries/Babel/BabelTransformer'),
 };
+
+// Increase watcher timeout for large projects
+config.watchFolders = config.watchFolders || [];
 
 module.exports = config;

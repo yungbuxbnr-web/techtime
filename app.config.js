@@ -122,6 +122,7 @@ module.exports = {
           enableBackgroundRemoteNotifications: true,
         },
       ],
+      './plugins/reanimatedConfig.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/androidWidget.plugin.js',
     ],

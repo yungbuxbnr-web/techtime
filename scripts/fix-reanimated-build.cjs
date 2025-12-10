@@ -28,8 +28,57 @@ try {
   process.exit(1);
 }
 
-// Step 2: Stop Gradle daemons
-console.log('2️⃣ Stopping Gradle daemons...');
+// Step 2: Verify react-native-reanimated package.json
+console.log('2️⃣ Verifying react-native-reanimated installation...');
+try {
+  const reanimatedPackageJsonPath = path.join(rootDir, 'node_modules', 'react-native-reanimated', 'package.json');
+  
+  if (!fs.existsSync(reanimatedPackageJsonPath)) {
+    console.log('⚠️ react-native-reanimated package.json not found');
+    console.log('   Reinstalling react-native-reanimated...\n');
+    
+    execSync('npm install react-native-reanimated@~4.1.0', {
+      cwd: rootDir,
+      stdio: 'inherit',
+      timeout: 120000
+    });
+    
+    console.log('✅ react-native-reanimated reinstalled\n');
+  } else {
+    const packageJson = JSON.parse(fs.readFileSync(reanimatedPackageJsonPath, 'utf8'));
+    console.log(`✅ react-native-reanimated ${packageJson.version} is installed\n`);
+  }
+} catch (error) {
+  console.error('❌ Could not verify react-native-reanimated:', error.message);
+  process.exit(1);
+}
+
+// Step 3: Verify babel.config.cjs has reanimated plugin
+console.log('3️⃣ Verifying Babel configuration...');
+try {
+  const babelConfigPath = path.join(rootDir, 'babel.config.cjs');
+  
+  if (fs.existsSync(babelConfigPath)) {
+    const babelConfig = fs.readFileSync(babelConfigPath, 'utf8');
+    
+    if (!babelConfig.includes('react-native-reanimated/plugin')) {
+      console.error('❌ babel.config.cjs is missing react-native-reanimated/plugin');
+      console.error('   Please add it as the LAST plugin in your babel.config.cjs');
+      process.exit(1);
+    }
+    
+    console.log('✅ Babel configuration is correct\n');
+  } else {
+    console.error('❌ babel.config.cjs not found');
+    process.exit(1);
+  }
+} catch (error) {
+  console.error('❌ Could not verify Babel configuration:', error.message);
+  process.exit(1);
+}
+
+// Step 4: Stop Gradle daemons
+console.log('4️⃣ Stopping Gradle daemons...');
 try {
   if (fs.existsSync(path.join(rootDir, 'android'))) {
     execSync('cd android && ./gradlew --stop', { 
@@ -45,8 +94,8 @@ try {
   console.log('⚠️ Could not stop Gradle daemons (may not be running)\n');
 }
 
-// Step 3: Clean Gradle cache
-console.log('3️⃣ Cleaning Gradle cache...');
+// Step 5: Clean Gradle cache
+console.log('5️⃣ Cleaning Gradle cache...');
 try {
   if (fs.existsSync(path.join(rootDir, 'android'))) {
     execSync('cd android && ./gradlew clean --no-daemon', { 
@@ -62,8 +111,8 @@ try {
   console.log('⚠️ Could not clean Gradle cache:', error.message, '\n');
 }
 
-// Step 4: Remove android and ios folders
-console.log('4️⃣ Removing android and ios folders...');
+// Step 6: Remove android and ios folders
+console.log('6️⃣ Removing android and ios folders...');
 try {
   const androidPath = path.join(rootDir, 'android');
   const iosPath = path.join(rootDir, 'ios');
@@ -84,14 +133,18 @@ try {
   process.exit(1);
 }
 
-// Step 5: Prebuild Android
-console.log('5️⃣ Running prebuild for Android...');
+// Step 7: Prebuild Android
+console.log('7️⃣ Running prebuild for Android...');
 console.log('   This may take a few minutes...\n');
 try {
   execSync('npm run prebuild:android', { 
     cwd: rootDir,
     stdio: 'inherit',
-    timeout: 300000 // 5 minutes
+    timeout: 300000,
+    env: {
+      ...process.env,
+      NODE_ENV: 'production'
+    }
   });
   console.log('\n✅ Prebuild completed successfully\n');
 } catch (error) {
@@ -107,4 +160,5 @@ console.log('✅ Build fix completed successfully!');
 console.log('=====================================\n');
 console.log('Next steps:');
 console.log('1. Run: npm run android');
-console.log('2. If the build still fails, check REANIMATED_BUILD_FIX.md\n');
+console.log('2. If the build still fails, check the error message');
+console.log('3. You may need to run: npm run gradle:clean\n');
