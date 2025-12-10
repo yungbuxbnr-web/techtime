@@ -472,21 +472,21 @@ export default function EfficiencyCalendarScreen() {
                   <Text style={[styles.calendarDayNumber, { color: colors.text }]}>
                     {dayData.date.getDate()}
                   </Text>
-                  {dayData.totalAWs > 0 && (
+                  {dayData.availableHours > 0 && (
                     <View style={styles.doubleCircleContainer}>
                       <View style={styles.outerCircle}>
                         <ProgressCircle
                           percentage={dayData.efficiency}
-                          size={36}
-                          strokeWidth={3}
+                          size={42}
+                          strokeWidth={4}
                           color={dayEfficiencyColor}
                         />
                       </View>
                       <View style={styles.innerCircle}>
                         <ProgressCircle
                           percentage={progressPercentage}
-                          size={24}
-                          strokeWidth={2.5}
+                          size={28}
+                          strokeWidth={3}
                           color={colors.primary}
                         />
                       </View>
@@ -894,18 +894,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     aspectRatio: 1,
     padding: 4,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     borderRadius: 8,
   },
   calendarDayNumber: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   doubleCircleContainer: {
     position: 'relative',
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -914,17 +914,17 @@ const createStyles = (colors: any) => StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   innerCircle: {
     position: 'absolute',
-    top: 6,
-    left: 6,
-    width: 24,
-    height: 24,
+    top: 7,
+    left: 7,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
