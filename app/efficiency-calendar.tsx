@@ -452,6 +452,10 @@ export default function EfficiencyCalendarScreen() {
 
               const isToday = dayData.date.toDateString() === new Date().toDateString();
               const dayEfficiencyColor = CalculationService.getEfficiencyColor(dayData.efficiency);
+              
+              const progressPercentage = dayData.availableHours > 0 
+                ? Math.min((dayData.totalSoldHours / dayData.availableHours) * 100, 100)
+                : 0;
 
               return (
                 <TouchableOpacity
@@ -469,13 +473,23 @@ export default function EfficiencyCalendarScreen() {
                     {dayData.date.getDate()}
                   </Text>
                   {dayData.totalAWs > 0 && (
-                    <View style={styles.miniCircle}>
-                      <ProgressCircle
-                        percentage={dayData.efficiency}
-                        size={30}
-                        strokeWidth={3}
-                        color={dayEfficiencyColor}
-                      />
+                    <View style={styles.doubleCircleContainer}>
+                      <View style={styles.outerCircle}>
+                        <ProgressCircle
+                          percentage={dayData.efficiency}
+                          size={36}
+                          strokeWidth={3}
+                          color={dayEfficiencyColor}
+                        />
+                      </View>
+                      <View style={styles.innerCircle}>
+                        <ProgressCircle
+                          percentage={progressPercentage}
+                          size={24}
+                          strokeWidth={2.5}
+                          color={colors.primary}
+                        />
+                      </View>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -888,8 +902,31 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4,
   },
-  miniCircle: {
+  doubleCircleContainer: {
+    position: 'relative',
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
+  },
+  outerCircle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innerCircle: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   yearGrid: {
     flexDirection: 'row',
