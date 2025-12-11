@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "TechTime",
@@ -113,5 +112,6 @@
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "TechTime"
 }

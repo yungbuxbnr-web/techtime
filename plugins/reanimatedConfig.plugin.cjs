@@ -1,12 +1,59 @@
 
 const { withAppBuildGradle, withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
+const { execSync } = require('child_process');
+const path = require('path');
 
 /**
  * Expo Config Plugin for React Native Reanimated
  * 
  * This plugin ensures proper configuration for react-native-reanimated on Android
  * to prevent build errors related to Node execution and Gradle evaluation.
+ * 
+ * Fixes applied:
+ * 1. Sets NODE_BINARY in gradle.properties
+ * 2. Adds fbjni dependency to app/build.gradle
+ * 3. Adds packaging options for .so files
+ * 4. Enables reanimatedEnablePackagingOptions in build.gradle
+ * 5. Sets proper SDK versions for Gradle 9 compatibility
  */
+
+/**
+ * Get the Node.js executable path
+ */
+function getNodePath() {
+  try {
+    // Try to get the full path to node
+    const nodePath = execSync('which node', { encoding: 'utf8' }).trim();
+    if (nodePath) {
+      console.log(`✅ Found Node.js at: ${nodePath}`);
+      return nodePath;
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not determine Node.js path, using default');
+  }
+  
+  // Fallback to common paths
+  const commonPaths = [
+    '/usr/local/bin/node',
+    '/usr/bin/node',
+    '/opt/homebrew/bin/node',
+    process.execPath, // Current Node.js executable
+  ];
+  
+  for (const nodePath of commonPaths) {
+    try {
+      execSync(`${nodePath} --version`, { encoding: 'utf8' });
+      console.log(`✅ Using Node.js at: ${nodePath}`);
+      return nodePath;
+    } catch (error) {
+      // Continue to next path
+    }
+  }
+  
+  // Ultimate fallback
+  console.warn('⚠️ Using fallback Node.js path: node');
+  return 'node';
+}
 
 const withReanimatedConfig = (config) => {
   // Step 1: Add fbjni dependency to android/app/build.gradle
@@ -100,15 +147,23 @@ const withReanimatedConfig = (config) => {
     }
   });
 
-  // Step 3: Add Gradle properties for Reanimated
+  // Step 3: Add Gradle properties for Reanimated including NODE_BINARY
   config = withGradleProperties(config, (config) => {
     try {
       config.modResults = config.modResults || [];
 
+      // Get the Node.js path
+      const nodePath = getNodePath();
+
       const reanimatedSettings = [
+        { type: 'property', key: 'NODE_BINARY', value: nodePath },
         { type: 'property', key: 'reanimated.enablePackagingOptions', value: 'true' },
         { type: 'property', key: 'android.enableJetifier', value: 'true' },
         { type: 'property', key: 'android.useAndroidX', value: 'true' },
+        { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError' },
+        { type: 'property', key: 'org.gradle.daemon', value: 'true' },
+        { type: 'property', key: 'org.gradle.parallel', value: 'true' },
+        { type: 'property', key: 'org.gradle.configureondemand', value: 'true' },
       ];
 
       // Remove existing settings to avoid duplicates
@@ -120,6 +175,7 @@ const withReanimatedConfig = (config) => {
       config.modResults.push(...reanimatedSettings);
 
       console.log('✅ Added Reanimated properties to gradle.properties');
+      console.log(`   NODE_BINARY=${nodePath}`);
 
       return config;
     } catch (error) {

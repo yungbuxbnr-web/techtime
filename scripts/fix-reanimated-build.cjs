@@ -18,11 +18,19 @@ try {
     console.error('❌ Node.js version must be between 18 and 22');
     console.error(`   Current version: ${nodeVersion}`);
     console.error('   Please install a compatible version using nvm:');
-    console.error('   nvm install 18 && nvm use 18');
+    console.error('   nvm install 20 && nvm use 20');
     process.exit(1);
   }
   
-  console.log(`✅ Node.js version ${nodeVersion} is compatible\n`);
+  console.log(`✅ Node.js version ${nodeVersion} is compatible`);
+  
+  // Get Node path
+  try {
+    const nodePath = execSync('which node', { encoding: 'utf8' }).trim();
+    console.log(`   Node.js path: ${nodePath}\n`);
+  } catch (error) {
+    console.log(`   Node.js path: ${process.execPath}\n`);
+  }
 } catch (error) {
   console.error('❌ Could not check Node.js version:', error.message);
   process.exit(1);
@@ -35,15 +43,15 @@ try {
   
   if (!fs.existsSync(reanimatedPackageJsonPath)) {
     console.log('⚠️ react-native-reanimated package.json not found');
-    console.log('   Reinstalling react-native-reanimated...\n');
+    console.log('   Reinstalling dependencies...\n');
     
-    execSync('npm install react-native-reanimated@~4.1.0', {
+    execSync('pnpm install', {
       cwd: rootDir,
       stdio: 'inherit',
-      timeout: 120000
+      timeout: 180000
     });
     
-    console.log('✅ react-native-reanimated reinstalled\n');
+    console.log('✅ Dependencies reinstalled\n');
   } else {
     const packageJson = JSON.parse(fs.readFileSync(reanimatedPackageJsonPath, 'utf8'));
     console.log(`✅ react-native-reanimated ${packageJson.version} is installed\n`);
@@ -67,7 +75,19 @@ try {
       process.exit(1);
     }
     
-    console.log('✅ Babel configuration is correct\n');
+    // Check if it's the last plugin
+    const pluginsMatch = babelConfig.match(/plugins:\s*\[([\s\S]*?)\]/);
+    if (pluginsMatch) {
+      const pluginsContent = pluginsMatch[1];
+      const lastPlugin = pluginsContent.trim().split(',').pop().trim();
+      
+      if (!lastPlugin.includes('react-native-reanimated/plugin')) {
+        console.warn('⚠️ react-native-reanimated/plugin should be the LAST plugin');
+        console.warn('   Current last plugin:', lastPlugin);
+      } else {
+        console.log('✅ Babel configuration is correct\n');
+      }
+    }
   } else {
     console.error('❌ babel.config.cjs not found');
     process.exit(1);
@@ -77,8 +97,29 @@ try {
   process.exit(1);
 }
 
-// Step 4: Stop Gradle daemons
-console.log('4️⃣ Stopping Gradle daemons...');
+// Step 4: Verify .npmrc configuration
+console.log('4️⃣ Verifying .npmrc configuration...');
+try {
+  const npmrcPath = path.join(rootDir, '.npmrc');
+  
+  if (fs.existsSync(npmrcPath)) {
+    const npmrc = fs.readFileSync(npmrcPath, 'utf8');
+    
+    if (!npmrc.includes('node-linker=hoisted') && !npmrc.includes('shamefully-hoist=true')) {
+      console.warn('⚠️ .npmrc should include hoisting configuration for pnpm');
+      console.warn('   Add: node-linker=hoisted or shamefully-hoist=true');
+    } else {
+      console.log('✅ .npmrc configuration is correct\n');
+    }
+  } else {
+    console.warn('⚠️ .npmrc not found\n');
+  }
+} catch (error) {
+  console.warn('⚠️ Could not verify .npmrc:', error.message, '\n');
+}
+
+// Step 5: Stop Gradle daemons
+console.log('5️⃣ Stopping Gradle daemons...');
 try {
   if (fs.existsSync(path.join(rootDir, 'android'))) {
     execSync('cd android && ./gradlew --stop', { 
@@ -94,8 +135,8 @@ try {
   console.log('⚠️ Could not stop Gradle daemons (may not be running)\n');
 }
 
-// Step 5: Clean Gradle cache
-console.log('5️⃣ Cleaning Gradle cache...');
+// Step 6: Clean Gradle cache
+console.log('6️⃣ Cleaning Gradle cache...');
 try {
   if (fs.existsSync(path.join(rootDir, 'android'))) {
     execSync('cd android && ./gradlew clean --no-daemon', { 
@@ -111,8 +152,8 @@ try {
   console.log('⚠️ Could not clean Gradle cache:', error.message, '\n');
 }
 
-// Step 6: Remove android and ios folders
-console.log('6️⃣ Removing android and ios folders...');
+// Step 7: Remove android and ios folders
+console.log('7️⃣ Removing android and ios folders...');
 try {
   const androidPath = path.join(rootDir, 'android');
   const iosPath = path.join(rootDir, 'ios');
@@ -133,11 +174,26 @@ try {
   process.exit(1);
 }
 
-// Step 7: Prebuild Android
-console.log('7️⃣ Running prebuild for Android...');
+// Step 8: Reinstall dependencies with hoisting
+console.log('8️⃣ Reinstalling dependencies with hoisting...');
+console.log('   This ensures proper module resolution for Gradle...\n');
+try {
+  execSync('pnpm install --shamefully-hoist', { 
+    cwd: rootDir,
+    stdio: 'inherit',
+    timeout: 180000
+  });
+  console.log('\n✅ Dependencies reinstalled with hoisting\n');
+} catch (error) {
+  console.error('❌ Failed to reinstall dependencies:', error.message);
+  process.exit(1);
+}
+
+// Step 9: Prebuild Android
+console.log('9️⃣ Running prebuild for Android...');
 console.log('   This may take a few minutes...\n');
 try {
-  execSync('npm run prebuild:android', { 
+  execSync('npx expo prebuild -p android --clean', { 
     cwd: rootDir,
     stdio: 'inherit',
     timeout: 300000,
@@ -150,8 +206,36 @@ try {
 } catch (error) {
   console.error('❌ Prebuild failed:', error.message);
   console.error('\nTry running manually:');
-  console.error('npm run prebuild:android');
+  console.error('npx expo prebuild -p android --clean');
   process.exit(1);
+}
+
+// Step 10: Verify gradle.properties
+console.log('🔟 Verifying gradle.properties...');
+try {
+  const gradlePropertiesPath = path.join(rootDir, 'android', 'gradle.properties');
+  
+  if (fs.existsSync(gradlePropertiesPath)) {
+    const gradleProperties = fs.readFileSync(gradlePropertiesPath, 'utf8');
+    
+    if (gradleProperties.includes('NODE_BINARY')) {
+      console.log('✅ NODE_BINARY is set in gradle.properties');
+      
+      // Extract and display the NODE_BINARY value
+      const nodeBinaryMatch = gradleProperties.match(/NODE_BINARY=(.+)/);
+      if (nodeBinaryMatch) {
+        console.log(`   NODE_BINARY=${nodeBinaryMatch[1]}\n`);
+      }
+    } else {
+      console.warn('⚠️ NODE_BINARY not found in gradle.properties');
+      console.warn('   The config plugin should have added it automatically\n');
+    }
+  } else {
+    console.error('❌ gradle.properties not found');
+    console.error('   Prebuild may have failed\n');
+  }
+} catch (error) {
+  console.warn('⚠️ Could not verify gradle.properties:', error.message, '\n');
 }
 
 // Success message
@@ -159,6 +243,11 @@ console.log('=====================================');
 console.log('✅ Build fix completed successfully!');
 console.log('=====================================\n');
 console.log('Next steps:');
-console.log('1. Run: npm run android');
-console.log('2. If the build still fails, check the error message');
-console.log('3. You may need to run: npm run gradle:clean\n');
+console.log('1. Run: pnpm run android');
+console.log('   OR: npx expo run:android');
+console.log('2. If the build still fails, check the Gradle error message');
+console.log('3. You may need to run: pnpm run gradle:clean\n');
+console.log('Troubleshooting:');
+console.log('- If Node is not found: Set NODE_BINARY in android/gradle.properties');
+console.log('- If modules are missing: Run pnpm install --shamefully-hoist');
+console.log('- If Gradle fails: Run cd android && ./gradlew clean --no-daemon\n');
