@@ -1,7 +1,6 @@
 
 const { withAppBuildGradle, withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 const { execSync } = require('child_process');
-const path = require('path');
 
 /**
  * Expo Config Plugin for React Native Reanimated
@@ -11,10 +10,9 @@ const path = require('path');
  * 
  * Fixes applied:
  * 1. Sets NODE_BINARY in gradle.properties
- * 2. Adds fbjni dependency to app/build.gradle
- * 3. Adds packaging options for .so files
- * 4. Enables reanimatedEnablePackagingOptions in build.gradle
- * 5. Sets proper SDK versions for Gradle 9 compatibility
+ * 2. Adds packaging options for .so files
+ * 3. Enables reanimatedEnablePackagingOptions in build.gradle
+ * 4. Sets proper SDK versions for Gradle 9 compatibility
  */
 
 /**
@@ -56,26 +54,10 @@ function getNodePath() {
 }
 
 const withReanimatedConfig = (config) => {
-  // Step 1: Add fbjni dependency to android/app/build.gradle
+  // Step 1: Add packaging options to android/app/build.gradle
   config = withAppBuildGradle(config, (config) => {
     try {
       let buildGradle = config.modResults.contents;
-
-      // Check if fbjni dependency already exists
-      if (!buildGradle.includes("implementation 'com.facebook.fbjni:fbjni-java-only:0.3.0'")) {
-        // Find the dependencies block and add fbjni
-        const dependenciesRegex = /dependencies\s*\{/;
-        if (dependenciesRegex.test(buildGradle)) {
-          buildGradle = buildGradle.replace(
-            dependenciesRegex,
-            `dependencies {
-    // React Native Reanimated - FBJNI dependency
-    implementation 'com.facebook.fbjni:fbjni-java-only:0.3.0'`
-          );
-          config.modResults.contents = buildGradle;
-          console.log('✅ Added fbjni dependency to app/build.gradle');
-        }
-      }
 
       // Add packaging options for .so files
       if (!buildGradle.includes('pickFirst')) {
@@ -160,10 +142,6 @@ const withReanimatedConfig = (config) => {
         { type: 'property', key: 'reanimated.enablePackagingOptions', value: 'true' },
         { type: 'property', key: 'android.enableJetifier', value: 'true' },
         { type: 'property', key: 'android.useAndroidX', value: 'true' },
-        { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError' },
-        { type: 'property', key: 'org.gradle.daemon', value: 'true' },
-        { type: 'property', key: 'org.gradle.parallel', value: 'true' },
-        { type: 'property', key: 'org.gradle.configureondemand', value: 'true' },
       ];
 
       // Remove existing settings to avoid duplicates

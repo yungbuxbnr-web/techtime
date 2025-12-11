@@ -2,43 +2,34 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔍 Checking Expo config plugins...');
+console.log('🔍 Checking Expo config plugins...\n');
 
-const pluginsDir = path.join(__dirname, '..', 'plugins');
+const rootDir = path.join(__dirname, '..');
+const pluginsDir = path.join(rootDir, 'plugins');
+
 const requiredPlugins = [
-  'imageManipulatorNoop.plugin.cjs'
+  'fbjniExclusion.plugin.cjs',
+  'reanimatedConfig.plugin.cjs',
+  'gradleWrapperConfig.plugin.cjs',
+  'androidWidget.plugin.js',
 ];
 
 let allPluginsExist = true;
 
-for (const plugin of requiredPlugins) {
+requiredPlugins.forEach(plugin => {
   const pluginPath = path.join(pluginsDir, plugin);
   if (fs.existsSync(pluginPath)) {
-    console.log(`✅ Found plugin: ${plugin}`);
-    
-    // Verify the plugin can be required
-    try {
-      const pluginModule = require(pluginPath);
-      if (typeof pluginModule === 'function' || (typeof pluginModule === 'object' && pluginModule !== null)) {
-        console.log(`✅ Plugin ${plugin} is valid`);
-      } else {
-        console.error(`❌ Plugin ${plugin} does not export a valid function or object`);
-        allPluginsExist = false;
-      }
-    } catch (error) {
-      console.error(`❌ Plugin ${plugin} has errors:`, error.message);
-      allPluginsExist = false;
-    }
+    console.log(`✅ ${plugin} exists`);
   } else {
-    console.warn(`⚠️ Missing plugin: ${plugin}`);
+    console.error(`❌ ${plugin} is missing`);
     allPluginsExist = false;
   }
+});
+
+if (!allPluginsExist) {
+  console.error('\n❌ Some required plugins are missing!');
+  console.error('Please ensure all plugins are present before running prebuild.');
+  process.exit(1);
 }
 
-if (allPluginsExist) {
-  console.log('✅ All required plugins are present and valid');
-  process.exit(0);
-} else {
-  console.warn('⚠️ Some plugins are missing or invalid - continuing anyway');
-  process.exit(0);
-}
+console.log('\n✅ All required plugins are present\n');
