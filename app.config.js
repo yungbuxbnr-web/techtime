@@ -125,6 +125,7 @@ module.exports = {
       './plugins/fbjniExclusion.plugin.cjs',
       './plugins/reanimatedConfig.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
+      './plugins/cppBuildConfig.plugin.cjs',
     ],
     scheme: 'techtime',
     experiments: {

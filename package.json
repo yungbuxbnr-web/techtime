@@ -34,7 +34,8 @@
     "gradle:refresh": "pnpm run gradle:stop && pnpm run gradle:clean",
     "fix:reanimated": "node scripts/fix-reanimated-build.cjs",
     "fix:build": "node scripts/fix-reanimated-build.cjs",
-    "postinstall": "echo 'Dependencies installed. Run pnpm run fix:reanimated if you encounter Android build issues.'",
+    "fix:cpp": "node scripts/fix-cpp-build.cjs",
+    "postinstall": "node scripts/fix-cpp-build.cjs || echo 'C++ build fix skipped (run manually with: pnpm run fix:cpp)'",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },

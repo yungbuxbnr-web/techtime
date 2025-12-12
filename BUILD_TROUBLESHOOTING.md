@@ -1,6 +1,34 @@
 
 # Android Build Troubleshooting Guide
 
+## C++ Build Failures (NEW - React Native 0.81+)
+
+### Error: C++ Build System Failed
+
+**Symptoms:**
+```
+3 errors generated.
+ninja: build stopped: subcommand failed.
+C++ build system [build] failed
+```
+
+Occurs in: `node_modules/react-native-gesture-handler/android/.cxx/`
+
+**Quick Fix:**
+```bash
+pnpm run fix:cpp && npx expo prebuild --clean && pnpm run android
+```
+
+**What This Fixes:**
+- ✅ Forces NDK version 26.1.10909125
+- ✅ Adds CMake flags for C++17 with RTTI and exceptions
+- ✅ Patches CMakeLists.txt files for gesture-handler, reanimated, yoga
+- ✅ Cleans C++ build caches
+
+**More Info:** See `QUICK_FIX_CPP_BUILD.md` or `CPP_BUILD_FIX.md`
+
+---
+
 ## Quick Diagnosis
 
 ### Error: `:expo-constants:createExpoConfig` fails
