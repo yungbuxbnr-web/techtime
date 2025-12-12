@@ -31,22 +31,42 @@ function patchCppAdapter() {
   try {
     let content = fs.readFileSync(cppAdapterPath, 'utf8');
     
-    // Check if already patched
-    if (content.includes('shadowNodeListFromValue')) {
-      console.log('✓ cpp-adapter.cpp already patched for RN 0.81\n');
+    // Check if already patched with the correct version
+    if (content.includes('shadowNodeList->size()') && content.includes('shadowNodeList->at(0)')) {
+      console.log('✓ cpp-adapter.cpp already patched for RN 0.81 (correct version)\n');
       return false;
     }
 
-    // Replace the entire function body with RN 0.81 compatible version
-    const oldPattern = /auto shadowNode = shadowNodeFromValue\(runtime, arguments\[0\]\);[\s\S]*?return jsi::Value\(isViewFlatteningDisabled \|\| isTextComponent\);/;
+    // Find the function that needs patching
+    // Look for the installJSIBindings function
+    const functionStartPattern = /runtime\.global\(\)\.setProperty\(\s*runtime,\s*"_RNGH_isViewFlatteningDisabled",[\s\S]*?jsi::Function::createFromHostFunction\(/;
+    const functionEndPattern = /return jsi::Value\([^)]+\);\s*}\s*\)\s*\);/;
 
-    const newCode = `auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);
+    if (!functionStartPattern.test(content)) {
+      console.log('⚠️ Could not find the function to patch in cpp-adapter.cpp');
+      console.log('   The file structure may be different than expected\n');
+      return false;
+    }
 
-                if (shadowNodeList.size() == 0) {
+    // Replace the entire lambda function body
+    const oldLambdaPattern = /jsi::Function::createFromHostFunction\(\s*runtime,\s*jsi::PropNameID::forAscii\(runtime, "_RNGH_isViewFlatteningDisabled"\),\s*1,\s*\[shadowNodeFromValue\]\(\s*jsi::Runtime &runtime,\s*const jsi::Value &,\s*const jsi::Value \*arguments,\s*size_t\s*\) -> jsi::Value \{[\s\S]*?return jsi::Value\([^)]+\);\s*}\s*\)/;
+
+    const newLambda = `jsi::Function::createFromHostFunction(
+                runtime,
+                jsi::PropNameID::forAscii(runtime, "_RNGH_isViewFlatteningDisabled"),
+                1,
+                [shadowNodeFromValue](
+                    jsi::Runtime &runtime,
+                    const jsi::Value &,
+                    const jsi::Value *arguments,
+                    size_t) -> jsi::Value {
+                auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);
+
+                if (shadowNodeList->size() == 0) {
                     return jsi::Value::undefined();
                 }
 
-                auto shadowNode = shadowNodeList[0];
+                auto shadowNode = shadowNodeList->at(0);
 
                 auto traits = shadowNode->getTraits();
                 bool isViewFlatteningDisabled = traits.check(
@@ -54,21 +74,60 @@ function patchCppAdapter() {
                 );
 
                 std::string componentName = shadowNode->getComponentDescriptor()
-                    ->getComponentName();
+                    .getComponentName();
 
                 bool isTextComponent = componentName == "Paragraph" || componentName == "Text";
 
-                return jsi::Value(isViewFlatteningDisabled || isTextComponent);`;
+                return jsi::Value(isViewFlatteningDisabled || isTextComponent);
+                })`;
 
-    if (oldPattern.test(content)) {
-      content = content.replace(oldPattern, newCode);
+    if (oldLambdaPattern.test(content)) {
+      content = content.replace(oldLambdaPattern, newLambda);
       fs.writeFileSync(cppAdapterPath, content, 'utf8');
       console.log('✅ Successfully patched cpp-adapter.cpp for RN 0.81 compatibility\n');
       return true;
     } else {
-      console.log('⚠️ Could not find expected code pattern in cpp-adapter.cpp');
-      console.log('   The file may have already been modified or has a different structure\n');
-      return false;
+      // Try a more aggressive approach - find and replace the entire function body
+      console.log('⚠️ Standard pattern not found, trying alternative approach...');
+      
+      // Look for the specific error-causing lines and replace them
+      let modified = false;
+      
+      // Fix 1: shadowNodeFromValue -> shadowNodeListFromValue
+      if (content.includes('shadowNodeFromValue(runtime, arguments[0])')) {
+        content = content.replace(
+          /auto shadowNode = shadowNodeFromValue\(runtime, arguments\[0\]\);/g,
+          'auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);\n\n                if (shadowNodeList->size() == 0) {\n                    return jsi::Value::undefined();\n                }\n\n                auto shadowNode = shadowNodeList->at(0);'
+        );
+        modified = true;
+        console.log('   ✅ Fixed shadowNodeFromValue -> shadowNodeListFromValue');
+      }
+      
+      // Fix 2: shadowNode->getTraits() (shadowNode is now a shared_ptr)
+      if (content.includes('shadowNode->getTraits()') && !content.includes('shadowNodeList->at(0)')) {
+        // This means shadowNode is still the old type, no additional fix needed
+        console.log('   ✓ getTraits() call should work with new shadowNode type');
+      }
+      
+      // Fix 3: getComponentName() access
+      if (content.includes('->getComponentName()')) {
+        content = content.replace(
+          /shadowNode->getComponentName\(\)/g,
+          'shadowNode->getComponentDescriptor().getComponentName()'
+        );
+        modified = true;
+        console.log('   ✅ Fixed getComponentName() access');
+      }
+      
+      if (modified) {
+        fs.writeFileSync(cppAdapterPath, content, 'utf8');
+        console.log('✅ Successfully patched cpp-adapter.cpp using alternative approach\n');
+        return true;
+      } else {
+        console.log('⚠️ Could not find expected code patterns to patch');
+        console.log('   The file may have already been modified or has a different structure\n');
+        return false;
+      }
     }
   } catch (error) {
     console.error('❌ Error patching cpp-adapter.cpp:', error.message, '\n');
