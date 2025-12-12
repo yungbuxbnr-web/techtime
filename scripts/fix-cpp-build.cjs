@@ -9,9 +9,84 @@ console.log('=====================================================\n');
 const rootDir = path.join(__dirname, '..');
 
 /**
- * Patch CMakeLists.txt files to use C++17 standard
+ * Patch cpp-adapter.cpp for RN 0.81 compatibility
  */
-function patchCMakeListsFile(libraryName) {
+function patchCppAdapter() {
+  const cppAdapterPath = path.join(
+    rootDir,
+    'node_modules',
+    'react-native-gesture-handler',
+    'android',
+    'src',
+    'main',
+    'jni',
+    'cpp-adapter.cpp'
+  );
+
+  if (!fs.existsSync(cppAdapterPath)) {
+    console.log('⚠️ cpp-adapter.cpp not found for react-native-gesture-handler');
+    return false;
+  }
+
+  try {
+    let content = fs.readFileSync(cppAdapterPath, 'utf8');
+    
+    // Check if already patched
+    if (content.includes('shadowNodeListFromValue')) {
+      console.log('✓ cpp-adapter.cpp already patched for RN 0.81\n');
+      return false;
+    }
+
+    // Replace the old code with RN 0.81 compatible version
+    const oldCode = `                auto shadowNode = shadowNodeFromValue(runtime, arguments[0]);
+                bool isViewFlatteningDisabled = shadowNode->getTraits().check(
+                        ShadowNodeTraits::FormsStackingContext);
+
+                // This is done using component names instead of type checking because
+                // of duplicate symbols for RN types, which prevent RTTI from working.
+                const char *componentName = shadowNode->getComponentName();
+                bool isTextComponent = strcmp(componentName, "Paragraph") == 0 ||
+                                       strcmp(componentName, "Text") == 0;
+
+                return jsi::Value(isViewFlatteningDisabled || isTextComponent);`;
+
+    const newCode = `                auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);
+
+                if (shadowNodeList.size() == 0) {
+                    return jsi::Value::undefined();
+                }
+
+                auto shadowNode = shadowNodeList[0];
+
+                auto traits = shadowNode->getTraits();
+                bool isViewFlatteningDisabled = traits.check(
+                    facebook::react::ShadowNodeTraits::Trait::ViewKind
+                );
+
+                std::string componentName = shadowNode->getComponentDescriptor()
+                    ->getComponentName();
+
+                return jsi::Value(runtime, jsi::String::createFromUtf8(runtime, componentName));`;
+
+    if (content.includes('shadowNodeFromValue')) {
+      content = content.replace(oldCode, newCode);
+      fs.writeFileSync(cppAdapterPath, content, 'utf8');
+      console.log('✅ Successfully patched cpp-adapter.cpp for RN 0.81 compatibility\n');
+      return true;
+    } else {
+      console.log('⚠️ Could not find expected code pattern in cpp-adapter.cpp\n');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error patching cpp-adapter.cpp:', error.message, '\n');
+    return false;
+  }
+}
+
+/**
+ * Patch CMakeLists.txt files to use C++20 standard
+ */
+function patchCMakeListsFile(libraryName, useC20 = false) {
   const cmakeListsPath = path.join(
     rootDir,
     'node_modules',
@@ -28,27 +103,27 @@ function patchCMakeListsFile(libraryName) {
   try {
     let content = fs.readFileSync(cmakeListsPath, 'utf8');
     let modified = false;
-    const originalContent = content;
+    const cppStandard = useC20 ? '20' : '17';
 
-    // Add CMAKE_CXX_STANDARD 17 if not present
-    if (!content.includes('set(CMAKE_CXX_STANDARD 17)')) {
+    // Add CMAKE_CXX_STANDARD if not present
+    if (!content.includes(`set(CMAKE_CXX_STANDARD ${cppStandard})`)) {
       // Find cmake_minimum_required and add after it
       const cmakeMinRegex = /(cmake_minimum_required\([^)]+\))/;
       if (cmakeMinRegex.test(content)) {
         content = content.replace(
           cmakeMinRegex,
-          '$1\nset(CMAKE_CXX_STANDARD 17)'
+          `$1\nset(CMAKE_CXX_STANDARD ${cppStandard})\nset(CMAKE_CXX_STANDARD_REQUIRED ON)`
         );
         modified = true;
-        console.log(`   ✅ Added CMAKE_CXX_STANDARD 17`);
+        console.log(`   ✅ Added CMAKE_CXX_STANDARD ${cppStandard}`);
       } else {
         // If no cmake_minimum_required, add at the top
-        content = 'set(CMAKE_CXX_STANDARD 17)\n' + content;
+        content = `set(CMAKE_CXX_STANDARD ${cppStandard})\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\n` + content;
         modified = true;
-        console.log(`   ✅ Added CMAKE_CXX_STANDARD 17 at top`);
+        console.log(`   ✅ Added CMAKE_CXX_STANDARD ${cppStandard} at top`);
       }
     } else {
-      console.log(`   ✓ CMAKE_CXX_STANDARD 17 already present`);
+      console.log(`   ✓ CMAKE_CXX_STANDARD ${cppStandard} already present`);
     }
 
     // Add or update CMAKE_CXX_FLAGS
@@ -73,8 +148,8 @@ function patchCMakeListsFile(libraryName) {
       } else {
         // Add new CMAKE_CXX_FLAGS
         content = content.replace(
-          /set\(CMAKE_CXX_STANDARD 17\)/,
-          'set(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti -fexceptions")'
+          new RegExp(`set\\(CMAKE_CXX_STANDARD ${cppStandard}\\)`),
+          `set(CMAKE_CXX_STANDARD ${cppStandard})\nset(CMAKE_CXX_FLAGS "\${CMAKE_CXX_FLAGS} -frtti -fexceptions")`
         );
         modified = true;
         console.log(`   ✅ Added CMAKE_CXX_FLAGS with -frtti -fexceptions`);
@@ -108,6 +183,7 @@ function cleanCppCaches() {
     path.join(rootDir, 'node_modules', 'react-native-gesture-handler', 'android', '.cxx'),
     path.join(rootDir, 'node_modules', 'react-native-reanimated', 'android', '.cxx'),
     path.join(rootDir, 'node_modules', 'react-native-yoga', 'android', '.cxx'),
+    path.join(rootDir, 'node_modules', 'react-native', 'android', '.cxx'),
   ];
 
   let cleaned = 0;
@@ -130,13 +206,27 @@ function cleanCppCaches() {
 }
 
 /**
- * Patch CMakeLists.txt files
+ * Patch cpp-adapter.cpp and CMakeLists.txt files
  */
-function patchAllCMakeLists() {
-  console.log('2️⃣ Patching CMakeLists.txt files for C++17...\n');
+function patchGestureHandler() {
+  console.log('2️⃣ Patching react-native-gesture-handler for RN 0.81...\n');
+
+  console.log('📝 Patching cpp-adapter.cpp...');
+  const cppPatched = patchCppAdapter();
+
+  console.log('📝 Patching CMakeLists.txt...');
+  const cmakePatched = patchCMakeListsFile('react-native-gesture-handler', true);
+
+  return cppPatched || cmakePatched;
+}
+
+/**
+ * Patch other CMakeLists.txt files
+ */
+function patchOtherLibraries() {
+  console.log('3️⃣ Patching other libraries for C++17...\n');
 
   const libraries = [
-    'react-native-gesture-handler',
     'react-native-reanimated',
     'react-native-yoga',
   ];
@@ -144,13 +234,13 @@ function patchAllCMakeLists() {
   let patched = 0;
   libraries.forEach(library => {
     console.log(`📝 Patching ${library}...`);
-    if (patchCMakeListsFile(library)) {
+    if (patchCMakeListsFile(library, false)) {
       patched++;
     }
   });
 
   if (patched === 0) {
-    console.log('✓ All CMakeLists.txt files already configured\n');
+    console.log('✓ All other CMakeLists.txt files already configured\n');
   }
 }
 
@@ -158,7 +248,7 @@ function patchAllCMakeLists() {
  * Verify node_modules exist
  */
 function verifyNodeModules() {
-  console.log('3️⃣ Verifying node_modules...\n');
+  console.log('0️⃣ Verifying node_modules...\n');
 
   const nodeModulesPath = path.join(rootDir, 'node_modules');
   if (!fs.existsSync(nodeModulesPath)) {
@@ -218,21 +308,48 @@ function stopGradleDaemons() {
 }
 
 /**
+ * Clean Gradle caches
+ */
+function cleanGradleCaches() {
+  console.log('5️⃣ Cleaning Gradle caches...\n');
+
+  const gradleCachePath = path.join(require('os').homedir(), '.gradle', 'caches');
+  
+  if (fs.existsSync(gradleCachePath)) {
+    try {
+      console.log('   ⚠️ Gradle cache found at ~/.gradle/caches');
+      console.log('   ℹ️ To clean it manually, run: rm -rf ~/.gradle/caches');
+      console.log('   ⚠️ Skipping automatic cleanup (may affect other projects)\n');
+    } catch (error) {
+      console.log('   ⚠️ Could not access Gradle cache\n');
+    }
+  } else {
+    console.log('   ✓ No Gradle cache found\n');
+  }
+}
+
+/**
  * Main execution
  */
 function main() {
   try {
-    // Step 1: Verify node_modules
+    // Step 0: Verify node_modules
     verifyNodeModules();
 
-    // Step 2: Clean C++ caches
+    // Step 1: Clean C++ caches
     cleanCppCaches();
 
-    // Step 3: Patch CMakeLists.txt files
-    patchAllCMakeLists();
+    // Step 2: Patch gesture-handler (cpp-adapter.cpp + CMakeLists.txt)
+    patchGestureHandler();
+
+    // Step 3: Patch other libraries
+    patchOtherLibraries();
 
     // Step 4: Stop Gradle daemons
     stopGradleDaemons();
+
+    // Step 5: Clean Gradle caches (info only)
+    cleanGradleCaches();
 
     // Success message
     console.log('=====================================================');
@@ -244,13 +361,16 @@ function main() {
     console.log('2. Run: pnpm run android');
     console.log('   OR: npx expo run:android\n');
     console.log('The following fixes have been applied:');
-    console.log('✅ NDK version set to 26.1.10909125 (via config plugin)');
-    console.log('✅ CMake flags added: -std=c++17 -frtti -fexceptions (via config plugin)');
-    console.log('✅ CMakeLists.txt patched for gesture-handler, reanimated, yoga');
-    console.log('✅ C++ build caches cleaned\n');
+    console.log('✅ cpp-adapter.cpp patched for RN 0.81 compatibility');
+    console.log('✅ gesture-handler CMakeLists.txt set to C++20');
+    console.log('✅ reanimated & yoga CMakeLists.txt set to C++17');
+    console.log('✅ CMake flags added: -frtti -fexceptions');
+    console.log('✅ C++ build caches cleaned');
+    console.log('✅ NDK version set to 26.1.10909125 (via config plugin)\n');
     console.log('If the build still fails:');
     console.log('- Check that NDK 26.1.10909125 is installed');
     console.log('- Run: pnpm run gradle:clean');
+    console.log('- Manually clean Gradle cache: rm -rf ~/.gradle/caches');
     console.log('- Check the Gradle error message for specific issues\n');
 
   } catch (error) {
