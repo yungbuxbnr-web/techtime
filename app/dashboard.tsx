@@ -7,7 +7,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { StorageService } from '../utils/storage';
 import { CalculationService } from '../utils/calculations';
 import { MonthlyResetService } from '../utils/monthlyReset';
-import { WidgetService } from '../utils/widgetService';
 import { Job, MonthlyStats } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
@@ -111,18 +110,6 @@ export default function DashboardScreen() {
     }
   }, [showNotification]);
 
-  const updateWidget = useCallback((stats: MonthlyStats) => {
-    if (Platform.OS === 'android' && WidgetService.isAvailable()) {
-      WidgetService.updateWidget(
-        stats.efficiency || 0,
-        stats.totalSoldHours || 0,
-        stats.totalAvailableHours || 0,
-        stats.totalAWs || 0
-      );
-      console.log('[Dashboard] Widget updated with latest stats');
-    }
-  }, []);
-
   const loadJobs = useCallback(async () => {
     try {
       const [jobsData, settings, name] = await Promise.all([
@@ -142,9 +129,6 @@ export default function DashboardScreen() {
       const stats = CalculationService.calculateMonthlyStats(jobsData, settings.targetHours || 180, absenceHours);
       setMonthlyStats(stats);
       
-      // Update widget with latest stats
-      updateWidget(stats);
-      
       console.log('Dashboard loaded:', jobsData.length, 'jobs');
       console.log('Stats:', {
         totalAWs: stats.totalAWs,
@@ -158,7 +142,7 @@ export default function DashboardScreen() {
       console.log('Error loading jobs:', error);
       showNotification('Error loading data', 'error');
     }
-  }, [showNotification, updateWidget]);
+  }, [showNotification]);
 
   const checkAuthAndLoadJobs = useCallback(async () => {
     try {
@@ -388,19 +372,6 @@ export default function DashboardScreen() {
 
           {/* Work Time Progress Bar */}
           <WorkTimeProgressBar />
-
-          {/* Widget Info Banner (Android only) */}
-          {Platform.OS === 'android' && WidgetService.isAvailable() && (
-            <View style={styles.widgetBanner}>
-              <Text style={styles.widgetBannerIcon}>📱</Text>
-              <View style={styles.widgetBannerContent}>
-                <Text style={styles.widgetBannerTitle}>Home Screen Widget Available!</Text>
-                <Text style={styles.widgetBannerText}>
-                  Long-press your home screen → Widgets → TechTime to add the efficiency widget
-                </Text>
-              </View>
-            </View>
-          )}
 
           <View style={styles.progressSection}>
             <TouchableOpacity 
@@ -742,35 +713,6 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
     flex: 1,
     paddingHorizontal: 20,
     backgroundColor: colors.background,
-  },
-  widgetBanner: {
-    flexDirection: 'row',
-    backgroundColor: colors.primary + '20',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.primary + '40',
-    alignItems: 'center',
-  },
-  widgetBannerIcon: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  widgetBannerContent: {
-    flex: 1,
-  },
-  widgetBannerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  widgetBannerText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 16,
   },
   progressSection: {
     flexDirection: 'row',
