@@ -37,20 +37,10 @@ function patchCppAdapter() {
       return false;
     }
 
-    // Replace the old code with RN 0.81 compatible version
-    const oldCode = `                auto shadowNode = shadowNodeFromValue(runtime, arguments[0]);
-                bool isViewFlatteningDisabled = shadowNode->getTraits().check(
-                        ShadowNodeTraits::FormsStackingContext);
+    // Replace the entire function body with RN 0.81 compatible version
+    const oldPattern = /auto shadowNode = shadowNodeFromValue\(runtime, arguments\[0\]\);[\s\S]*?return jsi::Value\(isViewFlatteningDisabled \|\| isTextComponent\);/;
 
-                // This is done using component names instead of type checking because
-                // of duplicate symbols for RN types, which prevent RTTI from working.
-                const char *componentName = shadowNode->getComponentName();
-                bool isTextComponent = strcmp(componentName, "Paragraph") == 0 ||
-                                       strcmp(componentName, "Text") == 0;
-
-                return jsi::Value(isViewFlatteningDisabled || isTextComponent);`;
-
-    const newCode = `                auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);
+    const newCode = `auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);
 
                 if (shadowNodeList.size() == 0) {
                     return jsi::Value::undefined();
@@ -66,15 +56,18 @@ function patchCppAdapter() {
                 std::string componentName = shadowNode->getComponentDescriptor()
                     ->getComponentName();
 
-                return jsi::Value(runtime, jsi::String::createFromUtf8(runtime, componentName));`;
+                bool isTextComponent = componentName == "Paragraph" || componentName == "Text";
 
-    if (content.includes('shadowNodeFromValue')) {
-      content = content.replace(oldCode, newCode);
+                return jsi::Value(isViewFlatteningDisabled || isTextComponent);`;
+
+    if (oldPattern.test(content)) {
+      content = content.replace(oldPattern, newCode);
       fs.writeFileSync(cppAdapterPath, content, 'utf8');
       console.log('✅ Successfully patched cpp-adapter.cpp for RN 0.81 compatibility\n');
       return true;
     } else {
-      console.log('⚠️ Could not find expected code pattern in cpp-adapter.cpp\n');
+      console.log('⚠️ Could not find expected code pattern in cpp-adapter.cpp');
+      console.log('   The file may have already been modified or has a different structure\n');
       return false;
     }
   } catch (error) {
