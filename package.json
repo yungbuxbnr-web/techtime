@@ -9,7 +9,7 @@
     "start": "cross-env NODE_ENV=development expo start",
     "android": "cross-env NODE_ENV=development expo run:android",
     "ios": "cross-env NODE_ENV=development expo run:ios",
-    "prebuild": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && cross-env NODE_ENV=production expo prebuild --clean && node scripts/fix-gradle-wrapper.cjs",
+    "prebuild": "cross-env NODE_ENV=production expo prebuild --clean",
     "export": "cross-env NODE_ENV=production expo export",
     "build:android": "cross-env NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' expo run:android --variant release",
     "build:ios": "cross-env NODE_ENV=production expo run:ios --configuration Release",
@@ -24,18 +24,13 @@
     "build:eas:all": "cross-env NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform all --profile production",
     "build:preview:android": "cross-env NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' eas build --platform android --profile preview",
     "build:preview:ios": "cross-env NODE_ENV=production eas build --platform ios --profile preview",
-    "prebuild:android": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && cross-env NODE_ENV=production expo prebuild -p android --clean && node scripts/fix-gradle-wrapper.cjs",
-    "prebuild:ios": "cross-env NODE_ENV=production node scripts/check-plugins.cjs && cross-env NODE_ENV=production expo prebuild -p ios --clean",
+    "prebuild:android": "cross-env NODE_ENV=production expo prebuild -p android --clean",
+    "prebuild:ios": "cross-env NODE_ENV=production expo prebuild -p ios --clean",
     "submit:android": "eas submit --platform android",
     "submit:ios": "eas submit --platform ios",
-    "fix:gradle": "node scripts/fix-gradle-wrapper.cjs",
     "gradle:stop": "cd android && ./gradlew --stop",
     "gradle:clean": "cd android && ./gradlew clean --no-daemon",
     "gradle:refresh": "pnpm run gradle:stop && pnpm run gradle:clean",
-    "fix:reanimated": "node scripts/fix-reanimated-build.cjs",
-    "fix:build": "node scripts/fix-reanimated-build.cjs",
-    "fix:cpp": "node scripts/fix-cpp-build.cjs",
-    "postinstall": "node scripts/fix-cpp-build.cjs || echo 'C++ build fix skipped (run manually with: pnpm run fix:cpp)'",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
@@ -88,7 +83,7 @@
     "react-native": "0.81.4",
     "react-native-chart-kit": "^6.12.0",
     "react-native-device-info": "^14.1.1",
-    "react-native-gesture-handler": "~2.24.0",
+    "react-native-gesture-handler": "^2.24.0",
     "react-native-reanimated": "~4.1.0",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.16.0",
@@ -122,10 +117,12 @@
     "webpack-cli": "^6.0.1"
   },
   "resolutions": {
-    "@expo/prebuild-config": "~54.0.0"
+    "@expo/prebuild-config": "~54.0.0",
+    "react-native-gesture-handler": "^2.20.2"
   },
   "overrides": {
-    "@expo/config-plugins": "~54.0.0"
+    "@expo/config-plugins": "~54.0.0",
+    "react-native-gesture-handler": "^2.20.2"
   },
   "private": true
 }

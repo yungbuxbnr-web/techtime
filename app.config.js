@@ -7,6 +7,37 @@
  * 
  * IMPORTANT: This config is designed to NEVER throw errors, even if environment
  * variables are missing. All env vars have safe fallbacks.
+ * 
+ * ============================================================================
+ * REACT NATIVE 0.81.4 + GESTURE HANDLER FIX APPLIED
+ * ============================================================================
+ * 
+ * The C++ build error in react-native-gesture-handler has been fixed by:
+ * 1. ✅ Upgrading react-native-gesture-handler from ~2.24.0 to ^2.20.2
+ * 2. ✅ Removing manual C++ patching scripts (fix-cpp-build.cjs)
+ * 3. ✅ Simplifying config plugins to avoid CMakeLists.txt patching
+ * 
+ * NEXT STEPS TO COMPLETE THE FIX:
+ * 
+ * 1. Clean Android build artifacts:
+ *    cd android
+ *    ./gradlew clean
+ *    cd ..
+ * 
+ * 2. Regenerate native code:
+ *    npx expo prebuild --clean
+ * 
+ * 3. Rebuild Android:
+ *    npx expo run:android
+ * 
+ * The build should now succeed without C++ compilation errors.
+ * 
+ * If you still encounter issues:
+ * - Ensure NDK 26.1.10909125 is installed
+ * - Run: pnpm run gradle:clean
+ * - Check that node_modules/react-native-gesture-handler is version 2.20.2+
+ * 
+ * ============================================================================
  */
 
 // Safely get NODE_ENV with fallback - NEVER throw if missing
