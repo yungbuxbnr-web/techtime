@@ -1,7 +1,7 @@
 
 import { Stack, useGlobalSearchParams } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform, View, Text } from 'react-native';
+import { Platform } from 'react-native';
 import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -93,15 +93,21 @@ function RootLayoutContent() {
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="jobs" />
       <Stack.Screen name="add-job" />
+      <Stack.Screen name="job-records" />
       <Stack.Screen name="statistics" />
       <Stack.Screen name="settings" />
-      <Stack.Screen name="export" />
+      <Stack.Screen name="export-reports" />
+      <Stack.Screen name="import-jobs" />
       <Stack.Screen name="stats" />
+      <Stack.Screen name="time-stats" />
       <Stack.Screen name="work-schedule" />
       <Stack.Screen name="work-schedule-calendar" />
       <Stack.Screen name="notification-settings" />
       <Stack.Screen name="permissions" />
-      <Stack.Screen name="time-stats" />
+      <Stack.Screen name="metrics" />
+      <Stack.Screen name="efficiency-calendar" />
+      <Stack.Screen name="help" />
+      <Stack.Screen name="set-name" />
     </Stack>
   );
 }

@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Picker } from '@react-native-picker/picker';
 import { StorageService } from '../utils/storage';
 import { BiometricService } from '../utils/biometricService';
 import { CalculationService } from '../utils/calculations';
@@ -11,30 +10,17 @@ import { MonthlyResetService } from '../utils/monthlyReset';
 import { AppSettings, Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
+import AbsenceLogger from '../components/AbsenceLogger';
+import SecuritySettings from '../components/SecuritySettings';
+import ProfileSettings from '../components/ProfileSettings';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings>({ pin: '3101', isAuthenticated: false, targetHours: 180, absenceHours: 0, theme: 'light' });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [technicianName, setTechnicianName] = useState('');
-  const [newTechnicianName, setNewTechnicianName] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [targetHours, setTargetHours] = useState('180');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricTypes, setBiometricTypes] = useState<string[]>([]);
-  const [securityEnabled, setSecurityEnabled] = useState(true);
-
-  // Absence logger dropdown states
-  const [numberOfAbsentDays, setNumberOfAbsentDays] = useState<number>(1);
-  const [absenceType, setAbsenceType] = useState<'half' | 'full'>('full');
-  const [deductionType, setDeductionType] = useState<'monthly' | 'available'>('monthly');
-  
-  // iOS picker modal states
-  const [showDaysPicker, setShowDaysPicker] = useState(false);
-  const [showAbsenceTypePicker, setShowAbsenceTypePicker] = useState(false);
-  const [showDeductionTypePicker, setShowDeductionTypePicker] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const isDarkMode = theme === 'dark';
 
@@ -56,19 +42,12 @@ export default function SettingsScreen() {
       setSettings(settingsData);
       setJobs(jobsData);
       setTechnicianName(name || '');
-      setNewTechnicianName(name || '');
-      setNewPin(settingsData.pin);
-      setConfirmPin(settingsData.pin);
-      setTargetHours(String(settingsData.targetHours || 180));
-      
-      // Check if security is enabled (PIN is not empty and not disabled)
-      const isSecurityEnabled = settingsData.pin && settingsData.pin !== 'DISABLED';
-      setSecurityEnabled(isSecurityEnabled);
-      
       console.log('Settings and jobs loaded successfully');
     } catch (error) {
       console.log('Error loading data:', error);
       showNotification('Error loading data', 'error');
+    } finally {
+      setIsLoading(false);
     }
   }, [showNotification]);
 
@@ -102,52 +81,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     checkAuthAndLoadData();
-    checkBiometricAvailability();
   }, [checkAuthAndLoadData]);
-
-  const checkBiometricAvailability = async () => {
-    try {
-      const isAvailable = await BiometricService.isAvailable();
-      setBiometricAvailable(isAvailable);
-      
-      if (isAvailable) {
-        const types = await BiometricService.getSupportedTypes();
-        setBiometricTypes(types);
-        console.log('Biometric authentication available:', types);
-      }
-    } catch (error) {
-      console.log('Error checking biometric availability:', error);
-    }
-  };
-
-  const handleUpdateTechnicianName = useCallback(async () => {
-    const trimmedName = newTechnicianName.trim();
-    
-    if (!trimmedName) {
-      showNotification('Please enter your name', 'error');
-      return;
-    }
-
-    if (trimmedName.length < 2) {
-      showNotification('Name must be at least 2 characters', 'error');
-      return;
-    }
-
-    if (trimmedName.length > 50) {
-      showNotification('Name must be less than 50 characters', 'error');
-      return;
-    }
-
-    try {
-      await StorageService.setTechnicianName(trimmedName);
-      setTechnicianName(trimmedName);
-      showNotification(`Name updated to ${trimmedName}`, 'success');
-      console.log('Technician name updated:', trimmedName);
-    } catch (error) {
-      console.log('Error updating technician name:', error);
-      showNotification('Error updating name', 'error');
-    }
-  }, [newTechnicianName, showNotification]);
 
   const handleToggleTheme = useCallback(async () => {
     try {
@@ -160,192 +94,6 @@ export default function SettingsScreen() {
       showNotification('Error updating theme', 'error');
     }
   }, [theme, toggleTheme, showNotification]);
-
-  const handleUpdatePin = useCallback(async () => {
-    if (!newPin || newPin.length < 4) {
-      showNotification('PIN must be at least 4 digits', 'error');
-      return;
-    }
-
-    if (newPin !== confirmPin) {
-      showNotification('PINs do not match', 'error');
-      return;
-    }
-
-    try {
-      const updatedSettings = { ...settings, pin: newPin };
-      await StorageService.saveSettings(updatedSettings);
-      setSettings(updatedSettings);
-      setSecurityEnabled(true);
-      showNotification('PIN updated successfully', 'success');
-      console.log('PIN updated successfully');
-    } catch (error) {
-      console.log('Error updating PIN:', error);
-      showNotification('Error updating PIN', 'error');
-    }
-  }, [newPin, confirmPin, settings, showNotification]);
-
-  const handleToggleSecurity = useCallback(async () => {
-    if (securityEnabled) {
-      // Disable security
-      Alert.alert(
-        'Disable Security',
-        'This will remove PIN protection and biometric authentication from the app. Anyone with access to your device will be able to view your job records.\n\nAre you sure you want to disable all security?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disable Security',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                const updatedSettings = { 
-                  ...settings, 
-                  pin: 'DISABLED',
-                  biometricEnabled: false,
-                  isAuthenticated: true 
-                };
-                await StorageService.saveSettings(updatedSettings);
-                setSettings(updatedSettings);
-                setSecurityEnabled(false);
-                setNewPin('');
-                setConfirmPin('');
-                showNotification('Security disabled. App is now accessible without PIN.', 'success');
-                console.log('Security disabled');
-              } catch (error) {
-                console.log('Error disabling security:', error);
-                showNotification('Error disabling security', 'error');
-              }
-            }
-          }
-        ]
-      );
-    } else {
-      // Enable security - prompt for new PIN
-      Alert.alert(
-        'Enable Security',
-        'To enable security, you need to set a new PIN. This will protect your job records and data.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Set PIN',
-            onPress: () => {
-              showNotification('Please enter a new PIN below', 'info');
-            }
-          }
-        ]
-      );
-    }
-  }, [securityEnabled, settings, showNotification]);
-
-  const handleUpdateTargetHours = useCallback(async () => {
-    const hours = parseFloat(targetHours);
-    
-    if (isNaN(hours) || hours <= 0) {
-      showNotification('Please enter a valid number of hours', 'error');
-      return;
-    }
-
-    if (hours > 744) {
-      showNotification('Target hours cannot exceed 744 hours per month', 'error');
-      return;
-    }
-
-    try {
-      const updatedSettings = { ...settings, targetHours: hours };
-      await StorageService.saveSettings(updatedSettings);
-      setSettings(updatedSettings);
-      showNotification(`Monthly target updated to ${hours} hours`, 'success');
-      console.log('Target hours updated successfully:', hours);
-    } catch (error) {
-      console.log('Error updating target hours:', error);
-      showNotification('Error updating target hours', 'error');
-    }
-  }, [targetHours, settings, showNotification]);
-
-  const handleLogAbsence = useCallback(async () => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    
-    const hoursPerDay = absenceType === 'half' ? 4.25 : 8.5;
-    const absenceHours = numberOfAbsentDays * hoursPerDay;
-    
-    const absenceTypeText = absenceType === 'half' ? 'Half Day' : 'Full Day';
-    const dayLabel = numberOfAbsentDays === 1 
-      ? `${numberOfAbsentDays} ${absenceTypeText}` 
-      : `${numberOfAbsentDays} ${absenceTypeText}s`;
-    
-    let currentAbsenceHours = settings.absenceHours || 0;
-    if (settings.absenceMonth !== currentMonth || settings.absenceYear !== currentYear) {
-      currentAbsenceHours = 0;
-      console.log('New month detected, resetting absence hours');
-    }
-    
-    if (deductionType === 'monthly') {
-      const currentTarget = settings.targetHours || 180;
-      const newTargetHours = Math.max(0, currentTarget - absenceHours);
-      
-      Alert.alert(
-        'Log Absence - Monthly Target',
-        `This will deduct ${absenceHours.toFixed(2)} hours from your monthly target hours:\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n📈 Monthly Target Update:\nCurrent Target: ${currentTarget} hours\nAbsence Deduction: -${absenceHours.toFixed(2)} hours\nNew Monthly Target: ${newTargetHours.toFixed(2)} hours\n\n✅ The monthly target progress circle will update automatically.\n\nContinue?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Log Absence',
-            style: 'default',
-            onPress: async () => {
-              try {
-                const updatedSettings = { 
-                  ...settings, 
-                  targetHours: newTargetHours,
-                  absenceMonth: currentMonth,
-                  absenceYear: currentYear
-                };
-                await StorageService.saveSettings(updatedSettings);
-                setSettings(updatedSettings);
-                setTargetHours(String(newTargetHours));
-                showNotification(`Absence logged! New monthly target: ${newTargetHours.toFixed(2)}h`, 'success');
-                console.log('Absence logged successfully. New target:', newTargetHours);
-              } catch (error) {
-                console.log('Error logging absence:', error);
-                showNotification('Error logging absence', 'error');
-              }
-            }
-          }
-        ]
-      );
-    } else {
-      const newAbsenceHours = currentAbsenceHours + absenceHours;
-      
-      Alert.alert(
-        'Log Absence - Available Hours',
-        `This will deduct ${absenceHours.toFixed(2)} hours from your total available hours (used in efficiency calculations):\n\n📊 Calculation:\n${dayLabel} × ${hoursPerDay} hours = ${absenceHours.toFixed(2)} hours\n\n⏰ Available Hours Update:\nCurrent Absence This Month: ${currentAbsenceHours.toFixed(2)} hours\nNew Absence Deduction: +${absenceHours.toFixed(2)} hours\nTotal Absence This Month: ${newAbsenceHours.toFixed(2)} hours\n\n✅ The efficiency circle will update automatically.\n(This will NOT affect your monthly target hours)\n\nContinue?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Log Absence',
-            style: 'default',
-            onPress: async () => {
-              try {
-                const updatedSettings = { 
-                  ...settings, 
-                  absenceHours: newAbsenceHours,
-                  absenceMonth: currentMonth,
-                  absenceYear: currentYear
-                };
-                await StorageService.saveSettings(updatedSettings);
-                setSettings(updatedSettings);
-                showNotification(`Absence logged! Total absence: ${newAbsenceHours.toFixed(2)}h`, 'success');
-                console.log('Absence logged successfully. Total absence hours:', newAbsenceHours);
-              } catch (error) {
-                console.log('Error logging absence:', error);
-                showNotification('Error logging absence', 'error');
-              }
-            }
-          }
-        ]
-      );
-    }
-  }, [settings, numberOfAbsentDays, absenceType, deductionType, showNotification]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -386,44 +134,6 @@ export default function SettingsScreen() {
     );
   }, [showNotification]);
 
-  const handleToggleBiometric = useCallback(async () => {
-    if (!securityEnabled) {
-      showNotification('Please enable security first to use biometric authentication', 'error');
-      return;
-    }
-
-    try {
-      if (settings.biometricEnabled) {
-        const result = await BiometricService.disableBiometricLogin();
-        if (result.success) {
-          const updatedSettings = { ...settings, biometricEnabled: false };
-          await StorageService.saveSettings(updatedSettings);
-          setSettings(updatedSettings);
-          showNotification(result.message, 'success');
-        } else {
-          showNotification(result.message, 'error');
-        }
-      } else {
-        const result = await BiometricService.enableBiometricLogin();
-        if (result.success) {
-          const updatedSettings = { ...settings, biometricEnabled: true };
-          await StorageService.saveSettings(updatedSettings);
-          setSettings(updatedSettings);
-          showNotification(result.message, 'success');
-        } else {
-          showNotification(result.message, 'error');
-        }
-      }
-    } catch (error) {
-      console.log('Error toggling biometric:', error);
-      showNotification('Error updating biometric settings', 'error');
-    }
-  }, [settings, securityEnabled, showNotification]);
-
-  const navigateToExport = useCallback(() => {
-    router.push('/export');
-  }, []);
-
   const navigateToDashboard = useCallback(() => {
     router.push('/dashboard');
   }, []);
@@ -431,6 +141,16 @@ export default function SettingsScreen() {
   const navigateToJobs = useCallback(() => {
     router.push('/jobs');
   }, []);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[commonStyles.container, { backgroundColor: colors.background }]}>
+        <View style={[commonStyles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={[commonStyles.title, { color: colors.text }]}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const totalJobs = jobs.length;
   const totalAWs = jobs.reduce((sum, job) => sum + job.awValue, 0);
@@ -444,6 +164,7 @@ export default function SettingsScreen() {
     : 0;
 
   const styles = createStyles(colors);
+  const securityEnabled = settings.pin && settings.pin !== 'DISABLED';
 
   return (
     <SafeAreaView style={[commonStyles.container, { backgroundColor: colors.background }]}>
@@ -460,37 +181,16 @@ export default function SettingsScreen() {
 
       <ScrollView style={commonStyles.content} showsVerticalScrollIndicator={false}>
         
-        {/* Technician Name Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Technician Profile</Text>
-          <Text style={styles.sectionDescription}>
-            Your name appears throughout the app and on exported reports
-          </Text>
-          
-          <Text style={styles.label}>Current Name</Text>
-          <View style={styles.currentNameDisplay}>
-            <Text style={styles.currentNameText}>{technicianName || 'Not set'}</Text>
-          </View>
-          
-          <Text style={styles.label}>New Name</Text>
-          <TextInput
-            style={styles.input}
-            value={newTechnicianName}
-            onChangeText={setNewTechnicianName}
-            placeholder="Enter your full name"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="words"
-            autoCorrect={false}
-            maxLength={50}
-          />
-          
-          <TouchableOpacity 
-            style={[styles.button, styles.primaryButton]} 
-            onPress={handleUpdateTechnicianName}
-          >
-            <Text style={styles.buttonText}>🔄 Update Name</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Technician Profile */}
+        <ProfileSettings
+          technicianName={technicianName}
+          onUpdate={async (name) => {
+            await StorageService.setTechnicianName(name);
+            setTechnicianName(name);
+            showNotification(`Name updated to ${name}`, 'success');
+          }}
+          colors={colors}
+        />
 
         {/* Theme Settings */}
         <View style={styles.section}>
@@ -540,377 +240,16 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Monthly Target Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎯 Monthly Target Hours</Text>
-          <Text style={styles.sectionDescription}>
-            Set your monthly work hours target. This is used to calculate your progress and utilization percentage.
-          </Text>
-          
-          <Text style={styles.label}>Target Hours per Month</Text>
-          <TextInput
-            style={styles.input}
-            value={targetHours}
-            onChangeText={setTargetHours}
-            placeholder="Enter target hours (e.g., 180)"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            maxLength={5}
-          />
-          
-          <View style={styles.targetInfo}>
-            <Text style={styles.infoText}>
-              💡 Current target: {settings.targetHours || 180} hours/month
-            </Text>
-            <Text style={styles.infoText}>
-              📅 This equals {Math.round((settings.targetHours || 180) / 4.33)} hours/week
-            </Text>
-            <Text style={styles.infoText}>
-              ⏰ Or about {Math.round((settings.targetHours || 180) / 22)} hours/day (22 working days)
-            </Text>
-            {currentMonthAbsenceHours > 0 && (
-              <Text style={[styles.infoText, { color: colors.error, fontWeight: '600' }]}>
-                🏖️ Total absence this month: {currentMonthAbsenceHours.toFixed(2)} hours
-              </Text>
-            )}
-          </View>
-          
-          <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdateTargetHours}>
-            <Text style={styles.buttonText}>🔄 Update Target Hours</Text>
-          </TouchableOpacity>
-
-          {/* Absence Logger Section */}
-          <View style={styles.absenceLoggerSection}>
-            <Text style={styles.absenceLoggerTitle}>🏖️ Absence Logger</Text>
-            <Text style={styles.absenceLoggerDescription}>
-              Log absences to automatically adjust your hours. Choose whether to deduct from monthly target hours or total available hours for efficiency calculations.
-            </Text>
-            
-            {/* Number of Absent Days Dropdown */}
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Number of Absent Days</Text>
-              {Platform.OS === 'ios' ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.pickerButton}
-                    onPress={() => setShowDaysPicker(true)}
-                  >
-                    <Text style={styles.pickerButtonText}>
-                      {numberOfAbsentDays} {numberOfAbsentDays === 1 ? 'day' : 'days'}
-                    </Text>
-                    <Text style={styles.pickerButtonIcon}>▼</Text>
-                  </TouchableOpacity>
-                  
-                  <Modal
-                    visible={showDaysPicker}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowDaysPicker(false)}
-                  >
-                    <TouchableOpacity 
-                      style={styles.modalOverlay}
-                      activeOpacity={1}
-                      onPress={() => setShowDaysPicker(false)}
-                    >
-                      <TouchableOpacity 
-                        style={styles.modalContent}
-                        activeOpacity={1}
-                        onPress={(e) => e.stopPropagation()}
-                      >
-                        <View style={styles.modalHeader}>
-                          <Text style={styles.modalTitle}>Select Number of Days</Text>
-                          <TouchableOpacity
-                            style={styles.modalDoneButton}
-                            onPress={() => setShowDaysPicker(false)}
-                          >
-                            <Text style={styles.modalDoneText}>Done</Text>
-                          </TouchableOpacity>
-                        </View>
-                        <Picker
-                          selectedValue={numberOfAbsentDays}
-                          onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
-                          style={styles.iosPicker}
-                          itemStyle={styles.iosPickerItem}
-                        >
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                            <Picker.Item 
-                              key={day} 
-                              label={`${day} ${day === 1 ? 'day' : 'days'}`} 
-                              value={day}
-                            />
-                          ))}
-                        </Picker>
-                      </TouchableOpacity>
-                    </TouchableOpacity>
-                  </Modal>
-                </>
-              ) : (
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={numberOfAbsentDays}
-                    onValueChange={(itemValue) => setNumberOfAbsentDays(itemValue)}
-                    style={styles.picker}
-                    dropdownIconColor={colors.text}
-                  >
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                      <Picker.Item 
-                        key={day} 
-                        label={`${day} ${day === 1 ? 'day' : 'days'}`} 
-                        value={day}
-                        color={colors.text}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-              )}
-            </View>
-
-            {/* Absence Type Dropdown */}
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Absence Type</Text>
-              {Platform.OS === 'ios' ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.pickerButton}
-                    onPress={() => setShowAbsenceTypePicker(true)}
-                  >
-                    <Text style={styles.pickerButtonText}>
-                      {absenceType === 'half' ? 'Half Day (4.25 hours)' : 'Full Day (8.5 hours)'}
-                    </Text>
-                    <Text style={styles.pickerButtonIcon}>▼</Text>
-                  </TouchableOpacity>
-                  
-                  <Modal
-                    visible={showAbsenceTypePicker}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowAbsenceTypePicker(false)}
-                  >
-                    <TouchableOpacity 
-                      style={styles.modalOverlay}
-                      activeOpacity={1}
-                      onPress={() => setShowAbsenceTypePicker(false)}
-                    >
-                      <TouchableOpacity 
-                        style={styles.modalContent}
-                        activeOpacity={1}
-                        onPress={(e) => e.stopPropagation()}
-                      >
-                        <View style={styles.modalHeader}>
-                          <Text style={styles.modalTitle}>Select Absence Type</Text>
-                          <TouchableOpacity
-                            style={styles.modalDoneButton}
-                            onPress={() => setShowAbsenceTypePicker(false)}
-                          >
-                            <Text style={styles.modalDoneText}>Done</Text>
-                          </TouchableOpacity>
-                        </View>
-                        <Picker
-                          selectedValue={absenceType}
-                          onValueChange={(itemValue) => setAbsenceType(itemValue)}
-                          style={styles.iosPicker}
-                          itemStyle={styles.iosPickerItem}
-                        >
-                          <Picker.Item 
-                            label="Half Day (4.25 hours)" 
-                            value="half"
-                          />
-                          <Picker.Item 
-                            label="Full Day (8.5 hours)" 
-                            value="full"
-                          />
-                        </Picker>
-                      </TouchableOpacity>
-                    </TouchableOpacity>
-                  </Modal>
-                </>
-              ) : (
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={absenceType}
-                    onValueChange={(itemValue) => setAbsenceType(itemValue)}
-                    style={styles.picker}
-                    dropdownIconColor={colors.text}
-                  >
-                    <Picker.Item 
-                      label="Half Day (4.25 hours)" 
-                      value="half"
-                      color={colors.text}
-                    />
-                    <Picker.Item 
-                      label="Full Day (8.5 hours)" 
-                      value="full"
-                      color={colors.text}
-                    />
-                  </Picker>
-                </View>
-              )}
-            </View>
-
-            {/* Deduction Type Dropdown */}
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Deduction Type</Text>
-              {Platform.OS === 'ios' ? (
-                <>
-                  <TouchableOpacity
-                    style={styles.pickerButton}
-                    onPress={() => setShowDeductionTypePicker(true)}
-                  >
-                    <Text style={styles.pickerButtonText}>
-                      {deductionType === 'monthly' ? 'Monthly Target Hours' : 'Total Available Hours'}
-                    </Text>
-                    <Text style={styles.pickerButtonIcon}>▼</Text>
-                  </TouchableOpacity>
-                  
-                  <Modal
-                    visible={showDeductionTypePicker}
-                    transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowDeductionTypePicker(false)}
-                  >
-                    <TouchableOpacity 
-                      style={styles.modalOverlay}
-                      activeOpacity={1}
-                      onPress={() => setShowDeductionTypePicker(false)}
-                    >
-                      <TouchableOpacity 
-                        style={styles.modalContent}
-                        activeOpacity={1}
-                        onPress={(e) => e.stopPropagation()}
-                      >
-                        <View style={styles.modalHeader}>
-                          <Text style={styles.modalTitle}>Select Deduction Type</Text>
-                          <TouchableOpacity
-                            style={styles.modalDoneButton}
-                            onPress={() => setShowDeductionTypePicker(false)}
-                          >
-                            <Text style={styles.modalDoneText}>Done</Text>
-                          </TouchableOpacity>
-                        </View>
-                        <Picker
-                          selectedValue={deductionType}
-                          onValueChange={(itemValue) => setDeductionType(itemValue)}
-                          style={styles.iosPicker}
-                          itemStyle={styles.iosPickerItem}
-                        >
-                          <Picker.Item 
-                            label="Monthly Target Hours" 
-                            value="monthly"
-                          />
-                          <Picker.Item 
-                            label="Total Available Hours" 
-                            value="available"
-                          />
-                        </Picker>
-                      </TouchableOpacity>
-                    </TouchableOpacity>
-                  </Modal>
-                </>
-              ) : (
-                <View style={styles.pickerWrapper}>
-                  <Picker
-                    selectedValue={deductionType}
-                    onValueChange={(itemValue) => setDeductionType(itemValue)}
-                    style={styles.picker}
-                    dropdownIconColor={colors.text}
-                  >
-                    <Picker.Item 
-                      label="Monthly Target Hours" 
-                      value="monthly"
-                      color={colors.text}
-                    />
-                    <Picker.Item 
-                      label="Total Available Hours" 
-                      value="available"
-                      color={colors.text}
-                    />
-                  </Picker>
-                </View>
-              )}
-              <Text style={styles.dropdownHint}>
-                {deductionType === 'monthly' 
-                  ? '📊 Will reduce your monthly target hours (affects progress circle)' 
-                  : '⏰ Will reduce available hours for efficiency calculations (affects efficiency circle)'}
-              </Text>
-            </View>
-
-            {/* Absence Preview */}
-            <View style={styles.absencePreview}>
-              <Text style={styles.previewLabel}>📋 Absence Calculation Preview:</Text>
-              <Text style={styles.previewText}>
-                {numberOfAbsentDays} {numberOfAbsentDays === 1 ? 'day' : 'days'} × {absenceType === 'half' ? '4.25' : '8.5'} hours = {(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours deducted
-              </Text>
-              <View style={styles.previewCalculation}>
-                {deductionType === 'monthly' ? (
-                  <>
-                    <Text style={styles.previewCalcText}>
-                      Current Target: {(settings.targetHours || 180).toFixed(2)} hours
-                    </Text>
-                    <Text style={styles.previewCalcText}>
-                      Absence Deduction: -{(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
-                    </Text>
-                    <View style={styles.previewDivider} />
-                    <Text style={styles.previewHighlight}>
-                      New Monthly Target: {Math.max(0, (settings.targetHours || 180) - (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
-                    </Text>
-                    <Text style={[styles.previewNote, { color: colors.textSecondary }]}>
-                      ℹ️ This will affect your monthly target progress circle
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.previewCalcText}>
-                      Current Absence This Month: {currentMonthAbsenceHours.toFixed(2)} hours
-                    </Text>
-                    <Text style={styles.previewCalcText}>
-                      New Absence Deduction: +{(numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5)).toFixed(2)} hours
-                    </Text>
-                    <View style={styles.previewDivider} />
-                    <Text style={styles.previewHighlight}>
-                      Total Absence This Month: {(currentMonthAbsenceHours + (numberOfAbsentDays * (absenceType === 'half' ? 4.25 : 8.5))).toFixed(2)} hours
-                    </Text>
-                    <Text style={[styles.previewNote, { color: colors.textSecondary }]}>
-                      ℹ️ This will affect your efficiency calculations only
-                    </Text>
-                  </>
-                )}
-              </View>
-            </View>
-
-            {/* Log Absence Button */}
-            <TouchableOpacity 
-              style={[styles.button, styles.logAbsenceButton]} 
-              onPress={handleLogAbsence}
-            >
-              <Text style={styles.buttonText}>✅ Log Absence & Update Hours</Text>
-            </TouchableOpacity>
-
-            <View style={styles.absenceLoggerInfo}>
-              <Text style={styles.infoTitle}>ℹ️ How Absence Logging Works:</Text>
-              <Text style={styles.infoText}>
-                - Half Day = 4.25 hours deducted
-              </Text>
-              <Text style={styles.infoText}>
-                - Full Day = 8.5 hours deducted
-              </Text>
-              <Text style={styles.infoText}>
-                - Monthly Target Hours: Reduces your monthly target permanently
-              </Text>
-              <Text style={styles.infoText}>
-                - Total Available Hours: Reduces hours for efficiency calculations
-              </Text>
-              <Text style={styles.infoText}>
-                - Progress circles update automatically based on deduction type
-              </Text>
-              <Text style={styles.infoText}>
-                - Absence hours reset automatically each new month
-              </Text>
-              <Text style={styles.infoText}>
-                - Example: 2 full days absent = 17h deducted from selected type
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* Absence Logger */}
+        <AbsenceLogger
+          settings={settings}
+          onUpdate={async (updatedSettings) => {
+            await StorageService.saveSettings(updatedSettings);
+            setSettings(updatedSettings);
+            showNotification('Settings updated successfully', 'success');
+          }}
+          colors={colors}
+        />
 
         {/* Work Schedule & Time Tracking */}
         <View style={styles.section}>
@@ -957,101 +296,15 @@ export default function SettingsScreen() {
         </View>
 
         {/* Security Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔐 Security Settings</Text>
-          <Text style={styles.sectionDescription}>
-            Manage PIN protection and biometric authentication. You can enable or disable security features to control access to your job records.
-          </Text>
-
-          {/* Security Toggle */}
-          <View style={styles.securityToggleContainer}>
-            <View style={styles.securityToggleInfo}>
-              <Text style={styles.securityToggleTitle}>
-                {securityEnabled ? '🔒 Security Enabled' : '🔓 Security Disabled'}
-              </Text>
-              <Text style={styles.securityToggleSubtext}>
-                {securityEnabled 
-                  ? 'PIN protection is active' 
-                  : 'App is accessible without PIN'}
-              </Text>
-            </View>
-            <Switch
-              value={securityEnabled}
-              onValueChange={handleToggleSecurity}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={securityEnabled ? colors.background : colors.background}
-            />
-          </View>
-
-          {securityEnabled && (
-            <>
-              <Text style={styles.label}>New PIN</Text>
-              <TextInput
-                style={styles.input}
-                value={newPin}
-                onChangeText={setNewPin}
-                placeholder="Enter new PIN"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                keyboardType="numeric"
-                maxLength={6}
-              />
-              
-              <Text style={styles.label}>Confirm PIN</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPin}
-                onChangeText={setConfirmPin}
-                placeholder="Confirm new PIN"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-                keyboardType="numeric"
-                maxLength={6}
-              />
-              
-              <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={handleUpdatePin}>
-                <Text style={styles.buttonText}>🔄 Update PIN</Text>
-              </TouchableOpacity>
-
-              {/* Biometric Authentication */}
-              {biometricAvailable && (
-                <View style={styles.biometricSection}>
-                  <View style={styles.biometricHeader}>
-                    <View style={styles.biometricInfo}>
-                      <Text style={styles.biometricTitle}>
-                        {biometricTypes.includes('Face ID') ? '👤' : '👆'} Biometric Login
-                      </Text>
-                      <Text style={styles.biometricSubtext}>
-                        {biometricTypes.join(' or ')} available
-                      </Text>
-                    </View>
-                    <Switch
-                      value={settings.biometricEnabled || false}
-                      onValueChange={handleToggleBiometric}
-                      trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={settings.biometricEnabled ? colors.background : colors.background}
-                    />
-                  </View>
-                  <Text style={styles.biometricDescription}>
-                    Enable biometric authentication for quick and secure access to the app. You can still use your PIN as a fallback.
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
-
-          {!securityEnabled && (
-            <View style={styles.securityWarning}>
-              <Text style={styles.securityWarningTitle}>⚠️ Security Disabled</Text>
-              <Text style={styles.securityWarningText}>
-                Your job records are currently accessible without any authentication. Anyone with access to your device can view, edit, or delete your data.
-              </Text>
-              <Text style={styles.securityWarningText}>
-                To enable security, toggle the switch above and set a new PIN.
-              </Text>
-            </View>
-          )}
-        </View>
+        <SecuritySettings
+          settings={settings}
+          onUpdate={async (updatedSettings) => {
+            await StorageService.saveSettings(updatedSettings);
+            setSettings(updatedSettings);
+            showNotification('Security settings updated', 'success');
+          }}
+          colors={colors}
+        />
 
         {/* Export & Import Section */}
         <View style={styles.section}>
@@ -1109,6 +362,9 @@ export default function SettingsScreen() {
             ✍️ Digitally signed by {technicianName || 'Technician'}
           </Text>
         </View>
+        
+        {/* Bottom padding to avoid content being hidden behind bottom nav */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -1157,8 +413,17 @@ const createStyles = (colors: any) => StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   sectionTitle: {
     fontSize: 20,
@@ -1199,50 +464,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-  securityToggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  securityToggleInfo: {
-    flex: 1,
-  },
-  securityToggleTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  securityToggleSubtext: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  securityWarning: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#ef4444',
-  },
-  securityWarningTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#7f1d1d',
-    marginBottom: 8,
-  },
-  securityWarningText: {
-    fontSize: 14,
-    color: '#7f1d1d',
-    lineHeight: 20,
-    marginBottom: 6,
-  },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -1262,212 +483,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: colors.background,
-    color: colors.text,
-    marginBottom: 16,
-  },
-  currentNameDisplay: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  currentNameText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  targetInfo: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  absenceLoggerSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  absenceLoggerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  absenceLoggerDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  dropdownContainer: {
-    marginBottom: 16,
-  },
-  dropdownLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  picker: {
-    height: 50,
-    width: '100%',
-    color: colors.text,
-  },
-  pickerButton: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  pickerButtonText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  pickerButtonIcon: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  modalDoneButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  modalDoneText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  iosPicker: {
-    width: '100%',
-    height: 216,
-  },
-  iosPickerItem: {
-    fontSize: 18,
-    height: 216,
-    color: colors.text,
-  },
-  dropdownHint: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  absencePreview: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  previewLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  previewText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12,
-  },
-  previewCalculation: {
-    backgroundColor: colors.background,
-    borderRadius: 6,
-    padding: 12,
-    marginTop: 8,
-  },
-  previewCalcText: {
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 6,
-  },
-  previewDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 8,
-  },
-  previewHighlight: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 4,
-  },
-  previewNote: {
-    fontSize: 13,
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  logAbsenceButton: {
-    backgroundColor: '#e74c3c',
-    marginBottom: 16,
-  },
-  absenceLoggerInfo: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   button: {
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -1475,9 +490,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
   },
   metricsButton: {
     backgroundColor: '#6f42c1',
@@ -1500,52 +512,10 @@ const createStyles = (colors: any) => StyleSheet.create({
   dangerButton: {
     backgroundColor: colors.error,
   },
-  biometricSection: {
-    marginTop: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  biometricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  biometricInfo: {
-    flex: 1,
-  },
-  biometricTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  biometricSubtext: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  biometricDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 4,
   },
   aboutText: {
     fontSize: 14,
