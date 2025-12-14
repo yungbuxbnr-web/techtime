@@ -11,6 +11,9 @@ import { Job, MonthlyStats } from '../types';
 import ProgressCircle from '../components/ProgressCircle';
 import NotificationToast from '../components/NotificationToast';
 import LiveClock from '../components/LiveClock';
+import AnimatedCard from '../components/AnimatedCard';
+import AnimatedPressable from '../components/AnimatedPressable';
+import FadeInView from '../components/FadeInView';
 import { useTheme } from '../contexts/ThemeContext';
 import * as Updates from 'expo-updates';
 import CameraModal from '../features/scan/CameraModal';
@@ -306,121 +309,124 @@ export default function DashboardScreen() {
           onHide={hideNotification}
         />
         
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.welcomeText}>Technician Records</Text>
-            <Text style={styles.nameText}>{technicianName}</Text>
+        <FadeInView duration={400}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.welcomeText}>Technician Records</Text>
+              <Text style={styles.nameText}>{technicianName}</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <AnimatedPressable onPress={navigateToCalendar} style={styles.calendarIconButton}>
+                <Text style={styles.calendarIconText}>📅</Text>
+              </AnimatedPressable>
+              
+              <AnimatedPressable 
+                onPress={handleScanPress} 
+                style={styles.scanIconButton}
+              >
+                <Text style={styles.scanIconText}>📷</Text>
+              </AnimatedPressable>
+              
+              <AnimatedPressable onPress={toggleOptionsMenu} style={styles.optionsButton}>
+                <Text style={styles.optionsButtonText}>⋯</Text>
+              </AnimatedPressable>
+            </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.calendarIconButton}
-              onPress={navigateToCalendar}
-            >
-              <Text style={styles.calendarIconText}>📅</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.scanIconButton}
-              onPress={handleScanPress}
-              disabled={isProcessingScan}
-            >
-              <Text style={styles.scanIconText}>📷</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.optionsButton}
-              onPress={toggleOptionsMenu}
-            >
-              <Text style={styles.optionsButtonText}>⋯</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </FadeInView>
 
         {showOptionsMenu && (
-          <View style={styles.optionsMenu}>
-            <TouchableOpacity
-              style={styles.optionItem}
+          <FadeInView duration={200} style={styles.optionsMenu}>
+            <AnimatedPressable
               onPress={() => {
                 setShowOptionsMenu(false);
                 navigateToJobRecords();
               }}
+              style={styles.optionItem}
             >
               <Text style={styles.optionText}>Job Records</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.optionItem}
+            </AnimatedPressable>
+            <AnimatedPressable
               onPress={() => {
                 setShowOptionsMenu(false);
                 router.push('/export');
               }}
+              style={styles.optionItem}
             >
               <Text style={styles.optionText}>Export Data</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.optionItem}
+            </AnimatedPressable>
+            <AnimatedPressable
               onPress={() => {
                 setShowOptionsMenu(false);
                 handleExitApp();
               }}
+              style={styles.optionItem}
             >
               <Text style={styles.optionText}>Exit App</Text>
-            </TouchableOpacity>
-          </View>
+            </AnimatedPressable>
+          </FadeInView>
         )}
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Live Clock */}
-          <LiveClock />
+          <AnimatedCard delay={100}>
+            <LiveClock />
+          </AnimatedCard>
 
           {/* Work Time Progress Bar */}
-          <WorkTimeProgressBar />
+          <AnimatedCard delay={150}>
+            <WorkTimeProgressBar />
+          </AnimatedCard>
 
-          <View style={styles.progressSection}>
-            <TouchableOpacity 
-              style={styles.progressCircleContainer}
-              onPress={() => navigateToStats('hours')}
-            >
-              <ProgressCircle
-                percentage={targetHoursPercentage}
-                size={isLandscape ? 120 : 140}
-                strokeWidth={12}
-                color={colors.primary}
-              />
-              <View style={styles.progressLabelsContainer}>
-                <Text style={styles.progressLabel}>Monthly Target</Text>
-                <Text style={styles.progressValue}>
-                  {monthlyStats.totalSoldHours.toFixed(1)}h / {monthlyStats.targetHours}h
-                </Text>
-                <Text style={styles.progressSubtext}>
-                  {targetHoursPercentage.toFixed(0)}% Complete
-                </Text>
-              </View>
-            </TouchableOpacity>
+          <AnimatedCard delay={200}>
+            <View style={styles.progressSection}>
+              <AnimatedPressable 
+                style={styles.progressCircleContainer}
+                onPress={() => navigateToStats('hours')}
+              >
+                <ProgressCircle
+                  percentage={targetHoursPercentage}
+                  size={isLandscape ? 120 : 140}
+                  strokeWidth={12}
+                  color={colors.primary}
+                />
+                <View style={styles.progressLabelsContainer}>
+                  <Text style={styles.progressLabel}>Monthly Target</Text>
+                  <Text style={styles.progressValue}>
+                    {monthlyStats.totalSoldHours.toFixed(1)}h / {monthlyStats.targetHours}h
+                  </Text>
+                  <Text style={styles.progressSubtext}>
+                    {targetHoursPercentage.toFixed(0)}% Complete
+                  </Text>
+                </View>
+              </AnimatedPressable>
 
-            <TouchableOpacity 
-              style={styles.progressCircleContainer}
-              onPress={() => navigateToStats('efficiency')}
-            >
-              <ProgressCircle
-                percentage={efficiency}
-                size={isLandscape ? 120 : 140}
-                strokeWidth={12}
-                color={efficiencyColor}
-              />
-              <View style={styles.progressLabelsContainer}>
-                <Text style={styles.progressLabel}>Efficiency</Text>
-                <Text style={[styles.efficiencyStatus, { color: efficiencyColor }]}>
-                  {efficiencyStatus}
-                </Text>
-                <Text style={[styles.progressValue, { color: efficiencyColor }]}>
-                  {efficiency}%
-                </Text>
-                <Text style={styles.progressSubtext}>
-                  {monthlyStats.totalAvailableHours.toFixed(1)}h available
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+              <AnimatedPressable 
+                style={styles.progressCircleContainer}
+                onPress={() => navigateToStats('efficiency')}
+              >
+                <ProgressCircle
+                  percentage={efficiency}
+                  size={isLandscape ? 120 : 140}
+                  strokeWidth={12}
+                  color={efficiencyColor}
+                />
+                <View style={styles.progressLabelsContainer}>
+                  <Text style={styles.progressLabel}>Efficiency</Text>
+                  <Text style={[styles.efficiencyStatus, { color: efficiencyColor }]}>
+                    {efficiencyStatus}
+                  </Text>
+                  <Text style={[styles.progressValue, { color: efficiencyColor }]}>
+                    {efficiency}%
+                  </Text>
+                  <Text style={styles.progressSubtext}>
+                    {monthlyStats.totalAvailableHours.toFixed(1)}h available
+                  </Text>
+                </View>
+              </AnimatedPressable>
+            </View>
+          </AnimatedCard>
 
-          <View style={styles.efficiencyCard}>
+          <AnimatedCard delay={250} style={styles.efficiencyCard}>
             <Text style={styles.efficiencyCardTitle}>Monthly Breakdown</Text>
             <View style={styles.efficiencyRow}>
               <Text style={styles.efficiencyLabel}>Total AW:</Text>
@@ -452,125 +458,107 @@ export default function DashboardScreen() {
                 {efficiency}%
               </Text>
             </View>
-          </View>
+          </AnimatedCard>
 
           <View style={styles.statsGrid}>
-            <TouchableOpacity 
-              style={styles.statCard}
-              onPress={() => navigateToStats('aws')}
-            >
-              <Text style={styles.statValue}>{monthlyStats.totalAWs}</Text>
-              <Text style={styles.statLabel}>Total AWs</Text>
-              <Text style={styles.statSubtext}>This Month</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.statCard}
-              onPress={() => navigateToStats('time')}
-            >
-              <Text style={styles.statValue}>
-                {CalculationService.formatTime(monthlyStats.totalTime)}
-              </Text>
-              <Text style={styles.statLabel}>Time Logged</Text>
-              <Text style={styles.statSubtext}>This Month</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.statCard}
-              onPress={() => navigateToStats('jobs')}
-            >
-              <Text style={styles.statValue}>{monthlyStats.totalJobs}</Text>
-              <Text style={styles.statLabel}>Jobs Done</Text>
-              <Text style={styles.statSubtext}>This Month</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.statCard}
-              onPress={() => navigateToStats('remaining')}
-            >
-              <Text style={styles.statValue}>
-                {Math.max(0, monthlyStats.targetHours - monthlyStats.totalSoldHours).toFixed(1)}h
-              </Text>
-              <Text style={styles.statLabel}>Hours Remaining</Text>
-              <Text style={styles.statSubtext}>To Target</Text>
-            </TouchableOpacity>
+            {[
+              { value: monthlyStats.totalAWs, label: 'Total AWs', subtext: 'This Month', type: 'aws', delay: 300 },
+              { value: CalculationService.formatTime(monthlyStats.totalTime), label: 'Time Logged', subtext: 'This Month', type: 'time', delay: 350 },
+              { value: monthlyStats.totalJobs, label: 'Jobs Done', subtext: 'This Month', type: 'jobs', delay: 400 },
+              { value: `${Math.max(0, monthlyStats.targetHours - monthlyStats.totalSoldHours).toFixed(1)}h`, label: 'Hours Remaining', subtext: 'To Target', type: 'remaining', delay: 450 },
+            ].map((stat, index) => (
+              <AnimatedCard key={index} delay={stat.delay} style={styles.statCardWrapper}>
+                <AnimatedPressable 
+                  style={styles.statCard}
+                  onPress={() => navigateToStats(stat.type)}
+                >
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                  <Text style={styles.statSubtext}>{stat.subtext}</Text>
+                </AnimatedPressable>
+              </AnimatedCard>
+            ))}
           </View>
 
-          <View style={styles.summarySection}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Today</Text>
-              <Text style={styles.summaryValue}>
-                {dailyJobs.length} jobs • {dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
-              </Text>
-              <Text style={styles.summaryTime}>
-                {CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
-              </Text>
+          <AnimatedCard delay={500}>
+            <View style={styles.summarySection}>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Today</Text>
+                <Text style={styles.summaryValue}>
+                  {dailyJobs.length} jobs • {dailyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
+                </Text>
+                <Text style={styles.summaryTime}>
+                  {CalculationService.formatTime(dailyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
+                </Text>
+              </View>
+
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>This Week</Text>
+                <Text style={styles.summaryValue}>
+                  {weeklyJobs.length} jobs • {weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
+                </Text>
+                <Text style={styles.summaryTime}>
+                  {CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
+                </Text>
+              </View>
             </View>
+          </AnimatedCard>
 
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>This Week</Text>
-              <Text style={styles.summaryValue}>
-                {weeklyJobs.length} jobs • {weeklyJobs.reduce((sum, job) => sum + job.awValue, 0)} AWs
-              </Text>
-              <Text style={styles.summaryTime}>
-                {CalculationService.formatTime(weeklyJobs.reduce((sum, job) => sum + job.timeInMinutes, 0))}
-              </Text>
+          <AnimatedCard delay={550}>
+            <View style={styles.actionsSection}>
+              <AnimatedPressable
+                style={styles.primaryAction}
+                onPress={navigateToAddJob}
+              >
+                <Text style={styles.primaryActionText}>+ Add New Job</Text>
+              </AnimatedPressable>
+
+              <View style={styles.secondaryActions}>
+                <AnimatedPressable
+                  style={styles.secondaryAction}
+                  onPress={navigateToJobRecords}
+                >
+                  <Text style={styles.secondaryActionText}>Job Records</Text>
+                </AnimatedPressable>
+
+                <AnimatedPressable
+                  style={styles.secondaryAction}
+                  onPress={navigateToStatistics}
+                >
+                  <Text style={styles.secondaryActionText}>Statistics</Text>
+                </AnimatedPressable>
+
+                <AnimatedPressable
+                  style={styles.secondaryAction}
+                  onPress={navigateToCalendar}
+                >
+                  <Text style={styles.secondaryActionText}>📊 Efficiency</Text>
+                </AnimatedPressable>
+
+                <AnimatedPressable
+                  style={styles.secondaryAction}
+                  onPress={navigateToWorkSchedule}
+                >
+                  <Text style={styles.secondaryActionText}>📅 Schedule</Text>
+                </AnimatedPressable>
+              </View>
             </View>
-          </View>
-
-          <View style={styles.actionsSection}>
-            <TouchableOpacity
-              style={styles.primaryAction}
-              onPress={navigateToAddJob}
-            >
-              <Text style={styles.primaryActionText}>+ Add New Job</Text>
-            </TouchableOpacity>
-
-            <View style={styles.secondaryActions}>
-              <TouchableOpacity
-                style={styles.secondaryAction}
-                onPress={navigateToJobRecords}
-              >
-                <Text style={styles.secondaryActionText}>Job Records</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryAction}
-                onPress={navigateToStatistics}
-              >
-                <Text style={styles.secondaryActionText}>Statistics</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryAction}
-                onPress={navigateToCalendar}
-              >
-                <Text style={styles.secondaryActionText}>📊 Efficiency</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryAction}
-                onPress={navigateToWorkSchedule}
-              >
-                <Text style={styles.secondaryActionText}>📅 Schedule</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </AnimatedCard>
         </ScrollView>
 
         <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem} onPress={() => console.log('Already on Home')}>
+          <AnimatedPressable style={styles.navItem} onPress={() => console.log('Already on Home')}>
             <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.navItem} onPress={navigateToJobs}>
             <Text style={styles.navText}>Jobs</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.navItem} onPress={navigateToStatistics}>
             <Text style={styles.navText}>Statistics</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.navItem} onPress={navigateToSettings}>
             <Text style={styles.navText}>Settings</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
       </View>
 
@@ -809,11 +797,14 @@ const createStyles = (colors: any, efficiencyColor: string, isLandscape: boolean
     gap: isLandscape ? 8 : 12,
     marginBottom: isLandscape ? 16 : 24,
   },
+  statCardWrapper: {
+    width: isLandscape ? '23%' : '48%',
+  },
   statCard: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: isLandscape ? 12 : 16,
-    width: isLandscape ? '23%' : '48%',
+    width: '100%',
     alignItems: 'center',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,

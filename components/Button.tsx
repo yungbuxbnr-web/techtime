@@ -1,5 +1,14 @@
 
-import { Text, TouchableOpacity, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import React from 'react';
+import { Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withSpring,
+  withTiming,
+  interpolate
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface ButtonProps {
@@ -12,11 +21,34 @@ interface ButtonProps {
 export default function Button({ text, onPress, style, textStyle }: ButtonProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const tap = Gesture.Tap()
+    .onBegin(() => {
+      scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+      opacity.value = withTiming(0.8, { duration: 100 });
+    })
+    .onFinalize(() => {
+      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      opacity.value = withTiming(1, { duration: 100 });
+    })
+    .onEnd(() => {
+      onPress();
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
 
   return (
-    <TouchableOpacity style={[styles.button, style]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={[styles.buttonText, textStyle]}>{text}</Text>
-    </TouchableOpacity>
+    <GestureDetector gesture={tap}>
+      <Animated.View style={[styles.button, style, animatedStyle]}>
+        <Text style={[styles.buttonText, textStyle]}>{text}</Text>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 

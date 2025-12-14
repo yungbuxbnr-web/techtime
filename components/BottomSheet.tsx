@@ -1,16 +1,21 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Modal,
   StyleSheet,
-  TouchableWithoutFeedback,
-  Animated,
   Dimensions,
   Platform,
   KeyboardAvoidingView,
-  ScrollView,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SimpleBottomSheetProps {
@@ -27,36 +32,59 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
   maxHeight,
 }) => {
   const { colors } = useTheme();
-  const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
   const sheetHeight = maxHeight || screenHeight * 0.95;
 
+  const translateY = useSharedValue(sheetHeight);
+  const backdropOpacity = useSharedValue(0);
+
   useEffect(() => {
     if (isVisible) {
-      Animated.spring(slideAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }).start();
+      translateY.value = withSpring(0, {
+        damping: 30,
+        stiffness: 300,
+      });
+      backdropOpacity.value = withTiming(0.5, { duration: 300 });
     } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
+      translateY.value = withTiming(sheetHeight, { duration: 250 });
+      backdropOpacity.value = withTiming(0, { duration: 250 });
     }
-  }, [isVisible, slideAnim]);
+  }, [isVisible, sheetHeight, translateY, backdropOpacity]);
 
-  const translateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [sheetHeight, 0],
-  });
+  const pan = Gesture.Pan()
+    .onUpdate((event) => {
+      if (event.translationY > 0) {
+        translateY.value = event.translationY;
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationY > 100 || event.velocityY > 500) {
+        translateY.value = withTiming(sheetHeight, { duration: 250 });
+        backdropOpacity.value = withTiming(0, { duration: 250 }, () => {
+          runOnJS(onClose)();
+        });
+      } else {
+        translateY.value = withSpring(0, {
+          damping: 30,
+          stiffness: 300,
+        });
+      }
+    });
 
-  const backdropOpacity = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.5],
-  });
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const animatedBackdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  const handleBackdropPress = () => {
+    translateY.value = withTiming(sheetHeight, { duration: 250 });
+    backdropOpacity.value = withTiming(0, { duration: 250 }, () => {
+      runOnJS(onClose)();
+    });
+  };
 
   return (
     <Modal
@@ -67,40 +95,40 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
       statusBarTranslucent
     >
       <View style={styles.modalContainer}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <GestureDetector gesture={Gesture.Tap().onEnd(handleBackdropPress)}>
           <Animated.View
             style={[
               styles.backdrop,
-              {
-                opacity: backdropOpacity,
-              },
+              animatedBackdropStyle,
             ]}
           />
-        </TouchableWithoutFeedback>
+        </GestureDetector>
 
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <Animated.View
-            style={[
-              styles.sheetContainer,
-              {
-                backgroundColor: colors.background,
-                maxHeight: sheetHeight,
-                transform: [{ translateY }],
-              },
-            ]}
-          >
-            <View style={[styles.handleContainer, { backgroundColor: colors.background }]}>
-              <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            </View>
+          <GestureDetector gesture={pan}>
+            <Animated.View
+              style={[
+                styles.sheetContainer,
+                {
+                  backgroundColor: colors.background,
+                  maxHeight: sheetHeight,
+                },
+                animatedSheetStyle,
+              ]}
+            >
+              <View style={[styles.handleContainer, { backgroundColor: colors.background }]}>
+                <View style={[styles.handle, { backgroundColor: colors.border }]} />
+              </View>
 
-            <View style={styles.contentContainer}>
-              {children}
-            </View>
-          </Animated.View>
+              <View style={styles.contentContainer}>
+                {children}
+              </View>
+            </Animated.View>
+          </GestureDetector>
         </KeyboardAvoidingView>
       </View>
     </Modal>

@@ -1,6 +1,14 @@
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  withSequence,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface NotificationToastProps {
@@ -12,51 +20,43 @@ interface NotificationToastProps {
 
 export default function NotificationToast({ message, type, visible, onHide }: NotificationToastProps) {
   const { colors } = useTheme();
-  const translateY = useRef(new Animated.Value(-100)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -100,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onHide();
-    });
-  };
+  const translateY = useSharedValue(-100);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.8);
 
   useEffect(() => {
     if (visible) {
-      // Show animation
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Show animation with bounce effect
+      translateY.value = withSpring(0, {
+        damping: 15,
+        stiffness: 150,
+      });
+      opacity.value = withTiming(1, { duration: 300 });
+      scale.value = withSpring(1, {
+        damping: 12,
+        stiffness: 200,
+      });
 
-      // Auto hide after 3 seconds
+      // Auto hide after 3 seconds with smooth animation
       const timer = setTimeout(() => {
-        hideToast();
+        translateY.value = withTiming(-100, { duration: 300 });
+        opacity.value = withTiming(0, { duration: 300 });
+        scale.value = withTiming(0.8, { duration: 300 }, () => {
+          runOnJS(onHide)();
+        });
       }, 3000);
 
       return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  }, [visible, translateY, opacity, scale, onHide]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value }
+    ],
+    opacity: opacity.value,
+  }));
 
   if (!visible) return null;
 
@@ -72,6 +72,18 @@ export default function NotificationToast({ message, type, visible, onHide }: No
     }
   };
 
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return '✓';
+      case 'error':
+        return '✕';
+      case 'info':
+      default:
+        return 'ℹ';
+    }
+  };
+
   const styles = createStyles(colors);
 
   return (
@@ -80,11 +92,13 @@ export default function NotificationToast({ message, type, visible, onHide }: No
         styles.container,
         {
           backgroundColor: getBackgroundColor(),
-          transform: [{ translateY }],
-          opacity,
         },
+        animatedStyle,
       ]}
     >
+      <View style={styles.iconContainer}>
+        <Text style={styles.icon}>{getIcon()}</Text>
+      </View>
       <Text style={styles.message}>{message}</Text>
     </Animated.View>
   );
@@ -97,16 +111,32 @@ const createStyles = (colors: any) => StyleSheet.create({
     left: 20,
     right: 20,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     zIndex: 1000,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-    elevation: 5,
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
+    elevation: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  message: {
+  iconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  icon: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  message: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '600',
-    textAlign: 'center',
   },
 });
