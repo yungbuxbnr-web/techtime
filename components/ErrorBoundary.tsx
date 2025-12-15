@@ -1,7 +1,9 @@
 
-import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { Component, ReactNode } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 
 interface Props {
   children: ReactNode;
@@ -10,7 +12,7 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
+  errorInfo: React.ErrorInfo | null;
 }
 
 class ErrorBoundary extends Component<Props, State> {
@@ -23,64 +25,116 @@ class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null,
-    };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    console.log('[ErrorBoundary] Error caught:', error);
+    return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[ErrorBoundary] Caught error:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.log('[ErrorBoundary] Component error:', error);
+    console.log('[ErrorBoundary] Error info:', errorInfo);
     
     this.setState({
       error,
       errorInfo,
     });
+
+    // Log error details for debugging
+    if (Platform.OS !== 'web') {
+      console.log('[ErrorBoundary] Stack trace:', error.stack);
+      console.log('[ErrorBoundary] Component stack:', errorInfo.componentStack);
+    }
   }
 
-  handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
+  handleReset = async () => {
+    console.log('[ErrorBoundary] Resetting app state...');
+    
+    try {
+      // Reset error state
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+      });
+
+      // Navigate back to auth screen
+      router.replace('/auth');
+    } catch (resetError) {
+      console.log('[ErrorBoundary] Error during reset:', resetError);
+      
+      // If navigation fails, try to reload the app
+      if (Platform.OS !== 'web') {
+        try {
+          await Updates.reloadAsync();
+        } catch (reloadError) {
+          console.log('[ErrorBoundary] Error reloading app:', reloadError);
+        }
+      }
+    }
+  };
+
+  handleReload = async () => {
+    console.log('[ErrorBoundary] Reloading app...');
+    
+    if (Platform.OS === 'web') {
+      window.location.reload();
+    } else {
+      try {
+        await Updates.reloadAsync();
+      } catch (error) {
+        console.log('[ErrorBoundary] Error reloading app:', error);
+      }
+    }
   };
 
   render() {
     if (this.state.hasError) {
+      const { error, errorInfo } = this.state;
+      
       return (
         <SafeAreaView style={styles.container}>
           <View style={styles.content}>
-            <Text style={styles.title}>⚠️ Something went wrong</Text>
-            <Text style={styles.subtitle}>
-              The app encountered an unexpected error. Please try restarting the app.
+            <Text style={styles.title}>⚠️ Something Went Wrong</Text>
+            <Text style={styles.message}>
+              The app encountered an unexpected error. Don&apos;t worry, your data is safe.
             </Text>
-            
-            {this.state.error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorTitle}>Error Details:</Text>
-                <ScrollView style={styles.errorScroll}>
-                  <Text style={styles.errorText}>
-                    {this.state.error.toString()}
-                  </Text>
-                  {this.state.errorInfo && (
-                    <Text style={styles.errorStack}>
-                      {this.state.errorInfo.componentStack}
-                    </Text>
-                  )}
-                </ScrollView>
-              </View>
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.primaryButton]}
+                onPress={this.handleReset}
+              >
+                <Text style={styles.buttonText}>Go to Home</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.secondaryButton]}
+                onPress={this.handleReload}
+              >
+                <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                  Reload App
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {__DEV__ && error && (
+              <ScrollView style={styles.errorDetails}>
+                <Text style={styles.errorTitle}>Error Details (Dev Mode):</Text>
+                <Text style={styles.errorText}>{error.toString()}</Text>
+                {error.stack && (
+                  <>
+                    <Text style={styles.errorTitle}>Stack Trace:</Text>
+                    <Text style={styles.errorText}>{error.stack}</Text>
+                  </>
+                )}
+                {errorInfo && errorInfo.componentStack && (
+                  <>
+                    <Text style={styles.errorTitle}>Component Stack:</Text>
+                    <Text style={styles.errorText}>{errorInfo.componentStack}</Text>
+                  </>
+                )}
+              </ScrollView>
             )}
-            
-            <TouchableOpacity
-              style={styles.button}
-              onPress={this.handleReset}
-            >
-              <Text style={styles.buttonText}>Try Again</Text>
-            </TouchableOpacity>
           </View>
         </SafeAreaView>
       );
@@ -93,7 +147,7 @@ class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f5f5f5',
   },
   content: {
     flex: 1,
@@ -104,57 +158,66 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 12,
+    color: '#333',
+    marginBottom: 16,
     textAlign: 'center',
   },
-  subtitle: {
+  message: {
     fontSize: 16,
-    color: '#6b7280',
+    color: '#666',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     lineHeight: 24,
+    paddingHorizontal: 20,
   },
-  errorContainer: {
+  buttonContainer: {
     width: '100%',
-    backgroundColor: '#fee2e2',
+    maxWidth: 300,
+    gap: 12,
+  },
+  button: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+  },
+  errorDetails: {
+    marginTop: 32,
     padding: 16,
-    marginBottom: 24,
+    backgroundColor: '#fff',
+    borderRadius: 8,
     maxHeight: 300,
+    width: '100%',
   },
   errorTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#991b1b',
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 12,
     marginBottom: 8,
-  },
-  errorScroll: {
-    maxHeight: 200,
   },
   errorText: {
     fontSize: 12,
-    color: '#7f1d1d',
-    fontFamily: 'monospace',
-    marginBottom: 8,
-  },
-  errorStack: {
-    fontSize: 11,
-    color: '#991b1b',
-    fontFamily: 'monospace',
-  },
-  button: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#666',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    lineHeight: 18,
   },
 });
 

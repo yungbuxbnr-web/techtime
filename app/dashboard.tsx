@@ -20,6 +20,7 @@ import CameraModal from '../features/scan/CameraModal';
 import ScanResultSheet from '../features/scan/ScanResultSheet';
 import { scanJobCard } from '../services/scan/pipeline';
 import WorkTimeProgressBar from '../components/WorkTimeProgressBar';
+import { navigationGuard } from '../utils/navigationGuard';
 
 export default function DashboardScreen() {
   const { colors } = useTheme();
@@ -42,8 +43,6 @@ export default function DashboardScreen() {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const backPressCount = useRef(0);
   const isMounted = useRef(true);
-  const isNavigating = useRef(false);
-  const navigationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Scanning states
   const [showCamera, setShowCamera] = useState(false);
@@ -55,9 +54,7 @@ export default function DashboardScreen() {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (navigationTimeout.current) {
-        clearTimeout(navigationTimeout.current);
-      }
+      navigationGuard.cleanup();
     };
   }, []);
 
@@ -182,7 +179,7 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      isNavigating.current = false;
+      navigationGuard.reset();
       checkAuthAndLoadJobs();
       
       const onBackPress = () => {
@@ -215,30 +212,9 @@ export default function DashboardScreen() {
   };
 
   const safeNavigate = useCallback((path: string) => {
-    if (isNavigating.current) {
-      console.log('[Dashboard] Navigation already in progress, ignoring');
-      return;
-    }
-    
-    if (!isMounted.current) {
-      console.log('[Dashboard] Component unmounted, canceling navigation');
-      return;
-    }
-    
-    isNavigating.current = true;
-    
-    try {
-      console.log('[Dashboard] Navigating to:', path);
-      router.push(path);
-      
-      // Reset navigation lock after a delay
-      navigationTimeout.current = setTimeout(() => {
-        isNavigating.current = false;
-      }, 1000);
-    } catch (error) {
-      console.log('[Dashboard] Navigation error:', error);
-      isNavigating.current = false;
-      showNotification('Navigation error. Please try again.', 'error');
+    const success = navigationGuard.safeNavigate(path);
+    if (!success) {
+      showNotification('Please wait before navigating again', 'info');
     }
   }, [showNotification]);
 

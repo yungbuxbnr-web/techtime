@@ -86,10 +86,22 @@ function RootLayoutContent() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        gestureEnabled: true,
+        gestureDirection: 'horizontal',
       }}
     >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="auth" />
+      <Stack.Screen 
+        name="index" 
+        options={{
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen 
+        name="auth" 
+        options={{
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="jobs" />
       <Stack.Screen name="add-job" />
