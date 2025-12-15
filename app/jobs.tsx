@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,9 +21,21 @@ export default function JobsScreen() {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
+  
+  const isMounted = useRef(true);
+  const isNavigating = useRef(false);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
+    if (isMounted.current) {
+      setNotification({ visible: true, message, type });
+    }
   }, []);
 
   const filterJobsByMonth = useCallback((jobsData: Job[], month: number, year: number) => {
@@ -31,7 +43,9 @@ export default function JobsScreen() {
       const jobDate = new Date(job.dateCreated);
       return jobDate.getMonth() === month && jobDate.getFullYear() === year;
     });
-    setFilteredJobs(filtered);
+    if (isMounted.current) {
+      setFilteredJobs(filtered);
+    }
     console.log(`Filtered jobs for ${month + 1}/${year}:`, filtered.length);
   }, []);
 
@@ -40,11 +54,16 @@ export default function JobsScreen() {
       const jobsData = await StorageService.getJobs();
       // Sort jobs by date (newest first)
       const sortedJobs = jobsData.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
-      setJobs(sortedJobs);
-      filterJobsByMonth(sortedJobs, selectedMonth, selectedYear);
+      
+      if (isMounted.current) {
+        setJobs(sortedJobs);
+        filterJobsByMonth(sortedJobs, selectedMonth, selectedYear);
+      }
     } catch (error) {
       console.log('Error loading jobs:', error);
-      showNotification('Error loading jobs', 'error');
+      if (isMounted.current) {
+        showNotification('Error loading jobs', 'error');
+      }
     }
   }, [showNotification, selectedMonth, selectedYear, filterJobsByMonth]);
 
@@ -74,6 +93,7 @@ export default function JobsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      isNavigating.current = false;
       checkAuthAndLoadJobs();
     }, [checkAuthAndLoadJobs])
   );
@@ -107,25 +127,49 @@ export default function JobsScreen() {
   };
 
   const handleEditJob = (job: Job) => {
-    // Navigate to edit job (we can use the same add-job screen with job data)
-    router.push(`/add-job?editId=${job.id}`);
+    if (isNavigating.current) return;
+    isNavigating.current = true;
+    
+    try {
+      router.push(`/add-job?editId=${job.id}`);
+    } catch (error) {
+      console.log('Navigation error:', error);
+      isNavigating.current = false;
+    }
   };
 
-  const navigateToAddJob = () => {
-    router.push('/add-job');
-  };
+  const safeNavigate = useCallback((path: string) => {
+    if (isNavigating.current) {
+      console.log('Navigation already in progress');
+      return;
+    }
+    
+    isNavigating.current = true;
+    
+    try {
+      router.push(path);
+    } catch (error) {
+      console.log('Navigation error:', error);
+      isNavigating.current = false;
+      showNotification('Navigation error. Please try again.', 'error');
+    }
+  }, [showNotification]);
 
-  const navigateToDashboard = () => {
-    router.push('/dashboard');
-  };
+  const navigateToAddJob = useCallback(() => {
+    safeNavigate('/add-job');
+  }, [safeNavigate]);
 
-  const navigateToStatistics = () => {
-    router.push('/statistics');
-  };
+  const navigateToDashboard = useCallback(() => {
+    safeNavigate('/dashboard');
+  }, [safeNavigate]);
 
-  const navigateToSettings = () => {
-    router.push('/settings');
-  };
+  const navigateToStatistics = useCallback(() => {
+    safeNavigate('/statistics');
+  }, [safeNavigate]);
+
+  const navigateToSettings = useCallback(() => {
+    safeNavigate('/settings');
+  }, [safeNavigate]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -365,7 +409,7 @@ export default function JobsScreen() {
         <TouchableOpacity style={styles.navItem} onPress={navigateToDashboard}>
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => {}}>
+        <TouchableOpacity style={styles.navItem} onPress={() => console.log('Already on Jobs')}>
           <Text style={[styles.navText, styles.navTextActive]}>Jobs</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>

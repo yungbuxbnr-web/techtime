@@ -1,10 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StorageService } from '../utils/storage';
-import { BiometricService } from '../utils/biometricService';
 import { CalculationService } from '../utils/calculations';
 import { MonthlyResetService } from '../utils/monthlyReset';
 import { AppSettings, Job } from '../types';
@@ -21,15 +20,29 @@ export default function SettingsScreen() {
   const [technicianName, setTechnicianName] = useState('');
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [isLoading, setIsLoading] = useState(true);
+  
+  const isMounted = useRef(true);
+  const isNavigating = useRef(false);
 
   const isDarkMode = theme === 'dark';
 
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
+    if (isMounted.current) {
+      setNotification({ visible: true, message, type });
+    }
   }, []);
 
   const hideNotification = useCallback(() => {
-    setNotification(prev => ({ ...prev, visible: false }));
+    if (isMounted.current) {
+      setNotification(prev => ({ ...prev, visible: false }));
+    }
   }, []);
 
   const loadData = useCallback(async () => {
@@ -39,15 +52,22 @@ export default function SettingsScreen() {
         StorageService.getJobs(),
         StorageService.getTechnicianName()
       ]);
-      setSettings(settingsData);
-      setJobs(jobsData);
-      setTechnicianName(name || '');
-      console.log('Settings and jobs loaded successfully');
+      
+      if (isMounted.current) {
+        setSettings(settingsData);
+        setJobs(jobsData);
+        setTechnicianName(name || '');
+        console.log('Settings and jobs loaded successfully');
+      }
     } catch (error) {
       console.log('Error loading data:', error);
-      showNotification('Error loading data', 'error');
+      if (isMounted.current) {
+        showNotification('Error loading data', 'error');
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
     }
   }, [showNotification]);
 
@@ -134,13 +154,30 @@ export default function SettingsScreen() {
     );
   }, [showNotification]);
 
+  const safeNavigate = useCallback((path: string) => {
+    if (isNavigating.current) {
+      console.log('Navigation already in progress');
+      return;
+    }
+    
+    isNavigating.current = true;
+    
+    try {
+      router.push(path);
+    } catch (error) {
+      console.log('Navigation error:', error);
+      isNavigating.current = false;
+      showNotification('Navigation error. Please try again.', 'error');
+    }
+  }, [showNotification]);
+
   const navigateToDashboard = useCallback(() => {
-    router.push('/dashboard');
-  }, []);
+    safeNavigate('/dashboard');
+  }, [safeNavigate]);
 
   const navigateToJobs = useCallback(() => {
-    router.push('/jobs');
-  }, []);
+    safeNavigate('/jobs');
+  }, [safeNavigate]);
 
   if (isLoading) {
     return (
@@ -257,7 +294,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Configure your work hours, lunch breaks, and work days. Enable automatic time tracking to monitor your daily progress.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => router.push('/work-schedule')}>
+          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => safeNavigate('/work-schedule')}>
             <Text style={styles.buttonText}>📅 Edit Work Schedule</Text>
           </TouchableOpacity>
         </View>
@@ -268,7 +305,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Manage app permissions for notifications, background execution, and storage access. View permission status and request missing permissions.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.permissionsButton]} onPress={() => router.push('/permissions')}>
+          <TouchableOpacity style={[styles.button, styles.permissionsButton]} onPress={() => safeNavigate('/permissions')}>
             <Text style={styles.buttonText}>🔓 Manage Permissions</Text>
           </TouchableOpacity>
         </View>
@@ -279,7 +316,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Customize notification settings, choose which notifications to receive, and test notification delivery.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => router.push('/notification-settings')}>
+          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => safeNavigate('/notification-settings')}>
             <Text style={styles.buttonText}>🔔 Notification Settings</Text>
           </TouchableOpacity>
         </View>
@@ -290,7 +327,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Customize the calculation formulas used throughout the app for AWs, efficiency, and performance metrics.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => router.push('/metrics')}>
+          <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => safeNavigate('/metrics')}>
             <Text style={styles.buttonText}>⚙️ Edit Formulas</Text>
           </TouchableOpacity>
         </View>
@@ -312,10 +349,10 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Export job records to PDF or JSON, or import jobs from a JSON file.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.exportButton]} onPress={() => router.push('/export-reports')}>
+          <TouchableOpacity style={[styles.button, styles.exportButton]} onPress={() => safeNavigate('/export-reports')}>
             <Text style={styles.buttonText}>📊 Export Reports</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.importButton]} onPress={() => router.push('/import-jobs')}>
+          <TouchableOpacity style={[styles.button, styles.importButton]} onPress={() => safeNavigate('/import-jobs')}>
             <Text style={styles.buttonText}>📥 Import Jobs</Text>
           </TouchableOpacity>
         </View>
@@ -341,7 +378,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Access the complete user guide with detailed instructions on how to use every feature of the app, including security settings.
           </Text>
-          <TouchableOpacity style={[styles.button, styles.helpButton]} onPress={() => router.push('/help')}>
+          <TouchableOpacity style={[styles.button, styles.helpButton]} onPress={() => safeNavigate('/help')}>
             <Text style={styles.buttonText}>📖 Open User Guide</Text>
           </TouchableOpacity>
         </View>

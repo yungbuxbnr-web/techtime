@@ -41,6 +41,8 @@ export default function DashboardScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const backPressCount = useRef(0);
+  const isMounted = useRef(true);
+  const isNavigating = useRef(false);
 
   // Scanning states
   const [showCamera, setShowCamera] = useState(false);
@@ -48,8 +50,17 @@ export default function DashboardScreen() {
   const [isProcessingScan, setIsProcessingScan] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
 
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ visible: true, message, type });
+    if (isMounted.current) {
+      setNotification({ visible: true, message, type });
+    }
   }, []);
 
   const handleExitApp = useCallback(() => {
@@ -96,7 +107,7 @@ export default function DashboardScreen() {
     try {
       const resetResult = await MonthlyResetService.checkAndResetIfNewMonth();
       
-      if (resetResult.wasReset) {
+      if (resetResult.wasReset && isMounted.current) {
         const previousMonthName = MonthlyResetService.getMonthName(resetResult.previousMonth || 0);
         const currentMonthName = MonthlyResetService.getMonthName(resetResult.currentMonth);
         
@@ -120,6 +131,9 @@ export default function DashboardScreen() {
         StorageService.getSettings(),
         StorageService.getTechnicianName()
       ]);
+      
+      if (!isMounted.current) return;
+      
       setJobs(jobsData);
       setTechnicianName(name || 'Technician');
       
@@ -133,17 +147,11 @@ export default function DashboardScreen() {
       setMonthlyStats(stats);
       
       console.log('Dashboard loaded:', jobsData.length, 'jobs');
-      console.log('Stats:', {
-        totalAWs: stats.totalAWs,
-        soldHours: stats.totalSoldHours?.toFixed(2),
-        availableHours: stats.totalAvailableHours?.toFixed(2),
-        targetHours: stats.targetHours,
-        absenceHours: absenceHours,
-        efficiency: stats.efficiency
-      });
     } catch (error) {
       console.log('Error loading jobs:', error);
-      showNotification('Error loading data', 'error');
+      if (isMounted.current) {
+        showNotification('Error loading data', 'error');
+      }
     }
   }, [showNotification]);
 
@@ -166,6 +174,7 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      isNavigating.current = false;
       checkAuthAndLoadJobs();
       
       const onBackPress = () => {
@@ -187,7 +196,9 @@ export default function DashboardScreen() {
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       
-      return () => subscription.remove();
+      return () => {
+        subscription.remove();
+      };
     }, [checkAuthAndLoadJobs, showNotification, handleExitApp])
   );
 
@@ -195,37 +206,55 @@ export default function DashboardScreen() {
     setNotification({ ...notification, visible: false });
   };
 
-  const navigateToJobs = () => {
-    router.push('/jobs');
-  };
+  const safeNavigate = useCallback((path: string) => {
+    if (isNavigating.current) {
+      console.log('Navigation already in progress, ignoring');
+      return;
+    }
+    
+    isNavigating.current = true;
+    
+    try {
+      console.log('Navigating to:', path);
+      router.push(path);
+    } catch (error) {
+      console.log('Navigation error:', error);
+      isNavigating.current = false;
+      showNotification('Navigation error. Please try again.', 'error');
+    }
+  }, [showNotification]);
 
-  const navigateToAddJob = () => {
-    router.push('/add-job');
-  };
+  const navigateToJobs = useCallback(() => {
+    safeNavigate('/jobs');
+  }, [safeNavigate]);
 
-  const navigateToStatistics = () => {
-    router.push('/statistics');
-  };
+  const navigateToAddJob = useCallback(() => {
+    safeNavigate('/add-job');
+  }, [safeNavigate]);
 
-  const navigateToSettings = () => {
-    router.push('/settings');
-  };
+  const navigateToStatistics = useCallback(() => {
+    safeNavigate('/statistics');
+  }, [safeNavigate]);
 
-  const navigateToJobRecords = () => {
-    router.push('/job-records');
-  };
+  const navigateToSettings = useCallback(() => {
+    safeNavigate('/settings');
+  }, [safeNavigate]);
 
-  const navigateToStats = (type: string) => {
-    router.push(`/stats?type=${type}`);
-  };
+  const navigateToJobRecords = useCallback(() => {
+    safeNavigate('/job-records');
+  }, [safeNavigate]);
 
-  const navigateToCalendar = () => {
-    router.push('/efficiency-calendar');
-  };
+  const navigateToStats = useCallback((type: string) => {
+    safeNavigate(`/stats?type=${type}`);
+  }, [safeNavigate]);
 
-  const navigateToWorkSchedule = () => {
-    router.push('/work-schedule-calendar');
-  };
+  const navigateToCalendar = useCallback(() => {
+    safeNavigate('/efficiency-calendar');
+  }, [safeNavigate]);
+
+  const navigateToWorkSchedule = useCallback(() => {
+    safeNavigate('/work-schedule-calendar');
+  }, [safeNavigate]);
 
   const toggleOptionsMenu = () => {
     setShowOptionsMenu(!showOptionsMenu);
@@ -348,7 +377,7 @@ export default function DashboardScreen() {
             <AnimatedPressable
               onPress={() => {
                 setShowOptionsMenu(false);
-                router.push('/export');
+                safeNavigate('/export-reports');
               }}
               style={styles.optionItem}
             >
