@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   
   const isMounted = useRef(true);
   const isNavigating = useRef(false);
+  const navigationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const isDarkMode = theme === 'dark';
 
@@ -30,6 +31,9 @@ export default function SettingsScreen() {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
+      if (navigationTimeout.current) {
+        clearTimeout(navigationTimeout.current);
+      }
     };
   }, []);
 
@@ -57,10 +61,10 @@ export default function SettingsScreen() {
         setSettings(settingsData);
         setJobs(jobsData);
         setTechnicianName(name || '');
-        console.log('Settings and jobs loaded successfully');
+        console.log('[Settings] Data loaded successfully');
       }
     } catch (error) {
-      console.log('Error loading data:', error);
+      console.log('[Settings] Error loading data:', error);
       if (isMounted.current) {
         showNotification('Error loading data', 'error');
       }
@@ -77,8 +81,10 @@ export default function SettingsScreen() {
       
       // Only check authentication if security is enabled
       if (settingsData.pin && settingsData.pin !== 'DISABLED' && !settingsData.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
-        router.replace('/auth');
+        console.log('[Settings] User not authenticated, redirecting to auth');
+        if (isMounted.current) {
+          router.replace('/auth');
+        }
         return;
       }
       
@@ -94,8 +100,10 @@ export default function SettingsScreen() {
       
       await loadData();
     } catch (error) {
-      console.log('Error checking auth:', error);
-      router.replace('/auth');
+      console.log('[Settings] Error checking auth:', error);
+      if (isMounted.current) {
+        router.replace('/auth');
+      }
     }
   }, [loadData]);
 
@@ -108,9 +116,9 @@ export default function SettingsScreen() {
       await toggleTheme();
       const newTheme = theme === 'light' ? 'dark' : 'light';
       showNotification(`Switched to ${newTheme} mode`, 'success');
-      console.log('Theme updated to:', newTheme);
+      console.log('[Settings] Theme updated to:', newTheme);
     } catch (error) {
-      console.log('Error updating theme:', error);
+      console.log('[Settings] Error updating theme:', error);
       showNotification('Error updating theme', 'error');
     }
   }, [theme, toggleTheme, showNotification]);
@@ -119,10 +127,12 @@ export default function SettingsScreen() {
     try {
       const updatedSettings = { ...settings, isAuthenticated: false };
       await StorageService.saveSettings(updatedSettings);
-      console.log('User signed out');
-      router.replace('/auth');
+      console.log('[Settings] User signed out');
+      if (isMounted.current) {
+        router.replace('/auth');
+      }
     } catch (error) {
-      console.log('Error signing out:', error);
+      console.log('[Settings] Error signing out:', error);
       showNotification('Error signing out', 'error');
     }
   }, [settings, showNotification]);
@@ -140,12 +150,14 @@ export default function SettingsScreen() {
             try {
               await StorageService.clearAllData();
               showNotification('All data cleared successfully', 'success');
-              console.log('All data cleared');
+              console.log('[Settings] All data cleared');
               setTimeout(() => {
-                router.replace('/auth');
+                if (isMounted.current) {
+                  router.replace('/auth');
+                }
               }, 1500);
             } catch (error) {
-              console.log('Error clearing data:', error);
+              console.log('[Settings] Error clearing data:', error);
               showNotification('Error clearing data', 'error');
             }
           }
@@ -156,16 +168,27 @@ export default function SettingsScreen() {
 
   const safeNavigate = useCallback((path: string) => {
     if (isNavigating.current) {
-      console.log('Navigation already in progress');
+      console.log('[Settings] Navigation already in progress, ignoring');
+      return;
+    }
+    
+    if (!isMounted.current) {
+      console.log('[Settings] Component unmounted, canceling navigation');
       return;
     }
     
     isNavigating.current = true;
     
     try {
+      console.log('[Settings] Navigating to:', path);
       router.push(path);
+      
+      // Reset navigation lock after a delay
+      navigationTimeout.current = setTimeout(() => {
+        isNavigating.current = false;
+      }, 1000);
     } catch (error) {
-      console.log('Navigation error:', error);
+      console.log('[Settings] Navigation error:', error);
       isNavigating.current = false;
       showNotification('Navigation error. Please try again.', 'error');
     }
@@ -222,9 +245,16 @@ export default function SettingsScreen() {
         <ProfileSettings
           technicianName={technicianName}
           onUpdate={async (name) => {
-            await StorageService.setTechnicianName(name);
-            setTechnicianName(name);
-            showNotification(`Name updated to ${name}`, 'success');
+            try {
+              await StorageService.setTechnicianName(name);
+              if (isMounted.current) {
+                setTechnicianName(name);
+                showNotification(`Name updated to ${name}`, 'success');
+              }
+            } catch (error) {
+              console.log('[Settings] Error updating name:', error);
+              showNotification('Error updating name', 'error');
+            }
           }}
           colors={colors}
         />
@@ -281,9 +311,16 @@ export default function SettingsScreen() {
         <AbsenceLogger
           settings={settings}
           onUpdate={async (updatedSettings) => {
-            await StorageService.saveSettings(updatedSettings);
-            setSettings(updatedSettings);
-            showNotification('Settings updated successfully', 'success');
+            try {
+              await StorageService.saveSettings(updatedSettings);
+              if (isMounted.current) {
+                setSettings(updatedSettings);
+                showNotification('Settings updated successfully', 'success');
+              }
+            } catch (error) {
+              console.log('[Settings] Error updating settings:', error);
+              showNotification('Error updating settings', 'error');
+            }
           }}
           colors={colors}
         />
@@ -336,9 +373,16 @@ export default function SettingsScreen() {
         <SecuritySettings
           settings={settings}
           onUpdate={async (updatedSettings) => {
-            await StorageService.saveSettings(updatedSettings);
-            setSettings(updatedSettings);
-            showNotification('Security settings updated', 'success');
+            try {
+              await StorageService.saveSettings(updatedSettings);
+              if (isMounted.current) {
+                setSettings(updatedSettings);
+                showNotification('Security settings updated', 'success');
+              }
+            } catch (error) {
+              console.log('[Settings] Error updating security:', error);
+              showNotification('Error updating security settings', 'error');
+            }
           }}
           colors={colors}
         />

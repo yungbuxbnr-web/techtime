@@ -24,11 +24,15 @@ export default function JobsScreen() {
   
   const isMounted = useRef(true);
   const isNavigating = useRef(false);
+  const navigationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
+      if (navigationTimeout.current) {
+        clearTimeout(navigationTimeout.current);
+      }
     };
   }, []);
 
@@ -46,7 +50,7 @@ export default function JobsScreen() {
     if (isMounted.current) {
       setFilteredJobs(filtered);
     }
-    console.log(`Filtered jobs for ${month + 1}/${year}:`, filtered.length);
+    console.log(`[Jobs] Filtered jobs for ${month + 1}/${year}:`, filtered.length);
   }, []);
 
   const loadJobs = useCallback(async () => {
@@ -60,7 +64,7 @@ export default function JobsScreen() {
         filterJobsByMonth(sortedJobs, selectedMonth, selectedYear);
       }
     } catch (error) {
-      console.log('Error loading jobs:', error);
+      console.log('[Jobs] Error loading jobs:', error);
       if (isMounted.current) {
         showNotification('Error loading jobs', 'error');
       }
@@ -71,8 +75,10 @@ export default function JobsScreen() {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
-        router.replace('/auth');
+        console.log('[Jobs] User not authenticated, redirecting to auth');
+        if (isMounted.current) {
+          router.replace('/auth');
+        }
         return;
       }
       
@@ -86,8 +92,10 @@ export default function JobsScreen() {
       
       await loadJobs();
     } catch (error) {
-      console.log('Error checking auth:', error);
-      router.replace('/auth');
+      console.log('[Jobs] Error checking auth:', error);
+      if (isMounted.current) {
+        router.replace('/auth');
+      }
     }
   }, [loadJobs]);
 
@@ -117,7 +125,7 @@ export default function JobsScreen() {
               showNotification('Job deleted successfully', 'success');
               loadJobs();
             } catch (error) {
-              console.log('Error deleting job:', error);
+              console.log('[Jobs] Error deleting job:', error);
               showNotification('Error deleting job', 'error');
             }
           }
@@ -127,29 +135,51 @@ export default function JobsScreen() {
   };
 
   const handleEditJob = (job: Job) => {
-    if (isNavigating.current) return;
-    isNavigating.current = true;
-    
-    try {
-      router.push(`/add-job?editId=${job.id}`);
-    } catch (error) {
-      console.log('Navigation error:', error);
-      isNavigating.current = false;
-    }
-  };
-
-  const safeNavigate = useCallback((path: string) => {
-    if (isNavigating.current) {
-      console.log('Navigation already in progress');
+    if (isNavigating.current || !isMounted.current) {
+      console.log('[Jobs] Navigation blocked - already navigating or unmounted');
       return;
     }
     
     isNavigating.current = true;
     
     try {
-      router.push(path);
+      console.log('[Jobs] Navigating to edit job:', job.id);
+      router.push(`/add-job?editId=${job.id}`);
+      
+      // Reset navigation lock after a delay
+      navigationTimeout.current = setTimeout(() => {
+        isNavigating.current = false;
+      }, 1000);
     } catch (error) {
-      console.log('Navigation error:', error);
+      console.log('[Jobs] Navigation error:', error);
+      isNavigating.current = false;
+      showNotification('Navigation error. Please try again.', 'error');
+    }
+  };
+
+  const safeNavigate = useCallback((path: string) => {
+    if (isNavigating.current) {
+      console.log('[Jobs] Navigation already in progress, ignoring');
+      return;
+    }
+    
+    if (!isMounted.current) {
+      console.log('[Jobs] Component unmounted, canceling navigation');
+      return;
+    }
+    
+    isNavigating.current = true;
+    
+    try {
+      console.log('[Jobs] Navigating to:', path);
+      router.push(path);
+      
+      // Reset navigation lock after a delay
+      navigationTimeout.current = setTimeout(() => {
+        isNavigating.current = false;
+      }, 1000);
+    } catch (error) {
+      console.log('[Jobs] Navigation error:', error);
       isNavigating.current = false;
       showNotification('Navigation error. Please try again.', 'error');
     }
@@ -403,13 +433,16 @@ export default function JobsScreen() {
             ))}
           </View>
         )}
+        
+        {/* Bottom padding to avoid content being hidden behind bottom nav */}
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} onPress={navigateToDashboard}>
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => console.log('Already on Jobs')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => console.log('[Jobs] Already on Jobs')}>
           <Text style={[styles.navText, styles.navTextActive]}>Jobs</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={navigateToStatistics}>

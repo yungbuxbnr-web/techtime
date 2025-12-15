@@ -43,6 +43,7 @@ export default function DashboardScreen() {
   const backPressCount = useRef(0);
   const isMounted = useRef(true);
   const isNavigating = useRef(false);
+  const navigationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Scanning states
   const [showCamera, setShowCamera] = useState(false);
@@ -54,6 +55,9 @@ export default function DashboardScreen() {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
+      if (navigationTimeout.current) {
+        clearTimeout(navigationTimeout.current);
+      }
     };
   }, []);
 
@@ -73,11 +77,11 @@ export default function DashboardScreen() {
           text: 'Exit',
           onPress: async () => {
             try {
-              console.log('Exiting app - resetting authentication...');
+              console.log('[Dashboard] Exiting app - resetting authentication...');
               
               const settings = await StorageService.getSettings();
               await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-              console.log('Authentication reset for fresh start');
+              console.log('[Dashboard] Authentication reset for fresh start');
               
               if (Platform.OS === 'android') {
                 BackHandler.exitApp();
@@ -85,12 +89,12 @@ export default function DashboardScreen() {
                 try {
                   await Updates.reloadAsync();
                 } catch (reloadError) {
-                  console.log('Could not reload app:', reloadError);
+                  console.log('[Dashboard] Could not reload app:', reloadError);
                   showNotification('Please close the app manually', 'info');
                 }
               }
             } catch (error) {
-              console.log('Error during app exit:', error);
+              console.log('[Dashboard] Error during app exit:', error);
               if (Platform.OS === 'android') {
                 BackHandler.exitApp();
               } else {
@@ -146,9 +150,9 @@ export default function DashboardScreen() {
       const stats = CalculationService.calculateMonthlyStats(jobsData, settings.targetHours || 180, absenceHours);
       setMonthlyStats(stats);
       
-      console.log('Dashboard loaded:', jobsData.length, 'jobs');
+      console.log('[Dashboard] Loaded:', jobsData.length, 'jobs');
     } catch (error) {
-      console.log('Error loading jobs:', error);
+      console.log('[Dashboard] Error loading jobs:', error);
       if (isMounted.current) {
         showNotification('Error loading data', 'error');
       }
@@ -159,16 +163,20 @@ export default function DashboardScreen() {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
-        router.replace('/auth');
+        console.log('[Dashboard] User not authenticated, redirecting to auth');
+        if (isMounted.current) {
+          router.replace('/auth');
+        }
         return;
       }
       
       await checkMonthlyReset();
       await loadJobs();
     } catch (error) {
-      console.log('Error checking auth:', error);
-      router.replace('/auth');
+      console.log('[Dashboard] Error checking auth:', error);
+      if (isMounted.current) {
+        router.replace('/auth');
+      }
     }
   }, [loadJobs, checkMonthlyReset]);
 
@@ -208,17 +216,27 @@ export default function DashboardScreen() {
 
   const safeNavigate = useCallback((path: string) => {
     if (isNavigating.current) {
-      console.log('Navigation already in progress, ignoring');
+      console.log('[Dashboard] Navigation already in progress, ignoring');
+      return;
+    }
+    
+    if (!isMounted.current) {
+      console.log('[Dashboard] Component unmounted, canceling navigation');
       return;
     }
     
     isNavigating.current = true;
     
     try {
-      console.log('Navigating to:', path);
+      console.log('[Dashboard] Navigating to:', path);
       router.push(path);
+      
+      // Reset navigation lock after a delay
+      navigationTimeout.current = setTimeout(() => {
+        isNavigating.current = false;
+      }, 1000);
     } catch (error) {
-      console.log('Navigation error:', error);
+      console.log('[Dashboard] Navigation error:', error);
       isNavigating.current = false;
       showNotification('Navigation error. Please try again.', 'error');
     }
@@ -573,10 +591,13 @@ export default function DashboardScreen() {
               </View>
             </View>
           </AnimatedCard>
+          
+          {/* Bottom padding to avoid content being hidden behind bottom nav */}
+          <View style={{ height: 20 }} />
         </ScrollView>
 
         <View style={styles.bottomNav}>
-          <AnimatedPressable style={styles.navItem} onPress={() => console.log('Already on Home')}>
+          <AnimatedPressable style={styles.navItem} onPress={() => console.log('[Dashboard] Already on Home')}>
             <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
           </AnimatedPressable>
           <AnimatedPressable style={styles.navItem} onPress={navigateToJobs}>
