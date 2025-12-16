@@ -122,7 +122,9 @@ module.exports = {
       typedRoutes: true,
     },
     extra: {
-      router: {},
+      router: {
+        origin: false
+      },
       eas: {
         projectId: process.env.EXPO_PROJECT_ID || undefined,
       },
