@@ -1,16 +1,8 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import Animated, {
-  useAnimatedProps,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface ProgressCircleProps {
   percentage: number;
@@ -38,21 +30,7 @@ export default function ProgressCircle({
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withSpring(percentage, {
-      damping: 20,
-      stiffness: 90,
-    });
-  }, [percentage, progress]);
-
-  const animatedProps = useAnimatedProps(() => {
-    const strokeDashoffset = circumference - (progress.value / 100) * circumference;
-    return {
-      strokeDashoffset,
-    };
-  });
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -66,8 +44,8 @@ export default function ProgressCircle({
           strokeWidth={strokeWidth}
           fill="transparent"
         />
-        {/* Progress circle with animation */}
-        <AnimatedCircle
+        {/* Progress circle */}
+        <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -75,7 +53,7 @@ export default function ProgressCircle({
           strokeWidth={strokeWidth}
           fill="transparent"
           strokeDasharray={circumference}
-          animatedProps={animatedProps}
+          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />

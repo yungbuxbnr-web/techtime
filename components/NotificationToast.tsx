@@ -1,14 +1,6 @@
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  withSequence,
-  runOnJS,
-} from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface NotificationToastProps {
@@ -20,43 +12,16 @@ interface NotificationToastProps {
 
 export default function NotificationToast({ message, type, visible, onHide }: NotificationToastProps) {
   const { colors } = useTheme();
-  const translateY = useSharedValue(-100);
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.8);
 
   useEffect(() => {
     if (visible) {
-      // Show animation with bounce effect
-      translateY.value = withSpring(0, {
-        damping: 15,
-        stiffness: 150,
-      });
-      opacity.value = withTiming(1, { duration: 300 });
-      scale.value = withSpring(1, {
-        damping: 12,
-        stiffness: 200,
-      });
-
-      // Auto hide after 3 seconds with smooth animation
       const timer = setTimeout(() => {
-        translateY.value = withTiming(-100, { duration: 300 });
-        opacity.value = withTiming(0, { duration: 300 });
-        scale.value = withTiming(0.8, { duration: 300 }, () => {
-          runOnJS(onHide)();
-        });
+        onHide();
       }, 3000);
 
       return () => clearTimeout(timer);
     }
-  }, [visible, translateY, opacity, scale, onHide]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value }
-    ],
-    opacity: opacity.value,
-  }));
+  }, [visible, onHide]);
 
   if (!visible) return null;
 
@@ -87,20 +52,19 @@ export default function NotificationToast({ message, type, visible, onHide }: No
   const styles = createStyles(colors);
 
   return (
-    <Animated.View
+    <View
       style={[
         styles.container,
         {
           backgroundColor: getBackgroundColor(),
         },
-        animatedStyle,
       ]}
     >
       <View style={styles.iconContainer}>
         <Text style={styles.icon}>{getIcon()}</Text>
       </View>
       <Text style={styles.message}>{message}</Text>
-    </Animated.View>
+    </View>
   );
 }
 

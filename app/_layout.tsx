@@ -19,13 +19,10 @@ function RootLayoutContent() {
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
 
   useEffect(() => {
-    // Set up global error logging
     setupErrorLogging();
 
-    // Reset authentication on app launch to require PIN entry
     resetAuthentication();
 
-    // Request permissions on first launch
     if (Platform.OS !== 'web') {
       PermissionsService.requestPermissionsOnFirstLaunch().then(() => {
         console.log('[App] Permissions check completed');
@@ -34,7 +31,6 @@ function RootLayoutContent() {
       });
     }
 
-    // Initialize background tasks for time tracking and notifications
     if (Platform.OS !== 'web') {
       initializeBackgroundTasks().then(result => {
         console.log('[App] Background tasks initialization:', result.message);
@@ -44,12 +40,10 @@ function RootLayoutContent() {
     }
 
     if (Platform.OS === 'web') {
-      // If there's a new emulate parameter, store it
       if (emulate) {
         localStorage.setItem(STORAGE_KEY, emulate);
         setStoredEmulate(emulate);
       } else {
-        // If no emulate parameter, try to get from localStorage
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           setStoredEmulate(stored);
@@ -76,7 +70,6 @@ function RootLayoutContent() {
       android: { top: 40, bottom: 0, left: 0, right: 0 },
     };
 
-    // Use stored emulate value if available, otherwise use the current emulate parameter
     const deviceToEmulate = storedEmulate || emulate;
     insetsToUse = deviceToEmulate ? simulatedInsets[deviceToEmulate as keyof typeof simulatedInsets] || actualInsets : actualInsets;
   }
@@ -85,7 +78,7 @@ function RootLayoutContent() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
+        animation: 'default',
         gestureEnabled: true,
         gestureDirection: 'horizontal',
       }}

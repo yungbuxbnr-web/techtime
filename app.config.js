@@ -2,57 +2,17 @@
 /**
  * Expo App Configuration
  * 
- * This file replaces app.json to provide better environment variable handling
- * and prevent build failures when NODE_ENV or other variables are not set.
- * 
- * IMPORTANT: This config is designed to NEVER throw errors, even if environment
- * variables are missing. All env vars have safe fallbacks.
- * 
- * ============================================================================
- * REACT NATIVE 0.81.4 + GESTURE HANDLER FIX APPLIED
- * ============================================================================
- * 
- * The C++ build error in react-native-gesture-handler has been fixed by:
- * 1. ✅ Upgrading react-native-gesture-handler from ~2.24.0 to ^2.20.2
- * 2. ✅ Removing manual C++ patching scripts (fix-cpp-build.cjs)
- * 3. ✅ Simplifying config plugins to avoid CMakeLists.txt patching
- * 
- * NEXT STEPS TO COMPLETE THE FIX:
- * 
- * 1. Clean Android build artifacts:
- *    cd android
- *    ./gradlew clean
- *    cd ..
- * 
- * 2. Regenerate native code:
- *    npx expo prebuild --clean
- * 
- * 3. Rebuild Android:
- *    npx expo run:android
- * 
- * The build should now succeed without C++ compilation errors.
- * 
- * If you still encounter issues:
- * - Ensure NDK 26.1.10909125 is installed
- * - Run: pnpm run gradle:clean
- * - Check that node_modules/react-native-gesture-handler is version 2.20.2+
- * 
- * ============================================================================
+ * This file provides better environment variable handling
+ * and prevents build failures when NODE_ENV or other variables are not set.
  */
 
-// Safely get NODE_ENV with fallback - NEVER throw if missing
 const NODE_ENV = process.env.NODE_ENV || 'production';
 const isProduction = NODE_ENV === 'production';
 const isDevelopment = NODE_ENV === 'development';
-
-// Safely check if we're in CI
 const isCI = process.env.CI === 'true' || process.env.EAS_BUILD === 'true';
 
-// Log configuration for debugging (only in development and not in CI)
 if (isDevelopment && !isCI) {
   console.log('📱 Expo Config - Environment:', NODE_ENV);
-  console.log('📱 Expo Config - CI:', process.env.CI || 'false');
-  console.log('📱 Expo Config - EAS_BUILD:', process.env.EAS_BUILD || 'false');
 }
 
 module.exports = {
@@ -154,7 +114,6 @@ module.exports = {
         },
       ],
       './plugins/fbjniExclusion.plugin.cjs',
-      './plugins/reanimatedConfig.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/cppBuildConfig.plugin.cjs',
     ],

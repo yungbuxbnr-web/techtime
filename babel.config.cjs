@@ -11,8 +11,6 @@ module.exports = function (api) {
     plugins: [
       '@babel/plugin-proposal-export-namespace-from',
       'babel-plugin-module-resolver',
-      // react-native-reanimated/plugin MUST be listed last
-      'react-native-reanimated/plugin',
     ],
     env: {
       production: {
