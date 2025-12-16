@@ -51,11 +51,7 @@ export default function EfficiencyCalendarScreen() {
     setNotification(prev => ({ ...prev, visible: false }));
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [currentDate, viewMode]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [jobsData, settingsData] = await Promise.all([
         StorageService.getJobs(),
@@ -80,7 +76,11 @@ export default function EfficiencyCalendarScreen() {
       console.log('Error loading calendar data:', error);
       showNotification('Error loading data', 'error');
     }
-  };
+  }, [currentDate, showNotification]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const calculateMonthData = (allJobs: Job[], date: Date, absenceHours: number) => {
     const month = date.getMonth();

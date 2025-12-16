@@ -18,19 +18,28 @@ module.exports = {
     sourceType: 'module',
     ecmaFeatures: {
       jsx: true
-    }
+    },
+    project: './tsconfig.json'
   },
-  ignorePatterns: ['/dist/*', '/public/*', '/babel-plugins/*'],
+  ignorePatterns: ['/dist/*', '/public/*', '/babel-plugins/*', 'node_modules/', 'android/', 'ios/', '.expo/'],
   env: {
     browser: true,
+    'react-native/react-native': true
   },
   settings: {
     'import/resolver': {
-      typescript: {},
+      typescript: {
+        alwaysTryTypes: true,
+        project: './tsconfig.json'
+      },
       node: {
-        extensions: ['.js', '.jsx', '.ts', '.tsx']
+        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
+        moduleDirectory: ['node_modules', '.']
       }
-    }
+    },
+    'import/ignore': [
+      'node_modules/react-native/index\\.js$'
+    ]
   },
   rules: {
     '@typescript-eslint/no-unused-vars': 'off',
@@ -41,7 +50,16 @@ module.exports = {
     '@typescript-eslint/no-empty-object-type': 'off',
     '@typescript-eslint/no-wrapper-object-types': 'off',
     'react/no-unescaped-entities': 'off',
-    'import/no-unresolved': 'error',
+    'import/no-unresolved': ['error', {
+      ignore: [
+        '^react-native$',
+        '^react-native/',
+        '^@react-native',
+        '^expo',
+        '^expo-',
+        '^@expo/'
+      ]
+    }],
     'prefer-const': 'off',
     'react/prop-types': 1,
     'no-case-declarations': 'off',
@@ -50,13 +68,13 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['metro.config.cjs'],
+      files: ['metro.config.cjs', 'babel.config.cjs', '*.config.js', '*.config.cjs'],
       rules: {
         '@typescript-eslint/no-var-requires': 'off'
       }
     },
     {
-      files: ['scripts/**/*.js'],
+      files: ['scripts/**/*.js', 'scripts/**/*.cjs'],
       env: { node: true }
     }
   ]
