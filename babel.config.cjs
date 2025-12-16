@@ -2,16 +2,8 @@
 module.exports = function (api) {
   api.cache(true);
   
-  const NODE_ENV = process.env.NODE_ENV || 'development';
-  const isProduction = NODE_ENV === 'production';
-  
   return {
-    presets: [
-      ['babel-preset-expo', { 
-        jsxRuntime: 'automatic',
-        lazyImports: true
-      }]
-    ],
+    presets: ['babel-preset-expo'],
     plugins: [
       '@babel/plugin-proposal-export-namespace-from',
       [
