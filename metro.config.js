@@ -3,14 +3,18 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Add source extensions for better module resolution
+// Ensure proper source extensions
 config.resolver.sourceExts = [
-  ...config.resolver.sourceExts,
+  'js',
+  'jsx',
+  'json',
+  'ts',
+  'tsx',
   'cjs',
   'mjs'
 ];
 
-// Filter out svg from asset extensions if needed
+// Configure asset extensions
 config.resolver.assetExts = config.resolver.assetExts.filter(
   ext => ext !== 'svg'
 );

@@ -104,8 +104,11 @@
           "enableBackgroundRemoteNotifications": true
         }
       ],
-      "./plugins/gradleWrapperConfig.plugin.cjs"
+      "./plugins/fbjniExclusion.plugin.cjs",
+      "./plugins/gradleWrapperConfig.plugin.cjs",
+      "./plugins/cppBuildConfig.plugin.cjs"
     ],
+    "scheme": "techtime",
     "experiments": {
       "typedRoutes": true
     },
