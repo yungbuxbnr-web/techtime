@@ -7,7 +7,10 @@ module.exports = function (api) {
   
   return {
     presets: [
-      ['babel-preset-expo', { jsxRuntime: 'automatic' }]
+      ['babel-preset-expo', { 
+        jsxRuntime: 'automatic',
+        lazyImports: true
+      }]
     ],
     plugins: [
       '@babel/plugin-proposal-export-namespace-from',
