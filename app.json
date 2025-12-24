@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "TechTime",
@@ -116,6 +117,5 @@
         "origin": false
       }
     }
-  },
-  "scheme": "TechTime"
+  }
 }
