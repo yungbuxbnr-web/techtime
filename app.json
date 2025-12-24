@@ -1,8 +1,7 @@
-
 {
   "expo": {
     "name": "TechTime",
-    "slug": "TechTime",
+    "slug": "techtime",
     "owner": "bnr",
     "version": "1.0.0",
     "orientation": "portrait",
