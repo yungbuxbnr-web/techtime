@@ -53,6 +53,10 @@ export const setTechnicianName = async (name: string): Promise<void> => {
 export async function pickBackupDirectory(): Promise<string | null> {
   try {
     if (Platform.OS === 'android') {
+      if (!SAF) {
+        console.log('[Android] SAF not available');
+        return null;
+      }
       const res = await SAF.requestDirectoryPermissionsAsync();
       if (!res.granted) {
         console.log('[Android] Folder access denied by user');
@@ -99,6 +103,10 @@ export async function writeJsonToDirectory(
     if (Platform.OS === 'android') {
       const targetDir = dirUri ?? (await pickBackupDirectory());
       if (!targetDir) throw new Error('No directory permission granted');
+      
+      if (!SAF) {
+        throw new Error('SAF not available');
+      }
       
       const fileUri = await SAF.createFileAsync(
         targetDir,

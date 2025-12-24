@@ -9,7 +9,6 @@ module.exports = {
     'plugin:react/recommended',
     'plugin:react/jsx-runtime',
     'plugin:react-hooks/recommended',
-    'plugin:import/typescript'
   ],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'react', 'import'],
@@ -19,18 +18,33 @@ module.exports = {
     ecmaFeatures: {
       jsx: true
     },
-    project: './tsconfig.json'
   },
-  ignorePatterns: ['/dist/*', '/public/*', '/babel-plugins/*', 'node_modules/', 'android/', 'ios/', '.expo/'],
+  ignorePatterns: [
+    '/dist/*', 
+    '/public/*', 
+    '/babel-plugins/*', 
+    'node_modules/', 
+    'android/', 
+    'ios/', 
+    '.expo/',
+    '*.config.js',
+    '*.config.cjs',
+    'plugins/*.cjs',
+    'scripts/*.sh',
+    'scripts/*.cjs',
+  ],
   env: {
     browser: true,
-    'react-native/react-native': true
+    es2021: true,
+    node: true,
   },
   settings: {
+    react: {
+      version: 'detect',
+    },
     'import/resolver': {
       typescript: {
         alwaysTryTypes: true,
-        project: './tsconfig.json'
       },
       node: {
         extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
@@ -61,21 +75,30 @@ module.exports = {
       ]
     }],
     'prefer-const': 'off',
-    'react/prop-types': 1,
+    'react/prop-types': 'off',
     'no-case-declarations': 'off',
     'no-empty': 'off',
     'react/display-name': 'off'
   },
   overrides: [
     {
-      files: ['metro.config.cjs', 'babel.config.cjs', '*.config.js', '*.config.cjs'],
+      files: ['metro.config.js', 'metro.config.cjs', 'babel.config.cjs', '*.config.js', '*.config.cjs', 'plugins/*.cjs'],
+      env: {
+        node: true,
+      },
       rules: {
-        '@typescript-eslint/no-var-requires': 'off'
+        '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/no-require-imports': 'off',
       }
     },
     {
-      files: ['scripts/**/*.js', 'scripts/**/*.cjs'],
-      env: { node: true }
+      files: ['scripts/**/*.js', 'scripts/**/*.cjs', 'scripts/**/*.sh'],
+      env: { 
+        node: true 
+      },
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off',
+      }
     }
   ]
 };
