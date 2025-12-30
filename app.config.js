@@ -87,6 +87,10 @@ module.exports = {
       bundler: 'metro',
     },
     plugins: [
+      './plugins/kotlinVersion.plugin.cjs',
+      './plugins/gradleWrapperConfig.plugin.cjs',
+      './plugins/cppBuildConfig.plugin.cjs',
+      './plugins/fbjniExclusion.plugin.cjs',
       'expo-font',
       'expo-router',
       'expo-web-browser',
@@ -113,10 +117,6 @@ module.exports = {
           enableBackgroundRemoteNotifications: true,
         },
       ],
-      './plugins/kotlinVersion.plugin.cjs',
-      './plugins/fbjniExclusion.plugin.cjs',
-      './plugins/gradleWrapperConfig.plugin.cjs',
-      './plugins/cppBuildConfig.plugin.cjs',
     ],
     scheme: 'techtime',
     experiments: {

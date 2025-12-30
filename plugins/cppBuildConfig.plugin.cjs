@@ -4,12 +4,15 @@ const { withAppBuildGradle, withProjectBuildGradle } = require('@expo/config-plu
 /**
  * Expo Config Plugin for C++ Build Configuration
  * 
- * This plugin ensures proper NDK version and CMake configuration for RN 0.81+
+ * This plugin ensures proper NDK version and CMake configuration for RN 0.76+
  * 
  * Fixes applied:
  * 1. Forces NDK version 26.1.10909125 in project build.gradle
  * 2. Adds CMake flags for C++17 with RTTI and exceptions in app build.gradle
+ * 3. Ensures compatibility with Kotlin 2.0.21
  */
+
+const NDK_VERSION = '26.1.10909125';
 
 /**
  * Add NDK version to project build.gradle
@@ -18,28 +21,36 @@ const withNDKVersion = (config) => {
   return withProjectBuildGradle(config, (config) => {
     try {
       let buildGradle = config.modResults.contents;
+      let modified = false;
 
       // Check if ndkVersion is already set
-      if (!buildGradle.includes('ndkVersion')) {
-        // Find the buildscript block and add ndkVersion in ext
-        const extBlockRegex = /buildscript\s*\{[\s\S]*?ext\s*\{/;
+      const ndkVersionRegex = /ndkVersion\s*=\s*["'][^"']*["']/;
+      
+      if (ndkVersionRegex.test(buildGradle)) {
+        // Update existing ndkVersion
+        if (!buildGradle.includes(NDK_VERSION)) {
+          buildGradle = buildGradle.replace(
+            ndkVersionRegex,
+            `ndkVersion = "${NDK_VERSION}"`
+          );
+          modified = true;
+          console.log(`✅ Updated NDK version to ${NDK_VERSION} in build.gradle`);
+        }
+      } else {
+        // Add ndkVersion in ext block
+        const extBlockRegex = /ext\s*\{/;
         if (extBlockRegex.test(buildGradle)) {
           buildGradle = buildGradle.replace(
             extBlockRegex,
-            (match) => `${match}
-        ndkVersion = "26.1.10909125"`
+            `ext {\n    ndkVersion = "${NDK_VERSION}"`
           );
-          config.modResults.contents = buildGradle;
-          console.log('✅ Added NDK version 26.1.10909125 to build.gradle');
+          modified = true;
+          console.log(`✅ Added NDK version ${NDK_VERSION} to build.gradle`);
         }
-      } else if (!buildGradle.includes('26.1.10909125')) {
-        // Update existing ndkVersion
-        buildGradle = buildGradle.replace(
-          /ndkVersion\s*=\s*["'][^"']*["']/,
-          'ndkVersion = "26.1.10909125"'
-        );
+      }
+
+      if (modified) {
         config.modResults.contents = buildGradle;
-        console.log('✅ Updated NDK version to 26.1.10909125 in build.gradle');
       }
 
       return config;
@@ -57,38 +68,38 @@ const withCMakeFlags = (config) => {
   return withAppBuildGradle(config, (config) => {
     try {
       let buildGradle = config.modResults.contents;
+      let modified = false;
 
       // Check if externalNativeBuild with cmake already exists
-      if (!buildGradle.includes('externalNativeBuild')) {
+      const externalNativeBuildRegex = /externalNativeBuild\s*\{[\s\S]*?cmake\s*\{/;
+      const cppFlagsRegex = /cppFlags\s+["'][^"']*["']/;
+      
+      if (externalNativeBuildRegex.test(buildGradle)) {
+        // externalNativeBuild exists
+        if (!cppFlagsRegex.test(buildGradle) || !buildGradle.includes('-std=c++17')) {
+          // Add or update cppFlags
+          buildGradle = buildGradle.replace(
+            /cmake\s*\{/,
+            `cmake {\n                cppFlags "-std=c++17 -frtti -fexceptions"\n                arguments "-DANDROID_STL=c++_shared"`
+          );
+          modified = true;
+          console.log('✅ Updated CMake flags in app/build.gradle');
+        }
+      } else {
         // Add externalNativeBuild block in defaultConfig
         const defaultConfigRegex = /defaultConfig\s*\{/;
         if (defaultConfigRegex.test(buildGradle)) {
           buildGradle = buildGradle.replace(
             defaultConfigRegex,
-            `defaultConfig {
-        externalNativeBuild {
-            cmake {
-                cppFlags "-std=c++17 -frtti -fexceptions"
-                arguments "-DANDROID_STL=c++_shared"
-            }
-        }`
+            `defaultConfig {\n        externalNativeBuild {\n            cmake {\n                cppFlags "-std=c++17 -frtti -fexceptions"\n                arguments "-DANDROID_STL=c++_shared"\n            }\n        }`
           );
-          config.modResults.contents = buildGradle;
+          modified = true;
           console.log('✅ Added CMake flags to app/build.gradle');
         }
-      } else if (!buildGradle.includes('cppFlags') || !buildGradle.includes('-std=c++17')) {
-        // Update existing externalNativeBuild
-        const cmakeBlockRegex = /externalNativeBuild\s*\{[\s\S]*?cmake\s*\{/;
-        if (cmakeBlockRegex.test(buildGradle)) {
-          buildGradle = buildGradle.replace(
-            cmakeBlockRegex,
-            (match) => `${match}
-                cppFlags "-std=c++17 -frtti -fexceptions"
-                arguments "-DANDROID_STL=c++_shared"`
-          );
-          config.modResults.contents = buildGradle;
-          console.log('✅ Updated CMake flags in app/build.gradle');
-        }
+      }
+
+      if (modified) {
+        config.modResults.contents = buildGradle;
       }
 
       return config;
