@@ -58,7 +58,7 @@ config.watchFolders = [
   path.resolve(__dirname, 'node_modules'),
 ];
 
-// Optimize transformer for Android
+// Optimize transformer for Android - use default transformer from Expo
 config.transformer = {
   ...config.transformer,
   getTransformOptions: async () => ({
@@ -67,8 +67,7 @@ config.transformer = {
       inlineRequires: true,
     },
   }),
-  // Enable Hermes bytecode for Android
-  babelTransformerPath: require.resolve('metro-react-native-babel-transformer'),
+  // Don't override babelTransformerPath - let Expo handle it
 };
 
 // Optimize caching for faster builds
