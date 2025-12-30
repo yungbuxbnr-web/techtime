@@ -1,11 +1,53 @@
-# Ignore generated files
-_expo/
+
+# Dependencies
+node_modules/
+.expo/
+.expo-shared/
+
+# Build outputs
 dist/
+build/
+android/
+ios/
 web-build/
 
-# Ignore node modules
-node_modules/
+# Config files
+*.config.js
+*.config.cjs
+babel.config.cjs
+metro.config.js
 
-# Ignore build artifacts
-*.bundle.js
-*.bundle.js.map
+# Plugins and scripts
+plugins/
+scripts/
+
+# Generated files
+.expo-shared/
+**/*.generated.*
+
+# Test files
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Documentation
+*.md
+
+# Environment files
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
