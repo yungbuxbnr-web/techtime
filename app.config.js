@@ -20,7 +20,7 @@ module.exports = {
     name: process.env.APP_NAME || 'TechTime',
     slug: process.env.APP_SLUG || 'TechTime',
     owner: process.env.EXPO_OWNER || 'bnr',
-    version: process.env.APP_VERSION || '1.0.0',
+    version: process.env.APP_VERSION || '1.0.1',
     orientation: 'portrait',
     icon: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
     userInterfaceStyle: 'automatic',
@@ -55,6 +55,9 @@ module.exports = {
       edgeToEdgeEnabled: true,
       package: process.env.ANDROID_PACKAGE || 'com.brcarszw.techtracer',
       versionCode: parseInt(process.env.ANDROID_VERSION_CODE || '2', 10),
+      compileSdkVersion: 35,
+      targetSdkVersion: 35,
+      minSdkVersion: 24,
       permissions: [
         'USE_BIOMETRIC',
         'USE_FINGERPRINT',
@@ -69,6 +72,11 @@ module.exports = {
         'READ_MEDIA_VIDEO',
         'READ_MEDIA_AUDIO',
       ],
+      blockedPermissions: [
+        'ACCESS_FINE_LOCATION',
+        'ACCESS_COARSE_LOCATION',
+        'ACCESS_BACKGROUND_LOCATION',
+      ],
       intentFilters: [
         {
           action: 'VIEW',
@@ -81,6 +89,10 @@ module.exports = {
         },
       ],
       jsEngine: 'hermes',
+      enableProguardInReleaseBuilds: true,
+      enableShrinkResourcesInReleaseBuilds: true,
+      allowBackup: false,
+      softwareKeyboardLayoutMode: 'pan',
     },
     web: {
       favicon: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
@@ -91,6 +103,7 @@ module.exports = {
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/cppBuildConfig.plugin.cjs',
       './plugins/fbjniExclusion.plugin.cjs',
+      './plugins/androidOptimization.plugin.cjs',
       'expo-font',
       'expo-router',
       'expo-web-browser',

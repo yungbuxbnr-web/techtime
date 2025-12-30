@@ -1,9 +1,10 @@
+
 {
   "expo": {
     "name": "TechTime",
     "slug": "techtime",
     "owner": "bnr",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
     "userInterfaceStyle": "automatic",
@@ -42,6 +43,9 @@
       "edgeToEdgeEnabled": true,
       "package": "com.brcarszw.techtracer",
       "versionCode": 2,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "minSdkVersion": 24,
       "permissions": [
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
@@ -55,6 +59,11 @@
         "READ_MEDIA_IMAGES",
         "READ_MEDIA_VIDEO",
         "READ_MEDIA_AUDIO"
+      ],
+      "blockedPermissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
       ],
       "intentFilters": [
         {
@@ -70,7 +79,11 @@
           ]
         }
       ],
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResourcesInReleaseBuilds": true,
+      "allowBackup": false,
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
@@ -81,6 +94,7 @@
       "./plugins/gradleWrapperConfig.plugin.cjs",
       "./plugins/cppBuildConfig.plugin.cjs",
       "./plugins/fbjniExclusion.plugin.cjs",
+      "./plugins/androidOptimization.plugin.cjs",
       "expo-font",
       "expo-router",
       "expo-web-browser",
