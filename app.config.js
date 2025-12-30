@@ -113,6 +113,7 @@ module.exports = {
           enableBackgroundRemoteNotifications: true,
         },
       ],
+      './plugins/kotlinVersion.plugin.cjs',
       './plugins/fbjniExclusion.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/cppBuildConfig.plugin.cjs',
