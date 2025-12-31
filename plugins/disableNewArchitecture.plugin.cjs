@@ -1,25 +1,20 @@
 
 /**
- * Expo Config Plugin: Disable New Architecture
+ * Expo Config Plugin: Enable New Architecture
  * 
- * This plugin ensures the New Architecture is disabled in all relevant places
- * to fix react-native-reanimated 3.16.1 C++ compilation errors.
+ * This plugin ensures the New Architecture is ENABLED in all relevant places
+ * as required by react-native-reanimated 4.0.
  * 
- * Errors fixed:
- * - ShadowNode::Shared is deprecated (treated as error due to -Werror)
- * - react/utils/CoreFeatures.h file not found
- * 
- * Root cause: react-native-reanimated 3.16.1 is NOT compatible with RN 0.81.5
- * when New Architecture is enabled. Disabling New Architecture bypasses the
- * Fabric C++ compilation path entirely.
+ * react-native-reanimated 4.0 requires New Architecture to be enabled
+ * for proper functionality with React Native 0.81.5.
  */
 
 const { withGradleProperties, withAppBuildGradle, withPodfile } = require('@expo/config-plugins');
 
 /**
- * Ensure newArchEnabled=false in gradle.properties
+ * Ensure newArchEnabled=true in gradle.properties
  */
-const withDisabledNewArchGradleProperties = (config) => {
+const withEnabledNewArchGradleProperties = (config) => {
   return withGradleProperties(config, (config) => {
     try {
       const properties = config.modResults;
@@ -33,27 +28,27 @@ const withDisabledNewArchGradleProperties = (config) => {
         properties.splice(existingIndex, 1);
       }
       
-      // Add newArchEnabled=false
+      // Add newArchEnabled=true
       properties.push({
         type: 'property',
         key: 'newArchEnabled',
-        value: 'false',
+        value: 'true',
       });
       
-      console.log('✅ Set newArchEnabled=false in gradle.properties');
+      console.log('✅ Set newArchEnabled=true in gradle.properties');
       
       return config;
     } catch (error) {
-      console.error('⚠️ Error disabling New Architecture in gradle.properties:', error.message);
+      console.error('⚠️ Error enabling New Architecture in gradle.properties:', error.message);
       return config;
     }
   });
 };
 
 /**
- * Ensure New Architecture is disabled in app/build.gradle
+ * Ensure New Architecture is enabled in app/build.gradle
  */
-const withDisabledNewArchAppBuildGradle = (config) => {
+const withEnabledNewArchAppBuildGradle = (config) => {
   return withAppBuildGradle(config, (config) => {
     try {
       let buildGradle = config.modResults.contents;
@@ -61,21 +56,21 @@ const withDisabledNewArchAppBuildGradle = (config) => {
 
       // Check if there's a react {} block with newArchEnabled
       const reactBlockRegex = /react\s*\{[\s\S]*?\}/;
-      const newArchEnabledRegex = /newArchEnabled\s*=\s*true/g;
+      const newArchEnabledRegex = /newArchEnabled\s*=\s*false/g;
       
       if (reactBlockRegex.test(buildGradle) && newArchEnabledRegex.test(buildGradle)) {
-        // Replace newArchEnabled = true with newArchEnabled = false
-        buildGradle = buildGradle.replace(newArchEnabledRegex, 'newArchEnabled = false');
+        // Replace newArchEnabled = false with newArchEnabled = true
+        buildGradle = buildGradle.replace(newArchEnabledRegex, 'newArchEnabled = true');
         modified = true;
-        console.log('✅ Set newArchEnabled=false in app/build.gradle react {} block');
+        console.log('✅ Set newArchEnabled=true in app/build.gradle react {} block');
       }
 
       // Also check for RCT_NEW_ARCH_ENABLED in buildConfigField or other places
-      const rctNewArchRegex = /RCT_NEW_ARCH_ENABLED['"]\s*,\s*["']1["']/g;
+      const rctNewArchRegex = /RCT_NEW_ARCH_ENABLED['"]\s*,\s*["']0["']/g;
       if (rctNewArchRegex.test(buildGradle)) {
-        buildGradle = buildGradle.replace(rctNewArchRegex, 'RCT_NEW_ARCH_ENABLED", "0"');
+        buildGradle = buildGradle.replace(rctNewArchRegex, 'RCT_NEW_ARCH_ENABLED", "1"');
         modified = true;
-        console.log('✅ Set RCT_NEW_ARCH_ENABLED=0 in app/build.gradle');
+        console.log('✅ Set RCT_NEW_ARCH_ENABLED=1 in app/build.gradle');
       }
 
       if (modified) {
@@ -84,35 +79,35 @@ const withDisabledNewArchAppBuildGradle = (config) => {
 
       return config;
     } catch (error) {
-      console.error('⚠️ Error disabling New Architecture in app/build.gradle:', error.message);
+      console.error('⚠️ Error enabling New Architecture in app/build.gradle:', error.message);
       return config;
     }
   });
 };
 
 /**
- * Ensure New Architecture is disabled in iOS Podfile (if present)
+ * Ensure New Architecture is enabled in iOS Podfile (if present)
  */
-const withDisabledNewArchPodfile = (config) => {
+const withEnabledNewArchPodfile = (config) => {
   return withPodfile(config, (config) => {
     try {
       let podfile = config.modResults.contents;
       let modified = false;
 
-      // Check for :newArchEnabled => true
-      const newArchTrueRegex = /:newArchEnabled\s*=>\s*true/g;
-      if (newArchTrueRegex.test(podfile)) {
-        podfile = podfile.replace(newArchTrueRegex, ':newArchEnabled => false');
+      // Check for :newArchEnabled => false
+      const newArchFalseRegex = /:newArchEnabled\s*=>\s*false/g;
+      if (newArchFalseRegex.test(podfile)) {
+        podfile = podfile.replace(newArchFalseRegex, ':newArchEnabled => true');
         modified = true;
-        console.log('✅ Set :newArchEnabled => false in Podfile');
+        console.log('✅ Set :newArchEnabled => true in Podfile');
       }
 
-      // Check for ENV['RCT_NEW_ARCH_ENABLED'] = '1'
-      const envNewArchRegex = /ENV\['RCT_NEW_ARCH_ENABLED'\]\s*=\s*['"]1['"]/g;
+      // Check for ENV['RCT_NEW_ARCH_ENABLED'] = '0'
+      const envNewArchRegex = /ENV\['RCT_NEW_ARCH_ENABLED'\]\s*=\s*['"]0['"]/g;
       if (envNewArchRegex.test(podfile)) {
-        podfile = podfile.replace(envNewArchRegex, "ENV['RCT_NEW_ARCH_ENABLED'] = '0'");
+        podfile = podfile.replace(envNewArchRegex, "ENV['RCT_NEW_ARCH_ENABLED'] = '1'");
         modified = true;
-        console.log('✅ Set RCT_NEW_ARCH_ENABLED=0 in Podfile');
+        console.log('✅ Set RCT_NEW_ARCH_ENABLED=1 in Podfile');
       }
 
       if (modified) {
@@ -121,7 +116,7 @@ const withDisabledNewArchPodfile = (config) => {
 
       return config;
     } catch (error) {
-      console.error('⚠️ Error disabling New Architecture in Podfile:', error.message);
+      console.error('⚠️ Error enabling New Architecture in Podfile:', error.message);
       return config;
     }
   });
@@ -130,17 +125,17 @@ const withDisabledNewArchPodfile = (config) => {
 /**
  * Main plugin function
  */
-const withDisableNewArchitecture = (config) => {
-  // Disable in gradle.properties
-  config = withDisabledNewArchGradleProperties(config);
+const withEnableNewArchitecture = (config) => {
+  // Enable in gradle.properties
+  config = withEnabledNewArchGradleProperties(config);
   
-  // Disable in app/build.gradle
-  config = withDisabledNewArchAppBuildGradle(config);
+  // Enable in app/build.gradle
+  config = withEnabledNewArchAppBuildGradle(config);
   
-  // Disable in Podfile (iOS)
-  config = withDisabledNewArchPodfile(config);
+  // Enable in Podfile (iOS)
+  config = withEnabledNewArchPodfile(config);
 
   return config;
 };
 
-module.exports = withDisableNewArchitecture;
+module.exports = withEnableNewArchitecture;
