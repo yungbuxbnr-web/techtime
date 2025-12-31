@@ -25,6 +25,7 @@ module.exports = {
     icon: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
     userInterfaceStyle: 'automatic',
     newArchEnabled: false,
+    scheme: 'techtime',
     splash: {
       image: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
       resizeMode: 'contain',
@@ -135,7 +136,6 @@ module.exports = {
         },
       ],
     ],
-    scheme: 'techtime',
     experiments: {
       typedRoutes: true,
     },

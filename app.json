@@ -1,13 +1,15 @@
+
 {
   "expo": {
     "name": "TechTime",
-    "slug": "TechTime",
+    "slug": "techtime",
     "owner": "bnr",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "scheme": "techtime",
     "splash": {
       "image": "./assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png",
       "resizeMode": "contain",
@@ -121,7 +123,6 @@
         }
       ]
     ],
-    "scheme": "techtime",
     "experiments": {
       "typedRoutes": true
     },
@@ -130,6 +131,5 @@
         "origin": false
       }
     }
-  },
-  "scheme": "TechTime"
+  }
 }
