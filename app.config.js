@@ -102,7 +102,7 @@ module.exports = {
       bundler: 'metro',
     },
     plugins: [
-      './plugins/disableNewArchitecture.plugin.cjs',
+      './plugins/enableNewArchitecture.plugin.cjs',
       './plugins/fixReactExtension.plugin.cjs',
       './plugins/kotlinVersion.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
