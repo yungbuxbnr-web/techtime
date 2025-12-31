@@ -24,7 +24,7 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
+    newArchEnabled: false,
     splash: {
       image: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
       resizeMode: 'contain',
@@ -46,6 +46,7 @@ module.exports = {
         UIBackgroundModes: ['fetch', 'remote-notification', 'processing'],
       },
       jsEngine: 'hermes',
+      newArchEnabled: false,
     },
     android: {
       adaptiveIcon: {
@@ -93,12 +94,14 @@ module.exports = {
       enableShrinkResourcesInReleaseBuilds: true,
       allowBackup: false,
       softwareKeyboardLayoutMode: 'pan',
+      newArchEnabled: false,
     },
     web: {
       favicon: './assets/images/5c3d6d8a-b297-4144-9fb0-3bacfdd1857a.png',
       bundler: 'metro',
     },
     plugins: [
+      './plugins/disableNewArchitecture.plugin.cjs',
       './plugins/fixReactExtension.plugin.cjs',
       './plugins/kotlinVersion.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
