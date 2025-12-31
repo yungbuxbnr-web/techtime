@@ -99,6 +99,7 @@ module.exports = {
       bundler: 'metro',
     },
     plugins: [
+      './plugins/fixReactExtension.plugin.cjs',
       './plugins/kotlinVersion.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/cppBuildConfig.plugin.cjs',
