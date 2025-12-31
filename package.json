@@ -166,6 +166,12 @@
       "@types/react": "~18.3.12",
       "react-native-reanimated": "~4.0.0",
       "expo-router": "~4.0.0"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+      }
     }
   },
   "private": true
