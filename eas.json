@@ -1,3 +1,4 @@
+
 {
   "cli": {
     "version": ">= 14.0.0",
@@ -13,10 +14,12 @@
       },
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
+        "gradleCommand": ":app:assembleDebug",
+        "withoutCredentials": true
       },
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "preview": {
@@ -30,7 +33,8 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "production": {
@@ -43,7 +47,8 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "production-aab": {

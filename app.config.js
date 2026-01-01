@@ -128,6 +128,7 @@ module.exports = {
         },
       ],
       './plugins/kotlinVersion.plugin.cjs',
+      './plugins/kspVersion.plugin.cjs',
       './plugins/enableNewArchitecture.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/cppBuildConfig.plugin.cjs',
