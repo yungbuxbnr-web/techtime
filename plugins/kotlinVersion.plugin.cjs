@@ -1,13 +1,14 @@
 
-const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
-
 /**
- * Expo Config Plugin to set Kotlin version to 2.0.21
+ * Expo Config Plugin: Set Kotlin Version to 2.0.21
  * 
- * This plugin ensures the correct Kotlin version is used to be compatible with KSP.
+ * This plugin ensures the correct Kotlin version is used throughout the project
+ * to be compatible with KSP 2.0.21-1.0.28.
  * 
- * Supported Kotlin versions: 2.2.20, 2.2.10, 2.2.0, 2.1.21, 2.1.20, 2.1.10, 2.1.0, 2.0.21, 2.0.20, 2.0.10, 2.0.0
+ * Supported Kotlin versions for KSP 2.0.21-1.0.28: 2.0.21, 2.0.20, 2.0.10, 2.0.0
  */
+
+const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 
 const KOTLIN_VERSION = '2.0.21';
 
@@ -45,6 +46,15 @@ const withKotlinGradleProperties = (config) => {
         value: KOTLIN_VERSION,
       });
       
+      // Prevent Kotlin auto-upgrade
+      properties.push({
+        type: 'property',
+        key: 'kotlin.stdlib.default.dependency',
+        value: 'false',
+      });
+      
+      console.log(`✅ Kotlin version set to ${KOTLIN_VERSION} in gradle.properties`);
+      
       return config;
     } catch (error) {
       console.error('⚠️ Error configuring Kotlin version in gradle.properties:', error.message);
@@ -64,7 +74,7 @@ const withKotlinBuildGradle = (config) => {
 
       // Ensure buildscript block exists
       if (!buildGradle.includes('buildscript {')) {
-        console.warn('⚠️ No buildscript block found in build.gradle');
+        console.warn('⚠️ No buildscript block found in build.gradle - skipping Kotlin plugin configuration');
         return config;
       }
 
@@ -111,6 +121,7 @@ const withKotlinBuildGradle = (config) => {
 
       if (modified) {
         config.modResults.contents = buildGradle;
+        console.log('✅ Kotlin version configured in build.gradle');
       }
 
       return config;
@@ -122,7 +133,7 @@ const withKotlinBuildGradle = (config) => {
 };
 
 /**
- * Main plugin function - wrapped in try-catch for safety
+ * Main plugin function
  */
 const withKotlinVersion = (config) => {
   try {

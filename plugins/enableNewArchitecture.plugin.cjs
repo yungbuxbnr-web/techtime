@@ -2,8 +2,10 @@
 /**
  * Expo Config Plugin: Enable New Architecture
  * 
- * This plugin ensures the New Architecture is ENABLED in all relevant places
+ * This plugin ensures the New Architecture is ENABLED in gradle.properties
  * as required by react-native-reanimated 4.1.
+ * 
+ * CRITICAL: This must be enabled for the app to work properly.
  */
 
 const { withGradleProperties } = require('@expo/config-plugins');
@@ -29,23 +31,26 @@ const withEnabledNewArchGradleProperties = (config) => {
         properties.splice(index, 1);
       });
       
-      // Add newArchEnabled=true
+      // Add newArchEnabled=true at the end
       properties.push({
         type: 'property',
         key: 'newArchEnabled',
         value: 'true',
       });
       
+      console.log('✅ New Architecture enabled in gradle.properties');
+      
       return config;
     } catch (error) {
-      console.error('⚠️ Error enabling New Architecture in gradle.properties:', error.message);
+      console.error('⚠️ Error enabling New Architecture:', error.message);
+      // Return config anyway to prevent build failure
       return config;
     }
   });
 };
 
 /**
- * Main plugin function - wrapped in try-catch for safety
+ * Main plugin function
  */
 const withEnableNewArchitecture = (config) => {
   try {
@@ -53,6 +58,7 @@ const withEnableNewArchitecture = (config) => {
     return config;
   } catch (error) {
     console.error('⚠️ Critical error in New Architecture plugin:', error.message);
+    // Return config anyway to prevent build failure
     return config;
   }
 };

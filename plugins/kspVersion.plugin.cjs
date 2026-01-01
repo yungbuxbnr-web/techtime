@@ -1,12 +1,14 @@
 
-const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
-
 /**
- * Expo Config Plugin to enforce KSP version 2.0.21-1.0.28
+ * Expo Config Plugin: Enforce KSP Version 2.0.21-1.0.28
  * 
  * This plugin ensures the correct KSP version is used to match Kotlin 2.0.21
  * and prevents Gradle from pulling in incompatible versions.
+ * 
+ * KSP 2.0.21-1.0.28 is compatible with Kotlin 2.0.21, 2.0.20, 2.0.10, 2.0.0
  */
+
+const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 
 const KSP_VERSION = '2.0.21-1.0.28';
 
@@ -38,6 +40,8 @@ const withKspGradleProperties = (config) => {
         value: KSP_VERSION,
       });
       
+      console.log(`✅ KSP version set to ${KSP_VERSION} in gradle.properties`);
+      
       return config;
     } catch (error) {
       console.error('⚠️ Error configuring KSP version in gradle.properties:', error.message);
@@ -57,7 +61,7 @@ const withKspProjectBuildGradle = (config) => {
 
       // Ensure buildscript block exists
       if (!buildGradle.includes('buildscript {')) {
-        console.warn('⚠️ No buildscript block found in build.gradle');
+        console.warn('⚠️ No buildscript block found in build.gradle - skipping KSP plugin configuration');
         return config;
       }
 
@@ -71,6 +75,7 @@ const withKspProjectBuildGradle = (config) => {
           'classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")'
         );
         modified = true;
+        console.log('✅ Updated existing KSP plugin to use $kspVersion variable');
       } else {
         // Add KSP plugin if not present
         const dependenciesRegex = /(buildscript\s*\{[\s\S]*?dependencies\s*\{)/;
@@ -80,6 +85,7 @@ const withKspProjectBuildGradle = (config) => {
             `$1\n        classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")`
           );
           modified = true;
+          console.log('✅ Added KSP plugin to build.gradle');
         }
       }
 
@@ -96,7 +102,7 @@ const withKspProjectBuildGradle = (config) => {
 };
 
 /**
- * Main plugin function - wrapped in try-catch for safety
+ * Main plugin function
  */
 const withKspVersion = (config) => {
   try {
