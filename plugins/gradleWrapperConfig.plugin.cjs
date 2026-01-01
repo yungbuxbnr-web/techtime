@@ -6,6 +6,7 @@ const { withGradleProperties } = require('@expo/config-plugins');
  * Detects CI environment and applies appropriate settings to prevent cache locking
  * 
  * This plugin is designed to be safe and never throw errors during config generation
+ * IMPORTANT: This plugin does NOT set newArchEnabled or kotlinVersion - those are handled by dedicated plugins
  */
 const withGradleWrapperConfig = (config) => {
   try {
@@ -36,7 +37,7 @@ const withGradleWrapperConfig = (config) => {
 
         // Memory settings for Gradle - increased for react-native-reanimated
         const memorySettings = [
-          { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx6144m -XX:MaxMetaspaceSize=1536m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseG1GC' },
+          { type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx6144m -XX:MaxMetaspaceSize=1536m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseG1GC -XX:ReservedCodeCacheSize=512m' },
         ];
 
         // CI-specific settings: Disable daemons and parallel builds to prevent cache locking
@@ -55,19 +56,25 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'org.gradle.daemon.idletimeout', value: '3600000' },
         ];
 
-        // React Native and Reanimated specific settings
+        // React Native specific settings (NOT including newArchEnabled - that's in enableNewArchitecture.plugin.cjs)
         const rnSettings = [
           { type: 'property', key: 'android.useAndroidX', value: 'true' },
           { type: 'property', key: 'android.enableJetifier', value: 'true' },
           { type: 'property', key: 'hermesEnabled', value: 'true' },
-          { type: 'property', key: 'newArchEnabled', value: 'true' },
         ];
 
         const allSettings = [...networkSettings, ...memorySettings, ...ciSettings, ...rnSettings];
 
-        // Remove existing settings to avoid duplicates
+        // Remove existing settings to avoid duplicates (but preserve newArchEnabled and kotlinVersion)
         config.modResults = config.modResults.filter(
-          item => !allSettings.some(setting => setting.key === item.key)
+          item => {
+            // Keep newArchEnabled and kotlinVersion - they're managed by other plugins
+            if (item.key === 'newArchEnabled' || item.key === 'kotlinVersion' || item.key === 'kotlin.version') {
+              return true;
+            }
+            // Remove if we're about to set it
+            return !allSettings.some(setting => setting.key === item.key);
+          }
         );
 
         // Add all settings

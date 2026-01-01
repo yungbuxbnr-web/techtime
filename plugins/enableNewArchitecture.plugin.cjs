@@ -20,13 +20,17 @@ const withEnabledNewArchGradleProperties = (config) => {
       const properties = config.modResults;
       
       // Remove any existing newArchEnabled property
-      const existingIndex = properties.findIndex(
-        (prop) => prop.type === 'property' && prop.key === 'newArchEnabled'
-      );
+      const existingIndices = [];
+      properties.forEach((prop, index) => {
+        if (prop.type === 'property' && prop.key === 'newArchEnabled') {
+          existingIndices.push(index);
+        }
+      });
       
-      if (existingIndex >= 0) {
-        properties.splice(existingIndex, 1);
-      }
+      // Remove in reverse order to maintain indices
+      existingIndices.reverse().forEach(index => {
+        properties.splice(index, 1);
+      });
       
       // Add newArchEnabled=true
       properties.push({

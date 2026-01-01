@@ -23,23 +23,33 @@ const withKotlinGradleProperties = (config) => {
     try {
       const properties = config.modResults;
       
-      // Remove any existing kotlinVersion property
-      const existingIndex = properties.findIndex(
-        (prop) => prop.type === 'property' && prop.key === 'kotlinVersion'
-      );
+      // Remove any existing kotlinVersion or kotlin.version properties
+      const existingIndices = [];
+      properties.forEach((prop, index) => {
+        if (prop.type === 'property' && (prop.key === 'kotlinVersion' || prop.key === 'kotlin.version')) {
+          existingIndices.push(index);
+        }
+      });
       
-      if (existingIndex >= 0) {
-        properties.splice(existingIndex, 1);
-      }
+      // Remove in reverse order to maintain indices
+      existingIndices.reverse().forEach(index => {
+        properties.splice(index, 1);
+      });
       
-      // Add kotlinVersion property
+      // Add both kotlinVersion and kotlin.version for maximum compatibility
       properties.push({
         type: 'property',
         key: 'kotlinVersion',
         value: KOTLIN_VERSION,
       });
       
-      console.log(`✅ Set kotlinVersion to ${KOTLIN_VERSION} in gradle.properties`);
+      properties.push({
+        type: 'property',
+        key: 'kotlin.version',
+        value: KOTLIN_VERSION,
+      });
+      
+      console.log(`✅ Set kotlinVersion and kotlin.version to ${KOTLIN_VERSION} in gradle.properties`);
       
       return config;
     } catch (error) {
@@ -82,7 +92,7 @@ const withKotlinBuildGradle = (config) => {
           // ext exists but no kotlinVersion, add it
           buildGradle = buildGradle.replace(
             /ext\s*\{/,
-            `ext {\n    kotlinVersion = "${KOTLIN_VERSION}"`
+            `ext {\n        kotlinVersion = "${KOTLIN_VERSION}"`
           );
           modified = true;
           console.log(`✅ Added kotlinVersion ${KOTLIN_VERSION} to existing ext block`);
@@ -91,7 +101,7 @@ const withKotlinBuildGradle = (config) => {
         // No ext block, create one
         buildGradle = buildGradle.replace(
           buildscriptRegex,
-          `buildscript {\n  ext {\n    kotlinVersion = "${KOTLIN_VERSION}"\n  }`
+          `buildscript {\n    ext {\n        kotlinVersion = "${KOTLIN_VERSION}"\n    }`
         );
         modified = true;
         console.log(`✅ Created ext block with kotlinVersion ${KOTLIN_VERSION}`);
@@ -122,15 +132,6 @@ const withKotlinBuildGradle = (config) => {
 
       if (pluginUpdated) {
         console.log('✅ Updated kotlin-gradle-plugin to use $kotlinVersion variable');
-      } else {
-        console.warn('⚠️ Could not find kotlin-gradle-plugin classpath to update');
-      }
-
-      // Step 3: Ensure we're not using any hardcoded Kotlin versions elsewhere
-      const hardcodedKotlinRegex = /["']1\.\d+\.\d+["']/g;
-      const matches = buildGradle.match(hardcodedKotlinRegex);
-      if (matches && matches.length > 0) {
-        console.warn('⚠️ Found potential hardcoded Kotlin versions:', matches);
       }
 
       if (modified) {
