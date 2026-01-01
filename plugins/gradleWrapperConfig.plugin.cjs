@@ -47,6 +47,8 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'org.gradle.configureondemand', value: 'false' },
           { type: 'property', key: 'org.gradle.caching', value: 'false' },
           { type: 'property', key: 'org.gradle.vfs.watch', value: 'false' },
+          { type: 'property', key: 'org.gradle.configuration-cache', value: 'false' },
+          { type: 'property', key: 'org.gradle.unsafe.configuration-cache', value: 'false' },
         ] : [
           // Local development settings: Enable daemons for faster builds
           { type: 'property', key: 'org.gradle.daemon', value: 'true' },
@@ -54,6 +56,9 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'org.gradle.configureondemand', value: 'true' },
           { type: 'property', key: 'org.gradle.caching', value: 'true' },
           { type: 'property', key: 'org.gradle.daemon.idletimeout', value: '3600000' },
+          // DISABLE configuration cache - it can cause "failed to configure project" errors
+          { type: 'property', key: 'org.gradle.configuration-cache', value: 'false' },
+          { type: 'property', key: 'org.gradle.unsafe.configuration-cache', value: 'false' },
         ];
 
         // React Native specific settings (NOT including newArchEnabled - that's in enableNewArchitecture.plugin.cjs)

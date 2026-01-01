@@ -102,15 +102,8 @@ module.exports = {
       bundler: 'metro',
     },
     plugins: [
-      './plugins/enableNewArchitecture.plugin.cjs',
-      './plugins/kotlinVersion.plugin.cjs',
-      './plugins/gradleWrapperConfig.plugin.cjs',
-      './plugins/cppBuildConfig.plugin.cjs',
-      './plugins/fbjniExclusion.plugin.cjs',
-      './plugins/androidOptimization.plugin.cjs',
       'expo-font',
       'expo-router',
-      'expo-web-browser',
       [
         'expo-local-authentication',
         {
@@ -134,6 +127,13 @@ module.exports = {
           enableBackgroundRemoteNotifications: true,
         },
       ],
+      './plugins/kotlinVersion.plugin.cjs',
+      './plugins/enableNewArchitecture.plugin.cjs',
+      './plugins/gradleWrapperConfig.plugin.cjs',
+      './plugins/cppBuildConfig.plugin.cjs',
+      './plugins/fbjniExclusion.plugin.cjs',
+      './plugins/androidOptimization.plugin.cjs',
+      './plugins/fixReactExtension.plugin.cjs',
     ],
     experiments: {
       typedRoutes: true,

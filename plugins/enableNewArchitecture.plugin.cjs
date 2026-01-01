@@ -6,7 +6,7 @@
  * as required by react-native-reanimated 4.0.
  * 
  * react-native-reanimated 4.0 requires New Architecture to be enabled
- * for proper functionality with React Native 0.81.5.
+ * for proper functionality with React Native 0.76.6.
  */
 
 const { withGradleProperties, withAppBuildGradle, withPodfile } = require('@expo/config-plugins');
@@ -127,19 +127,24 @@ const withEnabledNewArchPodfile = (config) => {
 };
 
 /**
- * Main plugin function
+ * Main plugin function - wrapped in try-catch for safety
  */
 const withEnableNewArchitecture = (config) => {
-  // Enable in gradle.properties
-  config = withEnabledNewArchGradleProperties(config);
-  
-  // Enable in app/build.gradle
-  config = withEnabledNewArchAppBuildGradle(config);
-  
-  // Enable in Podfile (iOS)
-  config = withEnabledNewArchPodfile(config);
+  try {
+    // Enable in gradle.properties
+    config = withEnabledNewArchGradleProperties(config);
+    
+    // Enable in app/build.gradle
+    config = withEnabledNewArchAppBuildGradle(config);
+    
+    // Enable in Podfile (iOS)
+    config = withEnabledNewArchPodfile(config);
 
-  return config;
+    return config;
+  } catch (error) {
+    console.error('⚠️ Critical error in New Architecture plugin:', error.message);
+    return config;
+  }
 };
 
 module.exports = withEnableNewArchitecture;

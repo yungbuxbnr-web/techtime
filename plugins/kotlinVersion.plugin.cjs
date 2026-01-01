@@ -147,16 +147,21 @@ const withKotlinBuildGradle = (config) => {
 };
 
 /**
- * Main plugin function
+ * Main plugin function - wrapped in try-catch for safety
  */
 const withKotlinVersion = (config) => {
-  // First set in gradle.properties
-  config = withKotlinGradleProperties(config);
-  
-  // Then configure build.gradle
-  config = withKotlinBuildGradle(config);
+  try {
+    // First set in gradle.properties
+    config = withKotlinGradleProperties(config);
+    
+    // Then configure build.gradle
+    config = withKotlinBuildGradle(config);
 
-  return config;
+    return config;
+  } catch (error) {
+    console.error('⚠️ Critical error in Kotlin version plugin:', error.message);
+    return config;
+  }
 };
 
 module.exports = withKotlinVersion;
