@@ -1,5 +1,5 @@
 
-const { withProjectBuildGradle, withSettingsGradle } = require('@expo/config-plugins');
+const { withProjectBuildGradle, withSettingsGradle, withGradleProperties } = require('@expo/config-plugins');
 
 /**
  * Expo Config Plugin to enforce KSP version 2.0.21-1.0.28
@@ -12,7 +12,45 @@ const KOTLIN_VERSION = '2.0.21';
 const KSP_VERSION = '2.0.21-1.0.28';
 
 /**
- * Modify project-level build.gradle to enforce KSP version
+ * Add KSP version to gradle.properties
+ */
+const withKspGradleProperties = (config) => {
+  return withGradleProperties(config, (config) => {
+    try {
+      const properties = config.modResults;
+      
+      // Remove any existing kspVersion property
+      const existingIndices = [];
+      properties.forEach((prop, index) => {
+        if (prop.type === 'property' && prop.key === 'kspVersion') {
+          existingIndices.push(index);
+        }
+      });
+      
+      // Remove in reverse order to maintain indices
+      existingIndices.reverse().forEach(index => {
+        properties.splice(index, 1);
+      });
+      
+      // Add kspVersion
+      properties.push({
+        type: 'property',
+        key: 'kspVersion',
+        value: KSP_VERSION,
+      });
+      
+      console.log(`✅ Set kspVersion to ${KSP_VERSION} in gradle.properties`);
+      
+      return config;
+    } catch (error) {
+      console.error('⚠️ Error configuring KSP version in gradle.properties:', error.message);
+      return config;
+    }
+  });
+};
+
+/**
+ * Modify project-level build.gradle to use KSP version
  */
 const withKspProjectBuildGradle = (config) => {
   return withProjectBuildGradle(config, (config) => {
@@ -26,27 +64,27 @@ const withKspProjectBuildGradle = (config) => {
         return config;
       }
 
-      // Add or update KSP plugin in dependencies
+      // Add or update KSP plugin in dependencies using the variable
       const kspPluginRegex = /classpath\s*\(\s*["']com\.google\.devtools\.ksp:com\.google\.devtools\.ksp\.gradle\.plugin:[^"']+["']\s*\)/g;
       
       if (kspPluginRegex.test(buildGradle)) {
-        // Update existing KSP plugin
+        // Update existing KSP plugin to use variable
         buildGradle = buildGradle.replace(
           kspPluginRegex,
-          `classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:${KSP_VERSION}")`
+          'classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")'
         );
         modified = true;
-        console.log(`✅ Updated KSP plugin to version ${KSP_VERSION}`);
+        console.log('✅ Updated KSP plugin to use $kspVersion variable');
       } else {
         // Add KSP plugin if not present
         const dependenciesRegex = /(buildscript\s*\{[\s\S]*?dependencies\s*\{)/;
         if (dependenciesRegex.test(buildGradle)) {
           buildGradle = buildGradle.replace(
             dependenciesRegex,
-            `$1\n        classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:${KSP_VERSION}")`
+            `$1\n        classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")`
           );
           modified = true;
-          console.log(`✅ Added KSP plugin version ${KSP_VERSION}`);
+          console.log('✅ Added KSP plugin with $kspVersion variable');
         }
       }
 
@@ -63,79 +101,15 @@ const withKspProjectBuildGradle = (config) => {
 };
 
 /**
- * Modify settings.gradle to enforce KSP version in plugin management
- */
-const withKspSettingsGradle = (config) => {
-  return withSettingsGradle(config, (config) => {
-    try {
-      let settingsGradle = config.modResults.contents;
-      let modified = false;
-
-      // Check if pluginManagement block exists
-      const pluginManagementRegex = /pluginManagement\s*\{/;
-      
-      if (pluginManagementRegex.test(settingsGradle)) {
-        // Check if resolutionStrategy exists
-        const resolutionStrategyRegex = /pluginManagement\s*\{[\s\S]*?resolutionStrategy\s*\{/;
-        
-        if (resolutionStrategyRegex.test(settingsGradle)) {
-          // Check if eachPlugin exists
-          const eachPluginRegex = /resolutionStrategy\s*\{[\s\S]*?eachPlugin\s*\{/;
-          
-          if (eachPluginRegex.test(settingsGradle)) {
-            // Add KSP version enforcement inside eachPlugin
-            const kspEnforcementCode = `
-                if (requested.id.id == "com.google.devtools.ksp") {
-                    useVersion("${KSP_VERSION}")
-                }`;
-            
-            if (!settingsGradle.includes('com.google.devtools.ksp')) {
-              settingsGradle = settingsGradle.replace(
-                /eachPlugin\s*\{/,
-                `eachPlugin {${kspEnforcementCode}`
-              );
-              modified = true;
-              console.log(`✅ Added KSP version enforcement in settings.gradle`);
-            }
-          } else {
-            // Add eachPlugin block
-            settingsGradle = settingsGradle.replace(
-              /resolutionStrategy\s*\{/,
-              `resolutionStrategy {
-        eachPlugin {
-            if (requested.id.id == "com.google.devtools.ksp") {
-                useVersion("${KSP_VERSION}")
-            }
-        }`
-            );
-            modified = true;
-            console.log(`✅ Added eachPlugin block with KSP version enforcement`);
-          }
-        }
-      }
-
-      if (modified) {
-        config.modResults.contents = settingsGradle;
-      }
-
-      return config;
-    } catch (error) {
-      console.error('⚠️ Error configuring KSP version in settings.gradle:', error.message);
-      return config;
-    }
-  });
-};
-
-/**
  * Main plugin function - wrapped in try-catch for safety
  */
 const withKspVersion = (config) => {
   try {
-    // Configure in build.gradle
-    config = withKspProjectBuildGradle(config);
+    // First set in gradle.properties
+    config = withKspGradleProperties(config);
     
-    // Configure in settings.gradle
-    config = withKspSettingsGradle(config);
+    // Then configure build.gradle
+    config = withKspProjectBuildGradle(config);
 
     return config;
   } catch (error) {

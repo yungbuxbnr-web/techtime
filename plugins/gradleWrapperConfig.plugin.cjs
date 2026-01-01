@@ -66,15 +66,20 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'android.useAndroidX', value: 'true' },
           { type: 'property', key: 'android.enableJetifier', value: 'true' },
           { type: 'property', key: 'hermesEnabled', value: 'true' },
+          // Prevent Kotlin auto-upgrade
+          { type: 'property', key: 'kotlin.stdlib.default.dependency', value: 'false' },
         ];
 
         const allSettings = [...networkSettings, ...memorySettings, ...ciSettings, ...rnSettings];
 
-        // Remove existing settings to avoid duplicates (but preserve newArchEnabled and kotlinVersion)
+        // Remove existing settings to avoid duplicates (but preserve newArchEnabled, kotlinVersion, and kspVersion)
         config.modResults = config.modResults.filter(
           item => {
-            // Keep newArchEnabled and kotlinVersion - they're managed by other plugins
-            if (item.key === 'newArchEnabled' || item.key === 'kotlinVersion' || item.key === 'kotlin.version') {
+            // Keep newArchEnabled, kotlinVersion, kotlin.version, and kspVersion - they're managed by other plugins
+            if (item.key === 'newArchEnabled' || 
+                item.key === 'kotlinVersion' || 
+                item.key === 'kotlin.version' ||
+                item.key === 'kspVersion') {
               return true;
             }
             // Remove if we're about to set it
