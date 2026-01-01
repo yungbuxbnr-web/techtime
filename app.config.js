@@ -103,7 +103,6 @@ module.exports = {
     },
     plugins: [
       './plugins/enableNewArchitecture.plugin.cjs',
-      './plugins/fixReactExtension.plugin.cjs',
       './plugins/kotlinVersion.plugin.cjs',
       './plugins/gradleWrapperConfig.plugin.cjs',
       './plugins/cppBuildConfig.plugin.cjs',
