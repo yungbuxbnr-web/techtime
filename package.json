@@ -1,8 +1,7 @@
-
 {
   "name": "techtime",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "engines": {
     "node": ">=18 <23"
   },
