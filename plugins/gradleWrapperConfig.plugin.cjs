@@ -6,7 +6,6 @@ const { withGradleProperties } = require('@expo/config-plugins');
  * Detects CI environment and applies appropriate settings to prevent cache locking
  * 
  * This plugin is designed to be safe and never throw errors during config generation
- * IMPORTANT: This plugin does NOT set newArchEnabled or kotlinVersion - those are handled by dedicated plugins
  */
 const withGradleWrapperConfig = (config) => {
   try {
@@ -21,11 +20,6 @@ const withGradleWrapperConfig = (config) => {
             process.env.EAS_BUILD === 'true' || 
             process.env.CONTINUOUS_INTEGRATION === 'true'
           )) || false;
-
-        // Only log in non-CI environments to avoid polluting build logs
-        if (!isCI && typeof console !== 'undefined' && console.log) {
-          console.log(`🔧 Configuring Gradle for ${isCI ? 'CI' : 'local'} environment`);
-        }
 
         // Network timeout settings for better reliability
         const networkSettings = [
@@ -49,6 +43,7 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'org.gradle.vfs.watch', value: 'false' },
           { type: 'property', key: 'org.gradle.configuration-cache', value: 'false' },
           { type: 'property', key: 'org.gradle.unsafe.configuration-cache', value: 'false' },
+          { type: 'property', key: 'org.gradle.configuration-cache.problems', value: 'warn' },
         ] : [
           // Local development settings: Enable daemons for faster builds
           { type: 'property', key: 'org.gradle.daemon', value: 'true' },
@@ -56,12 +51,13 @@ const withGradleWrapperConfig = (config) => {
           { type: 'property', key: 'org.gradle.configureondemand', value: 'true' },
           { type: 'property', key: 'org.gradle.caching', value: 'true' },
           { type: 'property', key: 'org.gradle.daemon.idletimeout', value: '3600000' },
-          // DISABLE configuration cache - it can cause "failed to configure project" errors
+          // CRITICAL: DISABLE configuration cache - it causes "failed to configure project" errors
           { type: 'property', key: 'org.gradle.configuration-cache', value: 'false' },
           { type: 'property', key: 'org.gradle.unsafe.configuration-cache', value: 'false' },
+          { type: 'property', key: 'org.gradle.configuration-cache.problems', value: 'warn' },
         ];
 
-        // React Native specific settings (NOT including newArchEnabled - that's in enableNewArchitecture.plugin.cjs)
+        // React Native specific settings
         const rnSettings = [
           { type: 'property', key: 'android.useAndroidX', value: 'true' },
           { type: 'property', key: 'android.enableJetifier', value: 'true' },
@@ -90,25 +86,14 @@ const withGradleWrapperConfig = (config) => {
         // Add all settings
         config.modResults.push(...allSettings);
 
-        // Only log in non-CI environments
-        if (!isCI && typeof console !== 'undefined' && console.log) {
-          console.log('✅ Gradle configuration applied successfully');
-        }
-
         return config;
       } catch (innerError) {
-        // If there's an error in the inner function, log it and return the config unchanged
-        if (typeof console !== 'undefined' && console.error) {
-          console.error('⚠️ Error in Gradle plugin inner function:', innerError.message);
-        }
+        console.error('⚠️ Error in Gradle plugin inner function:', innerError.message);
         return config;
       }
     });
   } catch (outerError) {
-    // If there's an error in the outer function, log it and return the config unchanged
-    if (typeof console !== 'undefined' && console.error) {
-      console.error('⚠️ Error in Gradle plugin outer function:', outerError.message);
-    }
+    console.error('⚠️ Error in Gradle plugin outer function:', outerError.message);
     return config;
   }
 };

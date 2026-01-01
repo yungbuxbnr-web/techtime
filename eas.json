@@ -20,7 +20,8 @@
       "env": {
         "NODE_ENV": "development",
         "EXPO_NO_DOTENV": "1",
-        "EXPO_NO_TELEMETRY": "1"
+        "EXPO_NO_TELEMETRY": "1",
+        "GRADLE_OPTS": "-Dorg.gradle.configuration-cache=false -Dorg.gradle.unsafe.configuration-cache=false"
       }
     },
     "preview": {
@@ -36,7 +37,8 @@
       "env": {
         "NODE_ENV": "production",
         "EXPO_NO_DOTENV": "1",
-        "EXPO_NO_TELEMETRY": "1"
+        "EXPO_NO_TELEMETRY": "1",
+        "GRADLE_OPTS": "-Dorg.gradle.configuration-cache=false -Dorg.gradle.unsafe.configuration-cache=false"
       }
     },
     "production": {
@@ -51,7 +53,8 @@
       "env": {
         "NODE_ENV": "production",
         "EXPO_NO_DOTENV": "1",
-        "EXPO_NO_TELEMETRY": "1"
+        "EXPO_NO_TELEMETRY": "1",
+        "GRADLE_OPTS": "-Dorg.gradle.configuration-cache=false -Dorg.gradle.unsafe.configuration-cache=false"
       }
     },
     "production-aab": {

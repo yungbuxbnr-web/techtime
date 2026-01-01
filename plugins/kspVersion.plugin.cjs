@@ -1,5 +1,5 @@
 
-const { withProjectBuildGradle, withSettingsGradle, withGradleProperties } = require('@expo/config-plugins');
+const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 
 /**
  * Expo Config Plugin to enforce KSP version 2.0.21-1.0.28
@@ -8,7 +8,6 @@ const { withProjectBuildGradle, withSettingsGradle, withGradleProperties } = req
  * and prevents Gradle from pulling in incompatible versions.
  */
 
-const KOTLIN_VERSION = '2.0.21';
 const KSP_VERSION = '2.0.21-1.0.28';
 
 /**
@@ -39,8 +38,6 @@ const withKspGradleProperties = (config) => {
         value: KSP_VERSION,
       });
       
-      console.log(`✅ Set kspVersion to ${KSP_VERSION} in gradle.properties`);
-      
       return config;
     } catch (error) {
       console.error('⚠️ Error configuring KSP version in gradle.properties:', error.message);
@@ -65,7 +62,7 @@ const withKspProjectBuildGradle = (config) => {
       }
 
       // Add or update KSP plugin in dependencies using the variable
-      const kspPluginRegex = /classpath\s*\(\s*["']com\.google\.devtools\.ksp:com\.google\.devtools\.ksp\.gradle\.plugin:[^"']+["']\s*\)/g;
+      const kspPluginRegex = /classpath\s*[(\[]\s*["']com\.google\.devtools\.ksp:com\.google\.devtools\.ksp\.gradle\.plugin:[^"'\])]+["']\s*[)\]]/g;
       
       if (kspPluginRegex.test(buildGradle)) {
         // Update existing KSP plugin to use variable
@@ -74,7 +71,6 @@ const withKspProjectBuildGradle = (config) => {
           'classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")'
         );
         modified = true;
-        console.log('✅ Updated KSP plugin to use $kspVersion variable');
       } else {
         // Add KSP plugin if not present
         const dependenciesRegex = /(buildscript\s*\{[\s\S]*?dependencies\s*\{)/;
@@ -84,7 +80,6 @@ const withKspProjectBuildGradle = (config) => {
             `$1\n        classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kspVersion")`
           );
           modified = true;
-          console.log('✅ Added KSP plugin with $kspVersion variable');
         }
       }
 
@@ -105,12 +100,8 @@ const withKspProjectBuildGradle = (config) => {
  */
 const withKspVersion = (config) => {
   try {
-    // First set in gradle.properties
     config = withKspGradleProperties(config);
-    
-    // Then configure build.gradle
     config = withKspProjectBuildGradle(config);
-
     return config;
   } catch (error) {
     console.error('⚠️ Critical error in KSP version plugin:', error.message);

@@ -6,10 +6,6 @@ const { withProjectBuildGradle, withGradleProperties } = require('@expo/config-p
  * 
  * This plugin ensures the correct Kotlin version is used to be compatible with KSP.
  * 
- * Error fixed:
- * Can't find KSP version for Kotlin version '1.9.24'. 
- * You're probably using an unsupported version of Kotlin.
- * 
  * Supported Kotlin versions: 2.2.20, 2.2.10, 2.2.0, 2.1.21, 2.1.20, 2.1.10, 2.1.0, 2.0.21, 2.0.20, 2.0.10, 2.0.0
  */
 
@@ -49,8 +45,6 @@ const withKotlinGradleProperties = (config) => {
         value: KOTLIN_VERSION,
       });
       
-      console.log(`✅ Set kotlinVersion and kotlin.version to ${KOTLIN_VERSION} in gradle.properties`);
-      
       return config;
     } catch (error) {
       console.error('⚠️ Error configuring Kotlin version in gradle.properties:', error.message);
@@ -68,16 +62,16 @@ const withKotlinBuildGradle = (config) => {
       let buildGradle = config.modResults.contents;
       let modified = false;
 
-      // Step 1: Ensure ext block exists with kotlinVersion
-      const buildscriptRegex = /buildscript\s*\{/;
-      const extBlockRegex = /buildscript\s*\{[\s\S]*?ext\s*\{/;
-      const kotlinVersionInExtRegex = /ext\s*\{[\s\S]*?kotlinVersion\s*=/;
-      
-      if (!buildscriptRegex.test(buildGradle)) {
+      // Ensure buildscript block exists
+      if (!buildGradle.includes('buildscript {')) {
         console.warn('⚠️ No buildscript block found in build.gradle');
         return config;
       }
 
+      // Step 1: Ensure ext block exists with kotlinVersion
+      const extBlockRegex = /buildscript\s*\{[\s\S]*?ext\s*\{/;
+      const kotlinVersionInExtRegex = /ext\s*\{[\s\S]*?kotlinVersion\s*=/;
+      
       if (extBlockRegex.test(buildGradle)) {
         // ext block exists
         if (kotlinVersionInExtRegex.test(buildGradle)) {
@@ -87,7 +81,6 @@ const withKotlinBuildGradle = (config) => {
             `kotlinVersion = "${KOTLIN_VERSION}"`
           );
           modified = true;
-          console.log(`✅ Updated kotlinVersion to ${KOTLIN_VERSION} in ext block`);
         } else {
           // ext exists but no kotlinVersion, add it
           buildGradle = buildGradle.replace(
@@ -95,43 +88,25 @@ const withKotlinBuildGradle = (config) => {
             `ext {\n        kotlinVersion = "${KOTLIN_VERSION}"`
           );
           modified = true;
-          console.log(`✅ Added kotlinVersion ${KOTLIN_VERSION} to existing ext block`);
         }
       } else {
         // No ext block, create one
         buildGradle = buildGradle.replace(
-          buildscriptRegex,
+          /buildscript\s*\{/,
           `buildscript {\n    ext {\n        kotlinVersion = "${KOTLIN_VERSION}"\n    }`
         );
         modified = true;
-        console.log(`✅ Created ext block with kotlinVersion ${KOTLIN_VERSION}`);
       }
 
       // Step 2: Update kotlin-gradle-plugin classpath to use $kotlinVersion
-      const kotlinPluginRegexes = [
-        // Match with explicit version
-        /classpath\s*\(\s*["']org\.jetbrains\.kotlin:kotlin-gradle-plugin:[^"']+["']\s*\)/g,
-        // Match without version
-        /classpath\s*\(\s*["']org\.jetbrains\.kotlin:kotlin-gradle-plugin["']\s*\)/g,
-        // Match with single quotes
-        /classpath\s*\(\s*'org\.jetbrains\.kotlin:kotlin-gradle-plugin:[^']+'\s*\)/g,
-        /classpath\s*\(\s*'org\.jetbrains\.kotlin:kotlin-gradle-plugin'\s*\)/g,
-      ];
-
-      let pluginUpdated = false;
-      for (const regex of kotlinPluginRegexes) {
-        if (regex.test(buildGradle)) {
-          buildGradle = buildGradle.replace(
-            regex,
-            'classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")'
-          );
-          pluginUpdated = true;
-          modified = true;
-        }
-      }
-
-      if (pluginUpdated) {
-        console.log('✅ Updated kotlin-gradle-plugin to use $kotlinVersion variable');
+      const kotlinPluginRegex = /classpath\s*[(\[]\s*["']org\.jetbrains\.kotlin:kotlin-gradle-plugin:[^"'\])]+["']\s*[)\]]/g;
+      
+      if (kotlinPluginRegex.test(buildGradle)) {
+        buildGradle = buildGradle.replace(
+          kotlinPluginRegex,
+          'classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")'
+        );
+        modified = true;
       }
 
       if (modified) {
@@ -151,12 +126,8 @@ const withKotlinBuildGradle = (config) => {
  */
 const withKotlinVersion = (config) => {
   try {
-    // First set in gradle.properties
     config = withKotlinGradleProperties(config);
-    
-    // Then configure build.gradle
     config = withKotlinBuildGradle(config);
-
     return config;
   } catch (error) {
     console.error('⚠️ Critical error in Kotlin version plugin:', error.message);
