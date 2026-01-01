@@ -17,6 +17,7 @@
         "gradleCommand": ":app:assembleDebug",
         "withoutCredentials": true
       },
+      "prebuildCommand": "cross-env NODE_ENV=production expo prebuild --platform android --clean",
       "env": {
         "NODE_ENV": "development",
         "EXPO_NO_DOTENV": "1",
@@ -34,6 +35,7 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
+      "prebuildCommand": "cross-env NODE_ENV=production expo prebuild --platform android --clean",
       "env": {
         "NODE_ENV": "production",
         "EXPO_NO_DOTENV": "1",
@@ -50,6 +52,7 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
+      "prebuildCommand": "cross-env NODE_ENV=production expo prebuild --platform android --clean",
       "env": {
         "NODE_ENV": "production",
         "EXPO_NO_DOTENV": "1",
@@ -62,7 +65,8 @@
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
-      }
+      },
+      "prebuildCommand": "cross-env NODE_ENV=production expo prebuild --platform android --clean"
     }
   },
   "submit": {
