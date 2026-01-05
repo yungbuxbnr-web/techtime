@@ -3,11 +3,12 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export interface TabBarItem {
   name: string;
   route: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
 }
 
@@ -49,12 +50,11 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
             onPress={() => handlePress(tab.route)}
             activeOpacity={0.7}
           >
-            <Text style={[
-              styles.icon,
-              { color: active ? colors.primary : colors.text }
-            ]}>
-              {tab.icon === 'home' ? '🏠' : '👤'}
-            </Text>
+            <Ionicons 
+              name={tab.icon} 
+              size={24} 
+              color={active ? colors.primary : colors.text}
+            />
             <Text style={[
               styles.label,
               { color: active ? colors.primary : colors.textSecondary }
@@ -97,12 +97,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
   },
-  icon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
   label: {
     fontSize: 12,
     fontWeight: '500',
+    marginTop: 4,
   },
 });
