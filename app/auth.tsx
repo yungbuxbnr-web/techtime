@@ -23,22 +23,22 @@ export default function AuthScreen() {
 
   const handleBiometricAuth = useCallback(async () => {
     try {
-      const result = await BiometricService.authenticate('Authenticate to access Technician Records');
+      const result = await BiometricService.authenticate('Authenticate to access TechTime');
       
       if (result.success) {
         const settings = await StorageService.getSettings();
         await StorageService.saveSettings({ ...settings, isAuthenticated: true });
         showNotification('Authentication Successful', 'success');
-        console.log('Biometric authentication successful');
+        console.log('[TechTime] Biometric authentication successful');
         setTimeout(() => {
           router.replace('/dashboard');
         }, 1000);
       } else {
         showNotification(result.error || 'Biometric authentication failed. Please use PIN.', 'error');
-        console.log('Biometric authentication failed:', result.error);
+        console.log('[TechTime] Biometric authentication failed:', result.error);
       }
     } catch (error) {
-      console.log('Error during biometric authentication:', error);
+      console.log('[TechTime] Error during biometric authentication:', error);
       showNotification('Biometric authentication error. Please use PIN.', 'error');
     }
   }, []);
@@ -51,7 +51,7 @@ export default function AuthScreen() {
       if (isAvailable) {
         const types = await BiometricService.getSupportedTypes();
         setBiometricTypes(types);
-        console.log('Biometric authentication available:', types);
+        console.log('[TechTime] Biometric authentication available:', types);
         
         // Check if biometric is enabled in settings
         const settings = await StorageService.getSettings();
@@ -67,7 +67,7 @@ export default function AuthScreen() {
         }
       }
     } catch (error) {
-      console.log('Error checking biometric availability:', error);
+      console.log('[TechTime] Error checking biometric availability:', error);
     }
   }, [handleBiometricAuth, hasAttemptedBiometric]);
 
@@ -75,16 +75,16 @@ export default function AuthScreen() {
     loadSettings();
     loadTechnicianName();
     checkBiometricAvailability();
-    console.log('Auth screen loaded - Authentication required on app start');
+    console.log('[TechTime] Auth screen loaded - Authentication required on app start');
   }, [checkBiometricAvailability]);
 
   const loadSettings = async () => {
     try {
       const settings = await StorageService.getSettings();
       setCorrectPin(settings.pin);
-      console.log('Settings loaded, authentication required');
+      console.log('[TechTime] Settings loaded, authentication required');
     } catch (error) {
-      console.log('Error loading settings:', error);
+      console.log('[TechTime] Error loading settings:', error);
     }
   };
 
@@ -93,10 +93,10 @@ export default function AuthScreen() {
       const name = await StorageService.getTechnicianName();
       if (name) {
         setTechnicianName(name);
-        console.log('Technician name loaded:', name);
+        console.log('[TechTime] Technician name loaded:', name);
       }
     } catch (error) {
-      console.log('Error loading technician name:', error);
+      console.log('[TechTime] Error loading technician name:', error);
     }
   };
 
@@ -104,7 +104,7 @@ export default function AuthScreen() {
     if (pin.length < 4) {
       const newPin = pin + number;
       setPin(newPin);
-      console.log('PIN entered:', newPin.replace(/./g, '•'));
+      console.log('[TechTime] PIN entered:', newPin.replace(/./g, '•'));
       
       // Auto-submit when PIN reaches 4 digits
       if (newPin.length === 4) {
@@ -118,24 +118,24 @@ export default function AuthScreen() {
   const handleDeletePress = () => {
     const newPin = pin.slice(0, -1);
     setPin(newPin);
-    console.log('PIN after delete:', newPin.replace(/./g, '•'));
+    console.log('[TechTime] PIN after delete:', newPin.replace(/./g, '•'));
   };
 
   const handlePinSubmit = async (pinToCheck?: string) => {
     const currentPin = pinToCheck || pin;
-    console.log('Submitting PIN:', currentPin.replace(/./g, '•'), 'Expected:', correctPin.replace(/./g, '•'));
+    console.log('[TechTime] Submitting PIN:', currentPin.replace(/./g, '•'), 'Expected:', correctPin.replace(/./g, '•'));
     
     if (currentPin === correctPin) {
       try {
         const settings = await StorageService.getSettings();
         await StorageService.saveSettings({ ...settings, isAuthenticated: true });
         showNotification('Access Granted', 'success');
-        console.log('Authentication successful');
+        console.log('[TechTime] Authentication successful');
         setTimeout(() => {
           router.replace('/dashboard');
         }, 1000);
       } catch (error) {
-        console.log('Error saving authentication:', error);
+        console.log('[TechTime] Error saving authentication:', error);
         showNotification('Authentication Error', 'error');
       }
     } else {
@@ -143,7 +143,7 @@ export default function AuthScreen() {
       showNotification('Wrong PIN entered. Please try again.', 'error');
       setPin('');
       setIsShaking(true);
-      console.log('Incorrect PIN entered');
+      console.log('[TechTime] Incorrect PIN entered');
       
       // Reset shake animation after a short delay
       setTimeout(() => {
@@ -198,11 +198,12 @@ export default function AuthScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Text style={styles.title}>Technician Records</Text>
+              <Text style={styles.title}>TechTime</Text>
+              <Text style={styles.subtitle}>Technician Records – Buckston Rugge</Text>
               {technicianName ? (
-                <Text style={styles.subtitle}>{technicianName}</Text>
+                <Text style={styles.welcomeText}>Welcome back, {technicianName}</Text>
               ) : (
-                <Text style={styles.subtitle}>Welcome</Text>
+                <Text style={styles.welcomeText}>Welcome</Text>
               )}
               <Text style={styles.label}>Enter PIN</Text>
               
@@ -261,14 +262,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingBottom: 20,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 20,
+  welcomeText: {
+    fontSize: 16,
     fontWeight: '500',
     color: colors.textSecondary,
     textAlign: 'center',

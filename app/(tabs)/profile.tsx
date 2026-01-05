@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
 import { useTheme } from "@/contexts/ThemeContext";
 import { router } from "expo-router";
 import { StorageService } from "@/utils/storage";
@@ -71,10 +70,10 @@ export default function ProfileScreen() {
         setSettings(settingsData);
         setJobs(jobsData);
         setTechnicianName(name || '');
-        console.log('[Profile] Data loaded successfully');
+        console.log('[TechTime] Profile data loaded successfully');
       }
     } catch (error) {
-      console.log('[Profile] Error loading data:', error);
+      console.log('[TechTime] Error loading profile data:', error);
       if (isMounted.current) {
         showNotification('Error loading data', 'error');
       }
@@ -94,9 +93,9 @@ export default function ProfileScreen() {
       await toggleTheme();
       const newTheme = theme === 'light' ? 'dark' : 'light';
       showNotification(`Switched to ${newTheme} mode`, 'success');
-      console.log('[Profile] Theme updated to:', newTheme);
+      console.log('[TechTime] Theme updated to:', newTheme);
     } catch (error) {
-      console.log('[Profile] Error updating theme:', error);
+      console.log('[TechTime] Error updating theme:', error);
       showNotification('Error updating theme', 'error');
     }
   }, [theme, toggleTheme, showNotification]);
@@ -105,12 +104,12 @@ export default function ProfileScreen() {
     try {
       const updatedSettings = { ...settings, isAuthenticated: false };
       await StorageService.saveSettings(updatedSettings);
-      console.log('[Profile] User signed out');
+      console.log('[TechTime] User signed out');
       if (isMounted.current) {
         router.replace('/auth');
       }
     } catch (error) {
-      console.log('[Profile] Error signing out:', error);
+      console.log('[TechTime] Error signing out:', error);
       showNotification('Error signing out', 'error');
     }
   }, [settings, showNotification]);
@@ -128,14 +127,14 @@ export default function ProfileScreen() {
             try {
               await StorageService.clearAllData();
               showNotification('All data cleared successfully', 'success');
-              console.log('[Profile] All data cleared');
+              console.log('[TechTime] All data cleared');
               setTimeout(() => {
                 if (isMounted.current) {
                   router.replace('/auth');
                 }
               }, 1500);
             } catch (error) {
-              console.log('[Profile] Error clearing data:', error);
+              console.log('[TechTime] Error clearing data:', error);
               showNotification('Error clearing data', 'error');
             }
           }
@@ -146,26 +145,26 @@ export default function ProfileScreen() {
 
   const safeNavigate = useCallback((path: string) => {
     if (isNavigating.current) {
-      console.log('[Profile] Navigation already in progress, ignoring');
+      console.log('[TechTime] Navigation already in progress, ignoring');
       return;
     }
     
     if (!isMounted.current) {
-      console.log('[Profile] Component unmounted, canceling navigation');
+      console.log('[TechTime] Component unmounted, canceling navigation');
       return;
     }
     
     isNavigating.current = true;
     
     try {
-      console.log('[Profile] Navigating to:', path);
+      console.log('[TechTime] Navigating to:', path);
       router.push(path);
       
       navigationTimeout.current = setTimeout(() => {
         isNavigating.current = false;
       }, 1000);
     } catch (error) {
-      console.log('[Profile] Navigation error:', error);
+      console.log('[TechTime] Navigation error:', error);
       isNavigating.current = false;
       showNotification('Navigation error. Please try again.', 'error');
     }
@@ -197,7 +196,8 @@ export default function ProfileScreen() {
       />
       
       <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Profile & Settings</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>TechTime – Buckston Rugge</Text>
       </View>
 
       <ScrollView
@@ -219,7 +219,7 @@ export default function ProfileScreen() {
                 showNotification(`Name updated to ${name}`, 'success');
               }
             } catch (error) {
-              console.log('[Profile] Error updating name:', error);
+              console.log('[TechTime] Error updating name:', error);
               showNotification('Error updating name', 'error');
             }
           }}
@@ -285,7 +285,7 @@ export default function ProfileScreen() {
                 showNotification('Settings updated successfully', 'success');
               }
             } catch (error) {
-              console.log('[Profile] Error updating settings:', error);
+              console.log('[TechTime] Error updating settings:', error);
               showNotification('Error updating settings', 'error');
             }
           }}
@@ -329,7 +329,7 @@ export default function ProfileScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>📐 Metrics & Formulas</Text>
           <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-            Customize the calculation formulas used throughout the app for AWs, efficiency, and performance metrics.
+            Customize the calculation formulas used throughout TechTime for AWs, efficiency, and performance metrics.
           </Text>
           <TouchableOpacity style={[styles.button, styles.metricsButton]} onPress={() => safeNavigate('/metrics')}>
             <Text style={styles.buttonText}>⚙️ Edit Formulas</Text>
@@ -347,7 +347,7 @@ export default function ProfileScreen() {
                 showNotification('Security settings updated', 'success');
               }
             } catch (error) {
-              console.log('[Profile] Error updating security:', error);
+              console.log('[TechTime] Error updating security:', error);
               showNotification('Error updating security settings', 'error');
             }
           }}
@@ -387,7 +387,7 @@ export default function ProfileScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>❓ Help & Support</Text>
           <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>
-            Access the complete user guide with detailed instructions on how to use every feature of the app, including security settings.
+            Access the complete user guide with detailed instructions on how to use every feature of TechTime, including security settings.
           </Text>
           <TouchableOpacity style={[styles.button, styles.helpButton]} onPress={() => safeNavigate('/help')}>
             <Text style={styles.buttonText}>📖 Open User Guide</Text>
@@ -398,10 +398,13 @@ export default function ProfileScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>ℹ️ About</Text>
           <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
-            Technician Records App v1.0.0
+            TechTime v1.0.0
           </Text>
           <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
             Professional job tracking for vehicle technicians
+          </Text>
+          <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
+            Buckston Rugge Edition
           </Text>
           <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
             Privacy Focused • Secure • Reliable
@@ -430,7 +433,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   contentContainer: {
     padding: 20,

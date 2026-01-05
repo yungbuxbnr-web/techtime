@@ -41,7 +41,7 @@ export default function SetNameScreen() {
       return;
     }
 
-    console.log('Name validated, moving to PIN setup');
+    console.log('[TechTime] Name validated, moving to PIN setup');
     setStep('pin');
   }, [technicianName, showNotification]);
 
@@ -68,15 +68,15 @@ export default function SetNameScreen() {
         isAuthenticated: false 
       });
       
-      showNotification(`Welcome, ${technicianName.trim()}! Your PIN has been set.`, 'success');
-      console.log('Setup complete - name and PIN saved');
+      showNotification(`Welcome to TechTime, ${technicianName.trim()}! Your PIN has been set.`, 'success');
+      console.log('[TechTime] Setup complete - name and PIN saved');
       
       // Navigate to auth screen after a short delay
       setTimeout(() => {
         router.replace('/auth');
       }, 1500);
     } catch (error) {
-      console.log('Error during setup:', error);
+      console.log('[TechTime] Error during setup:', error);
       showNotification('Error saving setup. Please try again.', 'error');
     }
   }, [technicianName, newPin, confirmPin, showNotification]);
@@ -114,11 +114,12 @@ export default function SetNameScreen() {
           {step === 'name' ? (
             <>
               <View style={styles.header}>
-                <Text style={styles.icon}>👤</Text>
-                <Text style={styles.title}>Welcome to Technician Records</Text>
+                <Text style={styles.icon}>🔧</Text>
+                <Text style={styles.title}>Welcome to TechTime</Text>
                 <Text style={styles.subtitle}>
-                  Let&apos;s get started by setting up your profile
+                  Professional job tracking for vehicle technicians
                 </Text>
+                <Text style={styles.brandText}>Buckston Rugge Edition</Text>
                 <View style={styles.stepIndicator}>
                   <View style={[styles.stepDot, styles.stepDotActive]} />
                   <View style={styles.stepDot} />
@@ -178,7 +179,7 @@ export default function SetNameScreen() {
               <View style={styles.form}>
                 <Text style={styles.label}>Create Your PIN</Text>
                 <Text style={styles.description}>
-                  Choose a 4-6 digit PIN that you&apos;ll remember. You&apos;ll need this to access the app.
+                  Choose a 4-6 digit PIN that you&apos;ll remember. You&apos;ll need this to access TechTime.
                 </Text>
                 
                 <TextInput
@@ -291,6 +292,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  brandText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    textAlign: 'center',
     marginBottom: 20,
   },
   stepIndicator: {
