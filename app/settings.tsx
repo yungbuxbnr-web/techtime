@@ -12,6 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import AbsenceLogger from '../components/AbsenceLogger';
 import SecuritySettings from '../components/SecuritySettings';
 import ProfileSettings from '../components/ProfileSettings';
+import { navigationGuard } from '../utils/navigationGuard';
 
 export default function SettingsScreen() {
   const { theme, colors, toggleTheme } = useTheme();
@@ -22,8 +23,6 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   
   const isMounted = useRef(true);
-  const isNavigating = useRef(false);
-  const navigationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const isDarkMode = theme === 'dark';
 
@@ -31,9 +30,7 @@ export default function SettingsScreen() {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (navigationTimeout.current) {
-        clearTimeout(navigationTimeout.current);
-      }
+      navigationGuard.cleanup();
     };
   }, []);
 
@@ -167,30 +164,9 @@ export default function SettingsScreen() {
   }, [showNotification]);
 
   const safeNavigate = useCallback((path: string) => {
-    if (isNavigating.current) {
-      console.log('[Settings] Navigation already in progress, ignoring');
-      return;
-    }
-    
-    if (!isMounted.current) {
-      console.log('[Settings] Component unmounted, canceling navigation');
-      return;
-    }
-    
-    isNavigating.current = true;
-    
-    try {
-      console.log('[Settings] Navigating to:', path);
-      router.push(path);
-      
-      // Reset navigation lock after a delay
-      navigationTimeout.current = setTimeout(() => {
-        isNavigating.current = false;
-      }, 1000);
-    } catch (error) {
-      console.log('[Settings] Navigation error:', error);
-      isNavigating.current = false;
-      showNotification('Navigation error. Please try again.', 'error');
+    const success = navigationGuard.safeNavigate(path);
+    if (!success) {
+      showNotification('Please wait before navigating again', 'info');
     }
   }, [showNotification]);
 

@@ -10,14 +10,14 @@ import { TimeTrackingService } from '../utils/timeTrackingService';
 
 const WORK_CALENDAR_KEY = 'work_calendar_data';
 
-interface WorkCalendarData {
+type WorkCalendarData = {
   [yearMonth: string]: {
     [day: number]: {
       isWorkDay: boolean;
       reason?: 'annual_leave' | 'external_training' | 'work';
     };
   };
-}
+};
 
 export default function WorkScheduleCalendarScreen() {
   const { colors } = useTheme();
@@ -48,7 +48,7 @@ export default function WorkScheduleCalendarScreen() {
         setCalendarData(JSON.parse(data));
       }
     } catch (error) {
-      console.log('Error loading calendar data:', error);
+      console.log('[WorkScheduleCalendar] Error loading calendar data:', error);
     }
   };
 
@@ -57,7 +57,7 @@ export default function WorkScheduleCalendarScreen() {
       await AsyncStorage.setItem(WORK_CALENDAR_KEY, JSON.stringify(data));
       setCalendarData(data);
     } catch (error) {
-      console.log('Error saving calendar data:', error);
+      console.log('[WorkScheduleCalendar] Error saving calendar data:', error);
       showNotification('Error saving calendar data', 'error');
     }
   };
@@ -117,7 +117,7 @@ export default function WorkScheduleCalendarScreen() {
         router.back();
       }, 1500);
     } catch (error) {
-      console.log('Error saving Saturday selection:', error);
+      console.log('[WorkScheduleCalendar] Error saving Saturday selection:', error);
       showNotification('Error saving selection', 'error');
     }
   };

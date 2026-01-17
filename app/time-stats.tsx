@@ -33,9 +33,9 @@ export default function TimeStatsScreen() {
     try {
       const currentStats = await TimeTrackingService.getCurrentStats();
       setStats(currentStats);
-      console.log('Time stats loaded:', currentStats);
+      console.log('[TimeStats] Time stats loaded:', currentStats);
     } catch (error) {
-      console.log('Error loading time stats:', error);
+      console.log('[TimeStats] Error loading time stats:', error);
     }
   };
 

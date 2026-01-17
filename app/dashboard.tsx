@@ -297,13 +297,7 @@ export default function DashboardScreen() {
     console.log('[Dashboard] Applying scan results and navigating to add-job');
     
     // Navigate to add-job with scan data
-    router.push({
-      pathname: '/add-job',
-      params: {
-        scannedReg: data.reg || '',
-        scannedWip: data.wip || '',
-      }
-    });
+    safeNavigate(`/add-job?scannedReg=${encodeURIComponent(data.reg || '')}&scannedWip=${encodeURIComponent(data.wip || '')}`);
     
     showNotification('Scan data ready! Complete the job details.', 'success');
   };

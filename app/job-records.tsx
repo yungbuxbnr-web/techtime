@@ -9,6 +9,7 @@ import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
+import { navigationGuard } from '../utils/navigationGuard';
 
 type FilterField = 'all' | 'reg' | 'wip' | 'jobType';
 
@@ -31,9 +32,9 @@ export default function JobRecordsScreen() {
       const sortedJobs = jobsData.sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
       setJobs(sortedJobs);
       setFilteredJobs(sortedJobs);
-      console.log('Loaded jobs:', sortedJobs.length);
+      console.log('[JobRecords] Loaded jobs:', sortedJobs.length);
     } catch (error) {
-      console.log('Error loading jobs:', error);
+      console.log('[JobRecords] Error loading jobs:', error);
       showNotification('Error loading jobs', 'error');
     }
   }, [showNotification]);
@@ -42,19 +43,20 @@ export default function JobRecordsScreen() {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
+        console.log('[JobRecords] User not authenticated, redirecting to auth');
         router.replace('/auth');
         return;
       }
       await loadJobs();
     } catch (error) {
-      console.log('Error checking auth:', error);
+      console.log('[JobRecords] Error checking auth:', error);
       router.replace('/auth');
     }
   }, [loadJobs]);
 
   useFocusEffect(
     useCallback(() => {
+      navigationGuard.reset();
       checkAuthAndLoadJobs();
     }, [checkAuthAndLoadJobs])
   );
@@ -86,7 +88,7 @@ export default function JobRecordsScreen() {
     });
 
     setFilteredJobs(filtered);
-    console.log(`Filtered ${filtered.length} jobs with query "${query}" on field "${field}"`);
+    console.log(`[JobRecords] Filtered ${filtered.length} jobs with query "${query}" on field "${field}"`);
   }, [jobs]);
 
   const handleSearchChange = (text: string) => {
@@ -104,20 +106,27 @@ export default function JobRecordsScreen() {
     setNotification({ ...notification, visible: false });
   };
 
+  const safeNavigate = useCallback((path: string) => {
+    const success = navigationGuard.safeNavigate(path);
+    if (!success) {
+      showNotification('Please wait before navigating again', 'info');
+    }
+  }, [showNotification]);
+
   const navigateToDashboard = () => {
-    router.push('/dashboard');
+    safeNavigate('/dashboard');
   };
 
   const navigateToJobs = () => {
-    router.push('/jobs');
+    safeNavigate('/jobs');
   };
 
   const navigateToStatistics = () => {
-    router.push('/statistics');
+    safeNavigate('/statistics');
   };
 
   const navigateToSettings = () => {
-    router.push('/settings');
+    safeNavigate('/settings');
   };
 
   const formatDate = (dateString: string) => {

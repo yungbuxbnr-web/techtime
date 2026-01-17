@@ -9,6 +9,7 @@ import { CalculationService } from '../utils/calculations';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
+import { navigationGuard } from '../utils/navigationGuard';
 
 export default function StatisticsScreen() {
   const { colors } = useTheme();
@@ -28,15 +29,15 @@ export default function StatisticsScreen() {
     try {
       const settings = await StorageService.getSettings();
       if (!settings.isAuthenticated) {
-        console.log('User not authenticated, redirecting to auth');
+        console.log('[Statistics] User not authenticated, redirecting to auth');
         router.replace('/auth');
         return;
       }
       const jobsData = await StorageService.getJobs();
       setJobs(jobsData);
-      console.log('Statistics loaded:', jobsData.length, 'jobs');
+      console.log('[Statistics] Loaded:', jobsData.length, 'jobs');
     } catch (error) {
-      console.log('Error loading jobs:', error);
+      console.log('[Statistics] Error loading jobs:', error);
       router.replace('/auth');
     }
   }, []);
@@ -44,6 +45,7 @@ export default function StatisticsScreen() {
   // Use useFocusEffect instead of useEffect to reload data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      navigationGuard.reset();
       checkAuthAndLoadJobs();
     }, [checkAuthAndLoadJobs])
   );
@@ -79,16 +81,23 @@ export default function StatisticsScreen() {
     return CalculationService.minutesToHours(totalMinutes);
   };
 
+  const safeNavigate = useCallback((path: string) => {
+    const success = navigationGuard.safeNavigate(path);
+    if (!success) {
+      showNotification('Please wait before navigating again', 'info');
+    }
+  }, [showNotification]);
+
   const navigateToDashboard = () => {
-    router.push('/dashboard');
+    safeNavigate('/dashboard');
   };
 
   const navigateToJobs = () => {
-    router.push('/jobs');
+    safeNavigate('/jobs');
   };
 
   const navigateToSettings = () => {
-    router.push('/settings');
+    safeNavigate('/settings');
   };
 
   const formatDate = (dateString: string) => {
@@ -355,7 +364,7 @@ export default function StatisticsScreen() {
           <TouchableOpacity style={styles.navItem} onPress={navigateToJobs}>
             <Text style={styles.navText}>Jobs</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navItem} onPress={() => {}}>
+          <TouchableOpacity style={styles.navItem} onPress={() => console.log('[Statistics] Already on Statistics')}>
             <Text style={[styles.navText, styles.navTextActive]}>Statistics</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={navigateToSettings}>

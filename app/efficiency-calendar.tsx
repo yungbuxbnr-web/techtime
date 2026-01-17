@@ -73,7 +73,7 @@ export default function EfficiencyCalendarScreen() {
 
       calculateMonthData(jobsData, currentDate, absenceHours);
     } catch (error) {
-      console.log('Error loading calendar data:', error);
+      console.log('[EfficiencyCalendar] Error loading calendar data:', error);
       showNotification('Error loading data', 'error');
     }
   }, [currentDate, showNotification]);
@@ -102,7 +102,7 @@ export default function EfficiencyCalendarScreen() {
       });
 
       const totalAWs = dayJobs.reduce((sum, job) => sum + job.awValue, 0);
-      const totalSoldHours = CalculationService.awsToHours(totalAWs);
+      const totalSoldHours = CalculationService.calculateSoldHours(totalAWs);
       
       const dayOfWeek = dayDate.getDay();
       const availableHours = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 8.5 : 0;

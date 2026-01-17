@@ -10,6 +10,7 @@ import { MonthlyResetService } from '../utils/monthlyReset';
 import { Job } from '../types';
 import NotificationToast from '../components/NotificationToast';
 import { useTheme } from '../contexts/ThemeContext';
+import { navigationGuard } from '../utils/navigationGuard';
 
 export default function JobsScreen() {
   const { colors } = useTheme();
@@ -23,16 +24,12 @@ export default function JobsScreen() {
   const [notification, setNotification] = useState({ visible: false, message: '', type: 'info' as const });
   
   const isMounted = useRef(true);
-  const isNavigating = useRef(false);
-  const navigationTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (navigationTimeout.current) {
-        clearTimeout(navigationTimeout.current);
-      }
+      navigationGuard.cleanup();
     };
   }, []);
 
@@ -101,7 +98,7 @@ export default function JobsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      isNavigating.current = false;
+      navigationGuard.reset();
       checkAuthAndLoadJobs();
     }, [checkAuthAndLoadJobs])
   );
@@ -135,53 +132,17 @@ export default function JobsScreen() {
   };
 
   const handleEditJob = (job: Job) => {
-    if (isNavigating.current || !isMounted.current) {
-      console.log('[Jobs] Navigation blocked - already navigating or unmounted');
-      return;
-    }
-    
-    isNavigating.current = true;
-    
-    try {
-      console.log('[Jobs] Navigating to edit job:', job.id);
-      router.push(`/add-job?editId=${job.id}`);
-      
-      // Reset navigation lock after a delay
-      navigationTimeout.current = setTimeout(() => {
-        isNavigating.current = false;
-      }, 1000);
-    } catch (error) {
-      console.log('[Jobs] Navigation error:', error);
-      isNavigating.current = false;
-      showNotification('Navigation error. Please try again.', 'error');
+    console.log('[Jobs] Navigating to edit job:', job.id);
+    const success = navigationGuard.safeNavigate(`/add-job?editId=${job.id}`);
+    if (!success) {
+      showNotification('Please wait before navigating again', 'info');
     }
   };
 
   const safeNavigate = useCallback((path: string) => {
-    if (isNavigating.current) {
-      console.log('[Jobs] Navigation already in progress, ignoring');
-      return;
-    }
-    
-    if (!isMounted.current) {
-      console.log('[Jobs] Component unmounted, canceling navigation');
-      return;
-    }
-    
-    isNavigating.current = true;
-    
-    try {
-      console.log('[Jobs] Navigating to:', path);
-      router.push(path);
-      
-      // Reset navigation lock after a delay
-      navigationTimeout.current = setTimeout(() => {
-        isNavigating.current = false;
-      }, 1000);
-    } catch (error) {
-      console.log('[Jobs] Navigation error:', error);
-      isNavigating.current = false;
-      showNotification('Navigation error. Please try again.', 'error');
+    const success = navigationGuard.safeNavigate(path);
+    if (!success) {
+      showNotification('Please wait before navigating again', 'info');
     }
   }, [showNotification]);
 
