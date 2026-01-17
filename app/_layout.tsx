@@ -19,17 +19,17 @@ function RootLayoutContent() {
 
     if (Platform.OS !== 'web') {
       PermissionsService.requestPermissionsOnFirstLaunch().then(() => {
-        console.log('[App] Permissions check completed');
+        console.log('[TechTime] Permissions check completed');
       }).catch(error => {
-        console.log('[App] Error requesting permissions:', error);
+        console.log('[TechTime] Error requesting permissions:', error);
       });
     }
 
     if (Platform.OS !== 'web') {
       initializeBackgroundTasks().then(result => {
-        console.log('[App] Background tasks initialization:', result.message);
+        console.log('[TechTime] Background tasks initialization:', result.message);
       }).catch(error => {
-        console.log('[App] Error initializing background tasks:', error);
+        console.log('[TechTime] Error initializing background tasks:', error);
       });
     }
   }, []);
@@ -38,9 +38,9 @@ function RootLayoutContent() {
     try {
       const settings = await StorageService.getSettings();
       await StorageService.saveSettings({ ...settings, isAuthenticated: false });
-      console.log('[App] Authentication reset - PIN required on app launch');
+      console.log('[TechTime] Authentication reset - PIN required on app launch');
     } catch (error) {
-      console.log('[App] Error resetting authentication:', error);
+      console.log('[TechTime] Error resetting authentication:', error);
     }
   };
 
@@ -52,7 +52,28 @@ function RootLayoutContent() {
         gestureEnabled: true,
         gestureDirection: 'horizontal',
       }}
-    />
+    >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="set-name" options={{ headerShown: false }} />
+      <Stack.Screen name="auth" options={{ headerShown: false }} />
+      <Stack.Screen name="dashboard" options={{ headerShown: false }} />
+      <Stack.Screen name="jobs" options={{ headerShown: false }} />
+      <Stack.Screen name="add-job" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="statistics" options={{ headerShown: false }} />
+      <Stack.Screen name="stats" options={{ headerShown: false }} />
+      <Stack.Screen name="job-records" options={{ headerShown: false }} />
+      <Stack.Screen name="export-reports" options={{ headerShown: false }} />
+      <Stack.Screen name="import-jobs" options={{ headerShown: false }} />
+      <Stack.Screen name="work-schedule" options={{ headerShown: false }} />
+      <Stack.Screen name="work-schedule-calendar" options={{ headerShown: false }} />
+      <Stack.Screen name="efficiency-calendar" options={{ headerShown: false }} />
+      <Stack.Screen name="time-stats" options={{ headerShown: false }} />
+      <Stack.Screen name="metrics" options={{ headerShown: false }} />
+      <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+      <Stack.Screen name="permissions" options={{ headerShown: false }} />
+      <Stack.Screen name="help" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 
