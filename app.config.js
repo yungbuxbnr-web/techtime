@@ -1,9 +1,6 @@
 
 /**
  * Expo App Configuration
- * 
- * This file provides better environment variable handling
- * and prevents build failures when NODE_ENV or other variables are not set.
  */
 
 const NODE_ENV = process.env.NODE_ENV || 'production';
@@ -137,9 +134,6 @@ module.exports = {
       typedRoutes: true,
     },
     extra: {
-      router: {
-        origin: false
-      },
       eas: {
         projectId: process.env.EXPO_PROJECT_ID || undefined,
       },
