@@ -1,3 +1,4 @@
+
 const { getDefaultConfig } = require('expo/metro-config');
 const { FileStore } = require('metro-cache');
 const path = require('path');
@@ -5,7 +6,8 @@ const fs = require('fs');
 
 const config = getDefaultConfig(__dirname);
 
-config.resolver.unstable_enablePackageExports = true;
+// REMOVED: config.resolver.unstable_enablePackageExports = true;
+// This unstable flag was causing expo-router config issues
 
 // Use turborepo to restore the cache when possible
 config.cacheStores = [
