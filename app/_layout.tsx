@@ -13,6 +13,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 
 function RootLayoutContent() {
   useEffect(() => {
+    console.log('[TechTime] App starting - initializing...');
     setupErrorLogging();
 
     resetAuthentication();

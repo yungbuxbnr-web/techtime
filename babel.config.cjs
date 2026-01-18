@@ -27,6 +27,8 @@ module.exports = function (api) {
         },
       ],
       'react-native-reanimated/plugin',
+      // CRITICAL: expo-router/babel must be last (after reanimated)
+      'expo-router/babel',
     ],
     env: {
       production: {
