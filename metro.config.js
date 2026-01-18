@@ -6,9 +6,6 @@ const fs = require('fs');
 
 const config = getDefaultConfig(__dirname);
 
-// REMOVED: config.resolver.unstable_enablePackageExports = true;
-// This unstable flag was causing expo-router config issues
-
 // Use turborepo to restore the cache when possible
 config.cacheStores = [
     new FileStore({ root: path.join(__dirname, 'node_modules', '.cache', 'metro') }),
